@@ -7,10 +7,10 @@ except:
     
 
 class Parameter(object):
-    def __init__(self, name: str, group: str = "", default: float = 0.0, prefix: str = "", minimum: float = -99999.0, maximum: float = 99999.0):
+    def __init__(self, id: str, group: str = "", default: float = 0.0, prefix: str = "", minimum: float = -99999.0, maximum: float = 99999.0):
         self._value:float = default
         self._data_type = float
-        self.name = name
+        self.id = id
         self.group = group
         self.default = default
         self.prefix = prefix
@@ -61,7 +61,7 @@ class Parameter(object):
             addr += self.prefix + "/"
         if not self.group == "":
             addr += self.group + "/"
-        addr += self.name    
+        addr += self.id    
         return addr
     
     def interactive_widget(self):
@@ -70,7 +70,7 @@ class Parameter(object):
                 value=self._value,
                 min=self.minimum,
                 max=self.maximum,
-                description=self.name,
+                description=self.id,
                 disabled=False,
                 continuous_update=True,
                 orientation='horizontal',
@@ -89,10 +89,10 @@ class Parameter(object):
         self._value_callbacks.append(f)
         
 class ParameterString(Parameter):
-    def __init__(self, name: str, group: str = "", default: str = "", prefix: str = ""):
+    def __init__(self, id: str, group: str = "", default: str = "", prefix: str = ""):
         self._value :str = default
         self._data_type = str
-        self.name = name
+        self.id = id
         self.group = group
         self.default = default
         self.prefix = prefix
@@ -107,7 +107,7 @@ class ParameterString(Parameter):
         self._interactive_widget = interactive(self.set_from_internal_widget,
                 value=widgets.Textarea(
                 value=self._value,
-                description=self.name,
+                description=self.id,
                 disabled=False,
                 continuous_update=True,
 #                 orientation='horizontal',
@@ -118,10 +118,10 @@ class ParameterString(Parameter):
     
 
 class ParameterInt(Parameter):
-    def __init__(self, name: str, group: str = "", default: int = 0, prefix: str = "", minimum: int = 0, maximum: int = 127):
+    def __init__(self, id: str, group: str = "", default: int = 0, prefix: str = "", minimum: int = 0, maximum: int = 127):
         self._value :int = default
         self._data_type = int
-        self.name = name
+        self.id = id
         self.group = group
         self.default = default
         self.prefix = prefix
@@ -138,7 +138,7 @@ class ParameterInt(Parameter):
 #         self._interactive_widget = interactive(self.set_from_internal_widget,
 #                 value=widgets.Textarea(
 #                 value=self._value,
-#                 description=self.name,
+#                 description=self.id,
 #                 disabled=False,
 #                 continuous_update=True,
 # #                 orientation='horizontal',
@@ -148,7 +148,7 @@ class ParameterInt(Parameter):
 #         return self._interactive_widget
 
 class ParameterBundle(object):
-    def __init__(self, name):
+    def __init__(self, id):
         self.parameters = []
         str:self.id = ''
     
