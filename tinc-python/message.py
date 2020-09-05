@@ -18,6 +18,8 @@ class Message(object):
             self.data = data
         self.read_counter = 0
     
+    def empty(self):
+        return len(self.data) == 0 or self.read_counter == len(self.data)
     
     # Read functions -----------------------------------
     
@@ -28,6 +30,16 @@ class Message(object):
     
     def get_uint32(self):
         b = struct.unpack('L', self.data[self.read_counter: self.read_counter + 4])
+        self.read_counter += 4
+        return b[0]
+    
+    def get_int32(self):
+        b = struct.unpack('i', self.data[self.read_counter: self.read_counter + 4])
+        self.read_counter += 4
+        return b[0]
+    
+    def get_float(self):
+        b = struct.unpack('f', self.data[self.read_counter: self.read_counter + 4])
         self.read_counter += 4
         return b[0]
     

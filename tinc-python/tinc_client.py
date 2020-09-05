@@ -5,7 +5,7 @@ from typing import List, Any
 import struct
 from threading import Lock
 
-from parameter import Parameter, ParameterString, ParameterInt
+from parameter import Parameter, ParameterString, ParameterInt, ParameterBool
 from processor import CppProcessor, ScriptProcessor, ComputationChain
 from parameter_server import ParameterServer
 from datapool import DataPool
@@ -53,10 +53,16 @@ commands = {
 
 # TODO complete
 parameter_types = {
-    'INT' : 0x00,
-    'FLOAT' : 0x01,
-    'STRING' : 0x02
-    
+    'PARAMETER_FLOAT' : 0x01,
+    'PARAMETER_BOOL' : 0x02,
+    'PARAMETER_STRING' : 0x03,
+    'PARAMETER_INT32' : 0x04,
+    'PARAMETER_VEC3F' : 0x05,
+    'PARAMETER_VEC4F' : 0x06,
+    'PARAMETER_COLORF' : 0x07,
+    'PARAMETER_POSED' : 0x08,
+    'PARAMETER_CHOICE' : 0x09,
+    'PARAMETER_TRIGGER' : 0x10
     }
 
 processor_types = {
@@ -66,13 +72,19 @@ processor_types = {
     
     }
 
+parameter_update_commands = {
+    'CONFIGURE_PARAMETER_VALUE' : 0x01,
+    'CONFIGURE_PARAMETER_MIN' : 0x02,
+    'CONFIGURE_PARAMETER_MAX' : 0x03
+    }
+
 data_pool_commands = {
     'CREATE_DATA_SLICE' : 0x01
     }
 
 class TincClient(object):
-    def __init__(self, server_addr: str = "127.0.0.1",
-                 server_port: int = 16987):
+    def __init__(self, server_addr: str = "localhost",
+                 server_port: int = 34450):
         
         self.connected = False
         self.parameters = []
@@ -151,27 +163,79 @@ class TincClient(object):
             self.socket.send(message.data)
         else:
             print("NOT CONNECTED")
-
         
-        
-    def register_parameter(self, message):
-        pass
-        # if len(message) < 7:
-        #     print("Unexpected parameter message lenght")
-        #     return
-        # if message[1] == PARAMETER_INT:
-        #     pass
-    
-        # name, group, default, prefix, minimum, maximum = args
-        # if type(default) == float:
-        #     new_param = Parameter(name, group, default, prefix, minimum, maximum)
-        # elif type(default) == str:
-        #     new_param = ParameterString(name, group, default, prefix)
-        # elif type(default) == int:
-        #     new_param = ParameterInt(name, group, default, prefix, minimum, maximum)
+    def register_parameter(self, message):        
+        name = message.get_string()
+        group = message.get_string()
+        param_type = message.get_byte()
 
-        # print(f"Registering parameter {args[0]} from {client_address}")
-        # self.pserver.register_parameter(new_param)
+        if param_type == parameter_types['PARAMETER_FLOAT'] : 
+            default = message.get_float()
+            minValue = message.get_float()
+            maxValue = message.get_float()
+            new_param = Parameter(self, name, group, default, minValue, maxValue)
+            pass
+        elif param_type == parameter_types['PARAMETER_BOOL'] :
+            default = message.get_float()
+            new_param = ParameterBool(self, name, group, default)
+            pass
+        elif param_type == parameter_types['PARAMETER_STRING'] :
+            default = message.get_string()
+            minValue = message.get_string()
+            maxValue = message.get_string()
+            new_param = Parameter(self, name, group, default, minValue, maxValue)
+            pass
+        elif param_type == parameter_types['PARAMETER_INT32'] : 
+            default = message.get_int32()
+            minValue = message.get_int32()
+            maxValue = message.get_int32()
+            new_param = Parameter(self, name, group, default, minValue, maxValue)
+            pass
+        elif param_type == parameter_types['PARAMETER_VEC3F'] :
+            pass
+        elif param_type == parameter_types['PARAMETER_VEC4F'] :
+            pass
+        elif param_type == parameter_types['PARAMETER_COLORF'] :
+            pass
+        elif param_type == parameter_types['PARAMETER_POSED'] :
+            pass
+        elif param_type == parameter_types['PARAMETER_CHOICE'] :
+            pass
+        elif param_type == parameter_types['PARAMETER_TRIGGER'] :
+            pass
+        else:
+            new_param = None
+            
+        if new_param:
+            param_found = False
+            for p in self.parameters:
+                if p.id == new_param.id:
+                    param_found = True
+                    break
+            if not param_found:
+                
+                self.parameters.append(new_param)
+                
+    def configure_parameter(self, message):
+        param_osc_address = message.get_string()
+        for param in self.parameters:
+            if param.get_osc_address() == param_osc_address:
+                param_command = message.get_byte()
+                if param_command == parameter_update_commands['CONFIGURE_PARAMETER_VALUE']:
+                    param.set_value_from_message(message)
+                elif param_command == parameter_update_commands['CONFIGURE_PARAMETER_MIN']:
+                    param.set_min_from_message(message)
+                elif param_command == parameter_update_commands['CONFIGURE_PARAMETER_MAX']:
+                    param.set_max_from_message(message)
+                
+    def send_parameter_value(self, param):
+        message = Message()
+        message.append(commands['CONFIGURE_PARAMETER'])
+        message.insert_string(param.get_osc_address())
+        message.append(parameter_update_commands['CONFIGURE_PARAMETER_VALUE'])
+        message.append(param.get_value_serialized())
+        self.socket.send(message.data)
+
         
     def register_processor(self, message):
         processor_type = message.get_byte()
@@ -304,6 +368,7 @@ class TincClient(object):
             self.socket.send(message.data)
         else:
             print("Not connected.")
+    
         
     def request_parameters(self):
         self.send_request_command('REQUEST_PARAMETERS')
@@ -407,12 +472,13 @@ class TincClient(object):
                     print("Expected HANDSHAKE_ACK. CLosing connection. Got {message[0]}")
             else:
                 try:
-                    message = message = Message(self.socket.recv(1024))
+                    message = Message(self.socket.recv(1024))
                 except ConnectionResetError:
                     print("Connection closed.")
                     self.socket = None
                     self.connected = False;
-                if len(message.data) > 0:
+                while not message.empty():
+                    # print(message.data)
                     command = message.get_byte()
                     if command == commands['PING']:
                         self.handle_ping() 
@@ -424,7 +490,8 @@ class TincClient(object):
                     elif command == commands['REGISTER_PARAMETER']:
                         # TODO finish
                         self.register_parameter(message)
-                        pass
+                    elif command == commands['CONFIGURE_PARAMETER']:
+                        self.configure_parameter(message)
                     elif command == commands['REGISTER_PROCESSOR']:
                         self.register_processor(message)
                     elif command == commands['CONFIGURE_PROCESSOR']:
@@ -458,6 +525,17 @@ class TincClient(object):
             print("TINC Server")
             if self.connected:
                 print("CONNECTED")
+                for param in self.parameters:
+                    param.print()
+                for ps in self.parameter_spaces:
+                    ps.print()
+                for db in self.disk_buffers:
+                    db.print()
+                for p in self.processors:
+                    p.print()
+                for dp in self.datapools:
+                    dp.print()
+                
             elif self.running:
                 print("Attempting to connect to app.")
             else:
