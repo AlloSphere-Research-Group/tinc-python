@@ -21,6 +21,9 @@ class Message(object):
     def empty(self):
         return len(self.data) == 0 or self.read_counter == len(self.data)
     
+    def remaining_bytes():
+        return self.data[read_counter:]
+    
     # Read functions -----------------------------------
     
     def get_byte(self):
@@ -36,6 +39,11 @@ class Message(object):
     def get_int32(self):
         b = struct.unpack('i', self.data[self.read_counter: self.read_counter + 4])
         self.read_counter += 4
+        return b[0]
+    
+    def get_uint64(self):
+        b = struct.unpack('Q', self.data[self.read_counter: self.read_counter + 8])
+        self.read_counter += 8
         return b[0]
     
     def get_float(self):
@@ -83,6 +91,12 @@ class Message(object):
             members.append(new_member)
         
         return members
+
+    def consume(self, num_bytes = -1):
+        if num_bytes < 0:
+            self.data = []
+        else:
+            self.data = self.data[num_bytes:]
     
     # Write functions ----------------------------------------------
     

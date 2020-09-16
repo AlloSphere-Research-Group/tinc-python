@@ -7,6 +7,12 @@ except:
     
 from message import Message
 import struct
+import numpy as np
+
+# used in set_XXX_from_message 
+import tinc_protocol_pb2 as TincProtocol
+from google.protobuf import any_pb2
+
 
 class Parameter(object):
     def __init__(self, tinc_client, id: str, group: str = "", default: float = 0.0, minimum: float = -99999.0, maximum: float = 99999.0):
@@ -20,6 +26,8 @@ class Parameter(object):
         self._data_type = float
         self.minimum = minimum
         self.maximum = maximum
+        self.ids = []
+        self.values = None
         
         # Internal
         self._value:float = default
@@ -47,7 +55,6 @@ class Parameter(object):
         # we don't relay repetitions. This stops feedback,
         # but means if this is the primary app, some things
         # might not work as expected.
-#         print("Got " + str(value))
         if not self._value == value:
             self._value = self._data_type(value)
 
@@ -61,21 +68,43 @@ class Parameter(object):
         return struct.pack('f', self._value)
     
     def set_value_from_message(self, message):
-        value = message.get_float()
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
         
-        if not self._value == value:
-            self._value = self._data_type(value)
+        # print(f"set {value.valueFloat}")
+        if not self._value == value.valueFloat:
+            self._value = self._data_type(value.valueFloat)
 
             if self._interactive_widget:
-                self._interactive_widget.children[0].value = self._data_type(value)
+                self._interactive_widget.children[0].value = self._data_type(value.valueFloat)
         for cb in self._value_callbacks:
-            cb(value)
+            cb(value.valueFloat)
+        return True
+
+    def set_space_from_message(self, message):
+        values = TincProtocol.ParameterSpaceValues()
+        message.Unpack(values)
+        self.ids = values.ids
+        count = len(values.values)
+        # print(f'setting space {count}')
+        self.values = np.ndarray((count))
+        for i, v in enumerate(values.values):
+            self.values[i] = v.valueFloat
+        return True
 
     def set_min_from_message(self, message):
-        self.minimum = message.get_float()
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        # print(f"min {value.valueFloat}")
+        self.minimum = value.valueFloat
+        return True
         
     def set_max_from_message(self, message):
-        self.minimum = message.get_float()
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        # print(f"max {value.valueFloat}")
+        self.maximum = value.valueFloat
+        return True
         
     def set_from_internal_widget(self, value):
         self._value = value
