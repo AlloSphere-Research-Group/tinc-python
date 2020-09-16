@@ -17,11 +17,14 @@ tclient = TincClient()
 while not tclient.connected:
     time.sleep(0.01)
 
-tclient.synchronize()
-    
-while len(tclient.datapools) == 0 and len(tclient.parameters) == 0:
-    time.sleep(0.5)
+#tclient.synchronize()
+tclient.request_data_pools()
 
+try:
+    while len(tclient.datapools) == 0 and len(tclient.parameters) == 0:
+        time.sleep(0.5)
+except:
+    pass
 
 tclient.print()
 

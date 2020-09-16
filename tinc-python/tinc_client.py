@@ -107,7 +107,7 @@ class TincClient(object):
         self.stop()
         print("Stopped")
         
-    def start(self, server_addr, server_port):
+    def start(self, server_addr = "localhost", server_port = 34450):
         
         # self.pserver = pserver
         self.serverAddr = server_addr
@@ -121,6 +121,7 @@ class TincClient(object):
     def stop(self):
         if self.running:
             self.running = False
+            self.socket.close()
             self.x.join()
             self.socket = None
             self.connected = False
@@ -164,6 +165,7 @@ class TincClient(object):
             message = Message()
             message.append(commands['PONG'])
             message.append(0x00)
+            raise ValueError
             self.socket.send(message.data)
         else:
             print("NOT CONNECTED")
@@ -224,13 +226,12 @@ class TincClient(object):
         else:
             print("ERROR: Unexpected payload in REGISTER PARAMETER")
                 
-    def configure_parameter(self, message):
+    def configure_parameter(self, details):
         param_details = TincProtocol.ConfigureParameter()
-        message.Unpack(param_details)
+        details.Unpack(param_details)
   
         param_osc_address = param_details.id
         
-        # print(f"configure {param_osc_address}")
         configured = True
         for param in self.parameters:
             if param.get_osc_address() == param_osc_address:
@@ -260,6 +261,8 @@ class TincClient(object):
         value = TincProtocol.ParameterValue()
         value.valueFloat = param.value
         config.configurationValue.Pack(value)
+        msg.details.Pack(config)
+        # print("send")
         self._send_message(msg)
 
         
@@ -447,16 +450,6 @@ class TincClient(object):
         pass
         
     # Send request commands
-    
-    def send_request_command(self, command, data = b'\x00'):
-        if self.socket:
-            message = Message()
-            message.append(commands[command])
-            message.append(data)
-            self.socket.send(message.data)
-        else:
-            print("Not connected.")
-    
         
     def request_parameters(self):
         tp = TincProtocol.TincMessage()
@@ -465,7 +458,7 @@ class TincClient(object):
         obj_id = TincProtocol.ObjectId()
         obj_id.id = ""
         tp.details.Pack(obj_id)
-        self.socket.send(tp.SerializeToString())
+        self._send_message(tp)
 
     def request_processors(self):
         tp = TincProtocol.TincMessage()
@@ -474,7 +467,7 @@ class TincClient(object):
         obj_id = TincProtocol.ObjectId()
         obj_id.id = ""
         tp.details.Pack(obj_id)
-        self.socket.send(tp.SerializeToString())
+        self._send_message(tp)
         
     def request_disk_buffers(self):
         tp = TincProtocol.TincMessage()
@@ -483,7 +476,7 @@ class TincClient(object):
         obj_id = TincProtocol.ObjectId()
         obj_id.id = ""
         tp.details.Pack(obj_id)
-        self.socket.send(tp.SerializeToString())
+        self._send_message(tp)
     
     def request_data_pools(self):
         tp = TincProtocol.TincMessage()
@@ -492,7 +485,7 @@ class TincClient(object):
         obj_id = TincProtocol.ObjectId()
         obj_id.id = ""
         tp.details.Pack(obj_id)
-        self.socket.send(tp.SerializeToString())
+        self._send_message(tp)
     
     def request_parameter_spaces(self):
         tp = TincProtocol.TincMessage()
@@ -501,7 +494,7 @@ class TincClient(object):
         obj_id = TincProtocol.ObjectId()
         obj_id.id = ""
         tp.details.Pack(obj_id)
-        self.socket.send(tp.SerializeToString())
+        self._send_message(tp)
         
     def request_datapool_slice_file(self, datapool_id, field, sliceDimensions):
         self.request_count_lock.acquire()
@@ -558,28 +551,37 @@ class TincClient(object):
     def _send_message(self, msg):
         size = msg.ByteSize()
         ser_size = struct.pack('N', size)
-        self.socket.send(ser_size + msg.SerializeToString())
+        num_bytes = self.socket.send(ser_size + msg.SerializeToString())
+        print(f'sent {num_bytes}')
         
     # Server ---------------
     def server_thread_function(self, ip: str, port: int):
 #         print("Starting on port " + str(port))
         message = b''
+        pc_message = TincProtocol.TincMessage()
+        
+        failed_attempts = 0
         while self.running:
-            pc_message = TincProtocol.TincMessage()
             if not self.connected:
                 self.socket = None
                 try:
                     # Attempt a connection
-                    print(f"Attempt connection. {ip}:{port}")
+                    if failed_attempts == 0:
+                        print(f"Attempt connection. {ip}:{port}")
+                    failed_attempts += 1
+                    if failed_attempts == 100:
+                        print(f"Connection failed.")
+                        self.stop()
+                        return
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.setblocking(True)
                     s.connect((ip, port))
                 except:
                     # Connection was not possible, try later
                     time.sleep(1.0)
                     continue
                     
-                s.setblocking(True)
-                s.settimeout(1.0)
+                s.settimeout(10.0)
                 print("Connected, sending handshake.")
                 hs_message = bytearray()
                 hs_message.append(commands['HANDSHAKE'])
@@ -592,23 +594,28 @@ class TincClient(object):
                 
                     self.connected = True
                     self.socket = s
+                    failed_attempts = 0
                     print("Got HANDSHAKE_ACK.")
                 else:
                     print("Expected HANDSHAKE_ACK. CLosing connection. Got {message[0]}")
             else:
+                new_message = b''
                 try:
-                    new_message = self.socket.recv(1024)
+                    new_message = self.socket.recv(256)
                     
                 except ConnectionResetError:
                     print("Connection closed.")
                     self.socket = None
                     self.connected = False;
+                    
+                except ConnectionAbortedError:
+                    print("Connection closed.")
+                    self.connected = False;
                 except socket.timeout:
-                    pass
+                    continue
                 
                 message = message + new_message
                 while len(message) > 8:
-                    # print(message)
                     message_size = struct.unpack("N", message[:8])[0]
                     
                     if len(message) < message_size + 8:
