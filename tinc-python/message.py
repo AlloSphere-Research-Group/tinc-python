@@ -21,8 +21,8 @@ class Message(object):
     def empty(self):
         return len(self.data) == 0 or self.read_counter == len(self.data)
     
-    def remaining_bytes():
-        return self.data[read_counter:]
+    def remaining_bytes(self):
+        return self.data[self.read_counter:]
     
     # Read functions -----------------------------------
     
@@ -101,7 +101,9 @@ class Message(object):
     # Write functions ----------------------------------------------
     
     def append(self, data):
-        if type(data) == int:
+        if type(data) == bytes:
+            self.data + data
+        elif type(data) == int:
             self.data.append(data)
         else:
             self.data += data

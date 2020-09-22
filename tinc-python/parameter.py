@@ -51,16 +51,10 @@ class Parameter(object):
         print(f"    Max: {self.maximum}")
             
     def set_value(self, value):
-        # This assumes we are never primary application, and
-        # we don't relay repetitions. This stops feedback,
-        # but means if this is the primary app, some things
-        # might not work as expected.
-        if not self._value == value:
-            self._value = self._data_type(value)
-
-            self.tinc_client.send_parameter_value(self)
-            if self._interactive_widget:
-                self._interactive_widget.children[0].value = self._data_type(value)
+        self._value = self._data_type(value)
+        self.tinc_client.send_parameter_value(self)
+        if self._interactive_widget:
+            self._interactive_widget.children[0].value = self._data_type(value)
         for cb in self._value_callbacks:
             cb(value)
             
@@ -145,12 +139,13 @@ class Parameter(object):
         self._value_callbacks.append(f)
         
 class ParameterString(Parameter):
-    def __init__(self, id: str, group: str = "", default: str = ""):
+    def __init__(self, tinc_client, id: str, group: str = "", default: str = ""):
         self._value :str = default
         self._data_type = str
         self.id = id
         self.group = group
         self.default = default
+        self.tinc_client = tinc_client
         
         self.parent_bundle = None
         
@@ -158,6 +153,60 @@ class ParameterString(Parameter):
         self.observers = []
         self._value_callbacks = []
         
+    # def get_value_serialized(self):
+    #     return struct.pack('f', self._value)
+    def set_value(self, value):
+        print("set")
+        if len(value) > 4:
+            value = value[:4]
+        if len(value) < 4:
+            value.append(self._value[len(value):])
+        self._value = self._data_type(value)
+        self.tinc_client.send_parameter_value(self)
+        if self._interactive_widget:
+            self._interactive_widget.children[0].value = self._data_type(value)
+        for cb in self._value_callbacks:
+            cb(value)
+    
+    def set_value_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        
+        # print(f"set {value.valueFloat}")
+        if not self._value == value.valueFloat:
+            self._value = self._data_type(value.valueFloat)
+
+            if self._interactive_widget:
+                self._interactive_widget.children[0].value = self._data_type(value.valueString)
+        for cb in self._value_callbacks:
+            cb(value.valueString)
+        return True
+
+    def set_space_from_message(self, message):
+        values = TincProtocol.ParameterSpaceValues()
+        message.Unpack(values)
+        self.ids = values.ids
+        count = len(values.values)
+        # print(f'setting space {count}')
+        self.values = np.ndarray((count))
+        for i, v in enumerate(values.values):
+            self.values[i] = v.valueString
+        return True
+
+    def set_min_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        # print(f"min {value.valueFloat}")
+        self.minimum = value.valueString
+        return True
+        
+    def set_max_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        # print(f"max {value.valueFloat}")
+        self.maximum = value.valueString
+        return True
+    
     def interactive_widget(self):
         self._interactive_widget = interactive(self.set_from_internal_widget,
                 value=widgets.Textarea(
@@ -173,7 +222,7 @@ class ParameterString(Parameter):
     
 
 class ParameterInt(Parameter):
-    def __init__(self, id: str, group: str = "", default: int = 0, minimum: int = 0, maximum: int = 127):
+    def __init__(self, tinc_client, id: str, group: str = "", default: int = 0, minimum: int = 0, maximum: int = 127):
         self._value :int = default
         self._data_type = int
         self.id = id
@@ -181,6 +230,7 @@ class ParameterInt(Parameter):
         self.default = default
         self.minimum = minimum
         self.maximum = maximum
+        self.tinc_client = tinc_client
         
         self.parent_bundle = None
         
@@ -188,7 +238,162 @@ class ParameterInt(Parameter):
         self.observers = []
         self._value_callbacks = []
         
+    def set_value_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
         
+        # print(f"set {value.valueFloat}")
+        if not self._value == value.valueInt32:
+            self._value = self._data_type(value.valueInt32)
+
+            if self._interactive_widget:
+                self._interactive_widget.children[0].value = self._data_type(value.valueInt32)
+        for cb in self._value_callbacks:
+            cb(value.valueInt32)
+        return True
+
+    def set_space_from_message(self, message):
+        values = TincProtocol.ParameterSpaceValues()
+        message.Unpack(values)
+        self.ids = values.ids
+        count = len(values.values)
+        # print(f'setting space {count}')
+        self.values = np.ndarray((count))
+        for i, v in enumerate(values.values):
+            self.values[i] = v.valueInt32
+        return True
+
+    def set_min_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        # print(f"min {value.valueFloat}")
+        self.minimum = value.valueInt32
+        return True
+        
+    def set_max_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        # print(f"max {value.valueFloat}")
+        self.maximum = value.valueInt32
+        return True
+    
+class ParameterChoice(Parameter):
+    def __init__(self, tinc_client, id: str, group: str = "", default: int = 0, minimum: int = 0, maximum: int = 127):
+        self._value :int = default
+        self._data_type = int
+        self.id = id
+        self.group = group
+        self.default = default
+        self.minimum = minimum
+        self.maximum = maximum
+        self.tinc_client = tinc_client
+        
+        self.parent_bundle = None
+        
+        self._interactive_widget = None
+        self.observers = []
+        self._value_callbacks = []
+        
+    def set_value_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        
+        # print(f"set {value.valueFloat}")
+        if not self._value == value.valueUint64:
+            self._value = self._data_type(value.valueUint64)
+
+            if self._interactive_widget:
+                self._interactive_widget.children[0].value = self._data_type(value.valueUint64)
+        for cb in self._value_callbacks:
+            cb(value.valueUint64)
+        return True
+
+    def set_space_from_message(self, message):
+        values = TincProtocol.ParameterSpaceValues()
+        message.Unpack(values)
+        self.ids = values.ids
+        count = len(values.values)
+        # print(f'setting space {count}')
+        self.values = np.ndarray((count))
+        for i, v in enumerate(values.values):
+            self.values[i] = v.valueUint64
+        return True
+
+    def set_min_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        # print(f"min {value.valueFloat}")
+        self.minimum = value.valueUint64
+        return True
+        
+    def set_max_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        # print(f"max {value.valueFloat}")
+        self.maximum = value.valueUint64
+        return True
+        
+
+class ParameterColor(Parameter):
+    def __init__(self, tinc_client, id: str, group: str = "", default = [0,0,0,0]):
+        self._value = default
+        self._data_type = lambda l: [float(f) for f in l]
+        self.id = id
+        self.group = group
+        self.default = default
+        self.minimum = [0,0,0,0]
+        self.maximum = [1,1,1,1]
+        self.tinc_client = tinc_client
+        
+        self.parent_bundle = None
+        
+        self._interactive_widget = None
+        self.observers = []
+        self._value_callbacks = []
+        
+    def set_value_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        
+        new_value = [v.valueFloat for v in value.valueList]
+        # print(f"set {value.valueFloat}")
+        if not self._value == new_value:
+            self._value = new_value
+
+            # if self._interactive_widget:
+            #     self._interactive_widget.children[0].value = self._data_type(value.valueUint64)
+        for cb in self._value_callbacks:
+            cb(self._value)
+        return True
+
+    def set_space_from_message(self, message):
+        print("No parameter space for ParameterColor")
+        # values = TincProtocol.ParameterSpaceValues()
+        # message.Unpack(values)
+        # self.ids = values.ids
+        # count = len(values.values)
+        # # print(f'setting space {count}')
+        # self.values = np.ndarray((count))
+        # for i, v in enumerate(values.values):
+        #     self.values[i] = v.valueUint64
+        return True
+
+    def set_min_from_message(self, message):
+        print("Can't set minimum for ParameterColor")
+        # value = TincProtocol.ParameterValue()
+        # message.Unpack(value)
+        # # print(f"min {value.valueFloat}")
+        # self.minimum = value.valueUint64
+        return True
+        
+    def set_max_from_message(self, message):
+        print("Can't set maximum for ParameterColor")
+        # value = TincProtocol.ParameterValue()
+        # message.Unpack(value)
+        # # print(f"max {value.valueFloat}")
+        # self.maximum = value.valueUint64
+        return True    
+
 class ParameterBool(Parameter):
     def __init__(self, p_id: str, group: str = "", default: float = 0.0):
         self._value = default

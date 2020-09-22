@@ -25,4 +25,4 @@ class DataPool(object):
         
     def print(self):
         print(f" ** DataPool: {self.id}")
-        print(f" Associated ParameterSpace idl: {self.parameter_space_id}")
+        print(f"      ParameterSpace id: {self.parameter_space_id}")

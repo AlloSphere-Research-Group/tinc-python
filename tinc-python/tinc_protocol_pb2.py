@@ -21,7 +21,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x13tinc_protocol.proto\x12\x04tinc\x1a\x19google/protobuf/any.proto\"\x82\x01\n\x0bTincMessage\x12&\n\x0bmessageType\x18\x02 \x01(\x0e\x32\x11.tinc.MessageType\x12$\n\nobjectType\x18\x03 \x01(\x0e\x32\x10.tinc.ObjectType\x12%\n\x07\x64\x65tails\x18\x04 \x01(\x0b\x32\x14.google.protobuf.Any\"\x16\n\x08ObjectId\x12\n\n\x02id\x18\x01 \x01(\t\"\xf0\x01\n\x0eParameterValue\x12\x12\n\nvalueFloat\x18\x01 \x01(\x02\x12\x13\n\x0bvalueDouble\x18\x02 \x01(\x01\x12\x12\n\nvalueInt32\x18\x03 \x01(\x05\x12\x13\n\x0bvalueUint32\x18\x04 \x01(\x05\x12\x12\n\nvalueInt64\x18\x05 \x01(\x04\x12\x13\n\x0bvalueUint64\x18\x06 \x01(\x04\x12\x11\n\tvalueInt8\x18\x07 \x01(\x04\x12\x12\n\nvalueUint8\x18\x08 \x01(\x04\x12\'\n\tvalueList\x18\x14 \x03(\x0b\x32\x14.tinc.ParameterValue\x12\x13\n\x0bvalueString\x18\x1e \x01(\t\"\xb6\x01\n\x11RegisterProcessor\x12\n\n\x02id\x18\x02 \x01(\t\x12!\n\x04type\x18\x01 \x01(\x0e\x32\x13.tinc.ProcessorType\x12\x16\n\x0einputDirectory\x18\x03 \x01(\t\x12\x12\n\ninputFiles\x18\x04 \x03(\t\x12\x17\n\x0foutputDirectory\x18\x05 \x01(\t\x12\x13\n\x0boutputFiles\x18\x06 \x03(\t\x12\x18\n\x10runningDirectory\x18\x07 \x01(\t\"P\n\x10RegisterDataPool\x12\n\n\x02id\x18\x02 \x01(\t\x12\x18\n\x10parameterSpaceId\x18\x03 \x01(\t\x12\x16\n\x0e\x63\x61\x63heDirectory\x18\x04 \x01(\t\" \n\x12RegisterDiskBuffer\x12\n\n\x02id\x18\x02 \x01(\t\"$\n\x16RegisterParameterSpace\x12\n\n\x02id\x18\x02 \x01(\t\"\x85\x01\n\x11RegisterParameter\x12\n\n\x02id\x18\x01 \x01(\t\x12\r\n\x05group\x18\x02 \x01(\t\x12)\n\x08\x64\x61taType\x18\x03 \x01(\x0e\x32\x17.tinc.ParameterDataType\x12*\n\x0c\x64\x65\x66\x61ultValue\x18\x04 \x01(\x0b\x32\x14.tinc.ParameterValue\"I\n\x14ParameterSpaceValues\x12\x0b\n\x03ids\x18\x01 \x03(\t\x12$\n\x06values\x18\x02 \x03(\x0b\x32\x14.tinc.ParameterValue\"\x86\x01\n\x12\x43onfigureParameter\x12\n\n\x02id\x18\x01 \x01(\t\x12\x32\n\x0c\x63onfigureKey\x18\x02 \x01(\x0e\x32\x1c.tinc.ParameterConfigureType\x12\x30\n\x12\x63onfigurationValue\x18\x03 \x01(\x0b\x32\x14.google.protobuf.Any\"h\n\x12\x43onfigureProcessor\x12\n\n\x02id\x18\x01 \x01(\t\x12\x14\n\x0c\x63onfigureKey\x18\x02 \x01(\t\x12\x30\n\x12\x63onfigurationValue\x18\x03 \x01(\x0b\x32\x14.google.protobuf.Any*w\n\x0bMessageType\x12\x0b\n\x07REQUEST\x10\x00\x12\n\n\x06REMOVE\x10\x01\x12\x0c\n\x08REGISTER\x10\x02\x12\r\n\tCONFIGURE\x10\x03\x12\x0b\n\x07\x43OMMAND\x10\x04\x12\x11\n\rCOMMAND_REPLY\x10\x05\x12\x08\n\x04PING\x10\x62\x12\x08\n\x04PONG\x10\x63*_\n\nObjectType\x12\r\n\tPARAMETER\x10\x00\x12\r\n\tPROCESSOR\x10\x01\x12\x0f\n\x0b\x44ISK_BUFFER\x10\x02\x12\r\n\tDATA_POOL\x10\x03\x12\x13\n\x0fPARAMETER_SPACE\x10\x04*3\n\rProcessorType\x12\x0e\n\nDATASCRIPT\x10\x00\x12\t\n\x05\x43HAIN\x10\x01\x12\x07\n\x03\x43PP\x10\x02*\xfd\x01\n\x11ParameterDataType\x12\x13\n\x0fPARAMETER_FLOAT\x10\x00\x12\x12\n\x0ePARAMETER_BOOL\x10\x01\x12\x14\n\x10PARAMETER_STRING\x10\x02\x12\x13\n\x0fPARAMETER_INT32\x10\x03\x12\x13\n\x0fPARAMETER_VEC3F\x10\x04\x12\x13\n\x0fPARAMETER_VEC4F\x10\x05\x12\x14\n\x10PARAMETER_COLORF\x10\x06\x12\x13\n\x0fPARAMETER_POSED\x10\x07\x12\x12\n\x0ePARAMETER_MENU\x10\x08\x12\x14\n\x10PARAMETER_CHOICE\x10\t\x12\x15\n\x11PARAMETER_TRIGGER\x10\n*@\n\x16ParameterConfigureType\x12\t\n\x05VALUE\x10\x00\x12\x07\n\x03MIN\x10\x01\x12\x07\n\x03MAX\x10\x02\x12\t\n\x05SPACE\x10\x03\x62\x06proto3'
+  serialized_pb=b'\n\x13tinc_protocol.proto\x12\x04tinc\x1a\x19google/protobuf/any.proto\"\x82\x01\n\x0bTincMessage\x12&\n\x0bmessageType\x18\x02 \x01(\x0e\x32\x11.tinc.MessageType\x12$\n\nobjectType\x18\x03 \x01(\x0e\x32\x10.tinc.ObjectType\x12%\n\x07\x64\x65tails\x18\x04 \x01(\x0b\x32\x14.google.protobuf.Any\"\x16\n\x08ObjectId\x12\n\n\x02id\x18\x01 \x01(\t\"\xf0\x01\n\x0eParameterValue\x12\x12\n\nvalueFloat\x18\x01 \x01(\x02\x12\x13\n\x0bvalueDouble\x18\x02 \x01(\x01\x12\x12\n\nvalueInt32\x18\x03 \x01(\x05\x12\x13\n\x0bvalueUint32\x18\x04 \x01(\x05\x12\x12\n\nvalueInt64\x18\x05 \x01(\x04\x12\x13\n\x0bvalueUint64\x18\x06 \x01(\x04\x12\x11\n\tvalueInt8\x18\x07 \x01(\x04\x12\x12\n\nvalueUint8\x18\x08 \x01(\x04\x12\'\n\tvalueList\x18\x14 \x03(\x0b\x32\x14.tinc.ParameterValue\x12\x13\n\x0bvalueString\x18\x1e \x01(\t\"\xb6\x01\n\x11RegisterProcessor\x12\n\n\x02id\x18\x01 \x01(\t\x12!\n\x04type\x18\x02 \x01(\x0e\x32\x13.tinc.ProcessorType\x12\x16\n\x0einputDirectory\x18\x03 \x01(\t\x12\x12\n\ninputFiles\x18\x04 \x03(\t\x12\x17\n\x0foutputDirectory\x18\x05 \x01(\t\x12\x13\n\x0boutputFiles\x18\x06 \x03(\t\x12\x18\n\x10runningDirectory\x18\x07 \x01(\t\"P\n\x10RegisterDataPool\x12\n\n\x02id\x18\x01 \x01(\t\x12\x18\n\x10parameterSpaceId\x18\x02 \x01(\t\x12\x16\n\x0e\x63\x61\x63heDirectory\x18\x03 \x01(\t\"h\n\x12RegisterDiskBuffer\x12\n\n\x02id\x18\x01 \x01(\t\x12\"\n\x04type\x18\x02 \x01(\x0e\x32\x14.tinc.DiskBufferType\x12\x14\n\x0c\x62\x61seFilename\x18\x03 \x01(\t\x12\x0c\n\x04path\x18\x04 \x01(\t\"$\n\x16RegisterParameterSpace\x12\n\n\x02id\x18\x01 \x01(\t\"\x85\x01\n\x11RegisterParameter\x12\n\n\x02id\x18\x01 \x01(\t\x12\r\n\x05group\x18\x02 \x01(\t\x12)\n\x08\x64\x61taType\x18\x03 \x01(\x0e\x32\x17.tinc.ParameterDataType\x12*\n\x0c\x64\x65\x66\x61ultValue\x18\x04 \x01(\x0b\x32\x14.tinc.ParameterValue\"I\n\x14ParameterSpaceValues\x12\x0b\n\x03ids\x18\x01 \x03(\t\x12$\n\x06values\x18\x02 \x03(\x0b\x32\x14.tinc.ParameterValue\"\x8a\x01\n\x12\x43onfigureParameter\x12\n\n\x02id\x18\x01 \x01(\t\x12\x36\n\x10\x63onfigurationKey\x18\x02 \x01(\x0e\x32\x1c.tinc.ParameterConfigureType\x12\x30\n\x12\x63onfigurationValue\x18\x03 \x01(\x0b\x32\x14.google.protobuf.Any\"l\n\x12\x43onfigureProcessor\x12\n\n\x02id\x18\x01 \x01(\t\x12\x18\n\x10\x63onfigurationKey\x18\x02 \x01(\t\x12\x30\n\x12\x63onfigurationValue\x18\x03 \x01(\x0b\x32\x14.google.protobuf.Any\"\x8c\x01\n\x13\x43onfigureDiskBuffer\x12\n\n\x02id\x18\x01 \x01(\t\x12\x37\n\x10\x63onfigurationKey\x18\x02 \x01(\x0e\x32\x1d.tinc.DiskBufferConfigureType\x12\x30\n\x12\x63onfigurationValue\x18\x03 \x01(\x0b\x32\x14.google.protobuf.Any*w\n\x0bMessageType\x12\x0b\n\x07REQUEST\x10\x00\x12\n\n\x06REMOVE\x10\x01\x12\x0c\n\x08REGISTER\x10\x02\x12\r\n\tCONFIGURE\x10\x03\x12\x0b\n\x07\x43OMMAND\x10\x04\x12\x11\n\rCOMMAND_REPLY\x10\x05\x12\x08\n\x04PING\x10\x62\x12\x08\n\x04PONG\x10\x63*_\n\nObjectType\x12\r\n\tPARAMETER\x10\x00\x12\r\n\tPROCESSOR\x10\x01\x12\x0f\n\x0b\x44ISK_BUFFER\x10\x02\x12\r\n\tDATA_POOL\x10\x03\x12\x13\n\x0fPARAMETER_SPACE\x10\x04*3\n\rProcessorType\x12\x0e\n\nDATASCRIPT\x10\x00\x12\t\n\x05\x43HAIN\x10\x01\x12\x07\n\x03\x43PP\x10\x02*\xfd\x01\n\x11ParameterDataType\x12\x13\n\x0fPARAMETER_FLOAT\x10\x00\x12\x12\n\x0ePARAMETER_BOOL\x10\x01\x12\x14\n\x10PARAMETER_STRING\x10\x02\x12\x13\n\x0fPARAMETER_INT32\x10\x03\x12\x13\n\x0fPARAMETER_VEC3F\x10\x04\x12\x13\n\x0fPARAMETER_VEC4F\x10\x05\x12\x14\n\x10PARAMETER_COLORF\x10\x06\x12\x13\n\x0fPARAMETER_POSED\x10\x07\x12\x12\n\x0ePARAMETER_MENU\x10\x08\x12\x14\n\x10PARAMETER_CHOICE\x10\t\x12\x15\n\x11PARAMETER_TRIGGER\x10\n*G\n\x0e\x44iskBufferType\x12\n\n\x06\x42INARY\x10\x00\x12\x08\n\x04TEXT\x10\x01\x12\n\n\x06NETCDF\x10\x02\x12\x08\n\x04JSON\x10\x03\x12\t\n\x05IMAGE\x10\x04*@\n\x16ParameterConfigureType\x12\t\n\x05VALUE\x10\x00\x12\x07\n\x03MIN\x10\x01\x12\x07\n\x03MAX\x10\x02\x12\t\n\x05SPACE\x10\x03*+\n\x17\x44iskBufferConfigureType\x12\x10\n\x0c\x43URRENT_FILE\x10\x00\x62\x06proto3'
   ,
   dependencies=[google_dot_protobuf_dot_any__pb2.DESCRIPTOR,])
 
@@ -75,8 +75,8 @@ _MESSAGETYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1249,
-  serialized_end=1368,
+  serialized_start=1472,
+  serialized_end=1591,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGETYPE)
 
@@ -116,8 +116,8 @@ _OBJECTTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1370,
-  serialized_end=1465,
+  serialized_start=1593,
+  serialized_end=1688,
 )
 _sym_db.RegisterEnumDescriptor(_OBJECTTYPE)
 
@@ -147,8 +147,8 @@ _PROCESSORTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1467,
-  serialized_end=1518,
+  serialized_start=1690,
+  serialized_end=1741,
 )
 _sym_db.RegisterEnumDescriptor(_PROCESSORTYPE)
 
@@ -218,12 +218,53 @@ _PARAMETERDATATYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1521,
-  serialized_end=1774,
+  serialized_start=1744,
+  serialized_end=1997,
 )
 _sym_db.RegisterEnumDescriptor(_PARAMETERDATATYPE)
 
 ParameterDataType = enum_type_wrapper.EnumTypeWrapper(_PARAMETERDATATYPE)
+_DISKBUFFERTYPE = _descriptor.EnumDescriptor(
+  name='DiskBufferType',
+  full_name='tinc.DiskBufferType',
+  filename=None,
+  file=DESCRIPTOR,
+  create_key=_descriptor._internal_create_key,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='BINARY', index=0, number=0,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='TEXT', index=1, number=1,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='NETCDF', index=2, number=2,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='JSON', index=3, number=3,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='IMAGE', index=4, number=4,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=1999,
+  serialized_end=2070,
+)
+_sym_db.RegisterEnumDescriptor(_DISKBUFFERTYPE)
+
+DiskBufferType = enum_type_wrapper.EnumTypeWrapper(_DISKBUFFERTYPE)
 _PARAMETERCONFIGURETYPE = _descriptor.EnumDescriptor(
   name='ParameterConfigureType',
   full_name='tinc.ParameterConfigureType',
@@ -254,12 +295,33 @@ _PARAMETERCONFIGURETYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1776,
-  serialized_end=1840,
+  serialized_start=2072,
+  serialized_end=2136,
 )
 _sym_db.RegisterEnumDescriptor(_PARAMETERCONFIGURETYPE)
 
 ParameterConfigureType = enum_type_wrapper.EnumTypeWrapper(_PARAMETERCONFIGURETYPE)
+_DISKBUFFERCONFIGURETYPE = _descriptor.EnumDescriptor(
+  name='DiskBufferConfigureType',
+  full_name='tinc.DiskBufferConfigureType',
+  filename=None,
+  file=DESCRIPTOR,
+  create_key=_descriptor._internal_create_key,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='CURRENT_FILE', index=0, number=0,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=2138,
+  serialized_end=2181,
+)
+_sym_db.RegisterEnumDescriptor(_DISKBUFFERCONFIGURETYPE)
+
+DiskBufferConfigureType = enum_type_wrapper.EnumTypeWrapper(_DISKBUFFERCONFIGURETYPE)
 REQUEST = 0
 REMOVE = 1
 REGISTER = 2
@@ -287,10 +349,16 @@ PARAMETER_POSED = 7
 PARAMETER_MENU = 8
 PARAMETER_CHOICE = 9
 PARAMETER_TRIGGER = 10
+BINARY = 0
+TEXT = 1
+NETCDF = 2
+JSON = 3
+IMAGE = 4
 VALUE = 0
 MIN = 1
 MAX = 2
 SPACE = 3
+CURRENT_FILE = 0
 
 
 
@@ -477,14 +545,14 @@ _REGISTERPROCESSOR = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='id', full_name='tinc.RegisterProcessor.id', index=0,
-      number=2, type=9, cpp_type=9, label=1,
+      number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
       name='type', full_name='tinc.RegisterProcessor.type', index=1,
-      number=1, type=14, cpp_type=8, label=1,
+      number=2, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -551,21 +619,21 @@ _REGISTERDATAPOOL = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='id', full_name='tinc.RegisterDataPool.id', index=0,
-      number=2, type=9, cpp_type=9, label=1,
+      number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
       name='parameterSpaceId', full_name='tinc.RegisterDataPool.parameterSpaceId', index=1,
-      number=3, type=9, cpp_type=9, label=1,
+      number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
       name='cacheDirectory', full_name='tinc.RegisterDataPool.cacheDirectory', index=2,
-      number=4, type=9, cpp_type=9, label=1,
+      number=3, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -597,7 +665,28 @@ _REGISTERDISKBUFFER = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='id', full_name='tinc.RegisterDiskBuffer.id', index=0,
-      number=2, type=9, cpp_type=9, label=1,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='type', full_name='tinc.RegisterDiskBuffer.type', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='baseFilename', full_name='tinc.RegisterDiskBuffer.baseFilename', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='path', full_name='tinc.RegisterDiskBuffer.path', index=3,
+      number=4, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -615,7 +704,7 @@ _REGISTERDISKBUFFER = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=723,
-  serialized_end=755,
+  serialized_end=827,
 )
 
 
@@ -629,7 +718,7 @@ _REGISTERPARAMETERSPACE = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='id', full_name='tinc.RegisterParameterSpace.id', index=0,
-      number=2, type=9, cpp_type=9, label=1,
+      number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -646,8 +735,8 @@ _REGISTERPARAMETERSPACE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=757,
-  serialized_end=793,
+  serialized_start=829,
+  serialized_end=865,
 )
 
 
@@ -699,8 +788,8 @@ _REGISTERPARAMETER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=796,
-  serialized_end=929,
+  serialized_start=868,
+  serialized_end=1001,
 )
 
 
@@ -738,8 +827,8 @@ _PARAMETERSPACEVALUES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=931,
-  serialized_end=1004,
+  serialized_start=1003,
+  serialized_end=1076,
 )
 
 
@@ -759,7 +848,7 @@ _CONFIGUREPARAMETER = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='configureKey', full_name='tinc.ConfigureParameter.configureKey', index=1,
+      name='configurationKey', full_name='tinc.ConfigureParameter.configurationKey', index=1,
       number=2, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -784,8 +873,8 @@ _CONFIGUREPARAMETER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1007,
-  serialized_end=1141,
+  serialized_start=1079,
+  serialized_end=1217,
 )
 
 
@@ -805,7 +894,7 @@ _CONFIGUREPROCESSOR = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='configureKey', full_name='tinc.ConfigureProcessor.configureKey', index=1,
+      name='configurationKey', full_name='tinc.ConfigureProcessor.configurationKey', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -830,8 +919,54 @@ _CONFIGUREPROCESSOR = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1143,
-  serialized_end=1247,
+  serialized_start=1219,
+  serialized_end=1327,
+)
+
+
+_CONFIGUREDISKBUFFER = _descriptor.Descriptor(
+  name='ConfigureDiskBuffer',
+  full_name='tinc.ConfigureDiskBuffer',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='id', full_name='tinc.ConfigureDiskBuffer.id', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='configurationKey', full_name='tinc.ConfigureDiskBuffer.configurationKey', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='configurationValue', full_name='tinc.ConfigureDiskBuffer.configurationValue', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1330,
+  serialized_end=1470,
 )
 
 _TINCMESSAGE.fields_by_name['messageType'].enum_type = _MESSAGETYPE
@@ -839,12 +974,15 @@ _TINCMESSAGE.fields_by_name['objectType'].enum_type = _OBJECTTYPE
 _TINCMESSAGE.fields_by_name['details'].message_type = google_dot_protobuf_dot_any__pb2._ANY
 _PARAMETERVALUE.fields_by_name['valueList'].message_type = _PARAMETERVALUE
 _REGISTERPROCESSOR.fields_by_name['type'].enum_type = _PROCESSORTYPE
+_REGISTERDISKBUFFER.fields_by_name['type'].enum_type = _DISKBUFFERTYPE
 _REGISTERPARAMETER.fields_by_name['dataType'].enum_type = _PARAMETERDATATYPE
 _REGISTERPARAMETER.fields_by_name['defaultValue'].message_type = _PARAMETERVALUE
 _PARAMETERSPACEVALUES.fields_by_name['values'].message_type = _PARAMETERVALUE
-_CONFIGUREPARAMETER.fields_by_name['configureKey'].enum_type = _PARAMETERCONFIGURETYPE
+_CONFIGUREPARAMETER.fields_by_name['configurationKey'].enum_type = _PARAMETERCONFIGURETYPE
 _CONFIGUREPARAMETER.fields_by_name['configurationValue'].message_type = google_dot_protobuf_dot_any__pb2._ANY
 _CONFIGUREPROCESSOR.fields_by_name['configurationValue'].message_type = google_dot_protobuf_dot_any__pb2._ANY
+_CONFIGUREDISKBUFFER.fields_by_name['configurationKey'].enum_type = _DISKBUFFERCONFIGURETYPE
+_CONFIGUREDISKBUFFER.fields_by_name['configurationValue'].message_type = google_dot_protobuf_dot_any__pb2._ANY
 DESCRIPTOR.message_types_by_name['TincMessage'] = _TINCMESSAGE
 DESCRIPTOR.message_types_by_name['ObjectId'] = _OBJECTID
 DESCRIPTOR.message_types_by_name['ParameterValue'] = _PARAMETERVALUE
@@ -856,11 +994,14 @@ DESCRIPTOR.message_types_by_name['RegisterParameter'] = _REGISTERPARAMETER
 DESCRIPTOR.message_types_by_name['ParameterSpaceValues'] = _PARAMETERSPACEVALUES
 DESCRIPTOR.message_types_by_name['ConfigureParameter'] = _CONFIGUREPARAMETER
 DESCRIPTOR.message_types_by_name['ConfigureProcessor'] = _CONFIGUREPROCESSOR
+DESCRIPTOR.message_types_by_name['ConfigureDiskBuffer'] = _CONFIGUREDISKBUFFER
 DESCRIPTOR.enum_types_by_name['MessageType'] = _MESSAGETYPE
 DESCRIPTOR.enum_types_by_name['ObjectType'] = _OBJECTTYPE
 DESCRIPTOR.enum_types_by_name['ProcessorType'] = _PROCESSORTYPE
 DESCRIPTOR.enum_types_by_name['ParameterDataType'] = _PARAMETERDATATYPE
+DESCRIPTOR.enum_types_by_name['DiskBufferType'] = _DISKBUFFERTYPE
 DESCRIPTOR.enum_types_by_name['ParameterConfigureType'] = _PARAMETERCONFIGURETYPE
+DESCRIPTOR.enum_types_by_name['DiskBufferConfigureType'] = _DISKBUFFERCONFIGURETYPE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 TincMessage = _reflection.GeneratedProtocolMessageType('TincMessage', (_message.Message,), {
@@ -939,6 +1080,13 @@ ConfigureProcessor = _reflection.GeneratedProtocolMessageType('ConfigureProcesso
   # @@protoc_insertion_point(class_scope:tinc.ConfigureProcessor)
   })
 _sym_db.RegisterMessage(ConfigureProcessor)
+
+ConfigureDiskBuffer = _reflection.GeneratedProtocolMessageType('ConfigureDiskBuffer', (_message.Message,), {
+  'DESCRIPTOR' : _CONFIGUREDISKBUFFER,
+  '__module__' : 'tinc_protocol_pb2'
+  # @@protoc_insertion_point(class_scope:tinc.ConfigureDiskBuffer)
+  })
+_sym_db.RegisterMessage(ConfigureDiskBuffer)
 
 
 # @@protoc_insertion_point(module_scope)

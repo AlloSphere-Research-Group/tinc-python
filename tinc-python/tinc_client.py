@@ -5,14 +5,18 @@ from typing import List, Any
 import struct
 from threading import Lock
 
-from parameter import Parameter, ParameterString, ParameterInt, ParameterBool
+from parameter import Parameter, ParameterString, ParameterInt, ParameterChoice, ParameterBool, ParameterColor
 from processor import CppProcessor, ScriptProcessor, ComputationChain
 from parameter_server import ParameterServer
 from datapool import DataPool
 from parameter_space import ParameterSpace
+from disk_buffer import DiskBuffer
 from message import Message
 import tinc_protocol_pb2 as TincProtocol
 from google.protobuf import any_pb2, message
+
+tinc_client_version = 1
+tinc_client_revision = 1
 
 commands = {
     "HANDSHAKE" : 0x01,
@@ -21,69 +25,8 @@ commands = {
     "GOODBYE_ACK" : 0x04,
     "PING" : 0x05,
     "PONG" : 0x06,
-    
-    # Requests from client
-    'REQUEST_PARAMETERS': 0x21,
-    'REQUEST_PROCESSORS': 0x22,
-    'REQUEST_DISK_BUFFERS': 0x23,
-    'REQUEST_DATA_POOLS': 0x24,
-    'REQUEST_PARAMETER_SPACES': 0x25,
-    
-    # Imcoming from server
-    'REGISTER_PARAMETER': 0x41,
-    'REGISTER_PROCESSOR': 0x42,
-    'REGISTER_DISK_BUFFER': 0x43,
-    'REGISTER_DATA_POOL': 0x44,
-    'REGISTER_PARAMETER_SPACE': 0x45,
-    
-    'REMOVE_PARAMETER' :0x61,
-    'REMOVE_PROCESSOR' :0x62,
-    'REMOVE_DISK_BUFFER' :0x63,
-    'REMOVE_DATA_POOL' :0x64,
-    'REMOVE_PARAMETER_SPACE' :0x65,
-
-    'CONFIGURE_PARAMETER' :0x81,
-    'CONFIGURE_PROCESSOR' :0x82,
-    'CONFIGURE_DISK_BUFFER' :0x83,
-    'CONFIGURE_DATA_POOL' :0x84,
-    'CONFIGURE_PARAMETER_SPACE' :0x85,
-    
-    'OBJECT_COMMAND': 0xA0,
-    'OBJECT_COMMAND_REPLY' : 0xA1,
-    'OBJECT_COMMAND_ERROR' : 0xA2
     }
 
-# TODO complete
-parameter_types = {
-    'PARAMETER_FLOAT' : 0x01,
-    'PARAMETER_BOOL' : 0x02,
-    'PARAMETER_STRING' : 0x03,
-    'PARAMETER_INT32' : 0x04,
-    'PARAMETER_VEC3F' : 0x05,
-    'PARAMETER_VEC4F' : 0x06,
-    'PARAMETER_COLORF' : 0x07,
-    'PARAMETER_POSED' : 0x08,
-    'PARAMETER_CHOICE' : 0x09,
-    'PARAMETER_TRIGGER' : 0x10
-    }
-
-processor_types = {
-    'CPP' : 0x01,
-    'SCRIPT' : 0x02,
-    'CHAIN' : 0x03
-    
-    }
-
-parameter_update_commands = {
-    'CONFIGURE_PARAMETER_VALUE' : 0x01,
-    'CONFIGURE_PARAMETER_MIN' : 0x02,
-    'CONFIGURE_PARAMETER_MAX' : 0x03,
-    'CONFIGURE_PARAMETER_IDS_VALUES' : 0x04
-    }
-
-data_pool_commands = {
-    'CREATE_DATA_SLICE' : 0x01
-    }
 
 class TincClient(object):
     def __init__(self, server_addr: str = "localhost",
@@ -100,6 +43,9 @@ class TincClient(object):
         self.pending_requests_count = 0
         self.pending_replies = {}
         self.request_count_lock = Lock()
+        
+        self.server_version = 0
+        self.server_revision = 0
      
         self.start(server_addr, server_port)
         
@@ -121,10 +67,13 @@ class TincClient(object):
     def stop(self):
         if self.running:
             self.running = False
+            self.connected = False
             self.socket.close()
             self.x.join()
             self.socket = None
-            self.connected = False
+        
+        self.server_version = 0
+        self.server_revision = 0
     
     # Access to objects by id
     
@@ -161,14 +110,15 @@ class TincClient(object):
     # Network message handling
     
     def handle_ping(self):
-        if self.socket:
-            message = Message()
-            message.append(commands['PONG'])
-            message.append(0x00)
-            raise ValueError
-            self.socket.send(message.data)
-        else:
-            print("NOT CONNECTED")
+        pass
+        # if self.socket:
+        #     message = Message()
+        #     message.append(commands['PONG'])
+        #     message.append(0x00)
+        #     raise ValueError
+        #     self.socket.send(message.data)
+        # else:
+        #     print("NOT CONNECTED")
         
     def register_parameter(self, details):
         if details.Is(TincProtocol.RegisterParameter.DESCRIPTOR):
@@ -186,7 +136,7 @@ class TincClient(object):
                 new_param = ParameterBool(self, name, group, details_unpacked.defaultValue.valueFloat)
                     
             elif param_type == TincProtocol.PARAMETER_STRING :
-                new_param = Parameter(self, name, group, details_unpacked.defaultValue.valueString)
+                new_param = ParameterString(self, name, group, details_unpacked.defaultValue.valueString)
             elif param_type == TincProtocol.PARAMETER_INT32 : 
                 new_param = ParameterInt(self, name, group, details_unpacked.defaultValue.valueInt32)
             elif param_type == TincProtocol.PARAMETER_VEC3F :
@@ -196,13 +146,14 @@ class TincClient(object):
                 new_param = None
                 pass
             elif param_type == TincProtocol.PARAMETER_COLORF :
-                new_param = None
+                l = [v.valueFloat for v in details_unpacked.defaultValue.valueList]
+                new_param = ParameterColor(self, name, group, l)
                 pass
             elif param_type == TincProtocol.PARAMETER_POSED :
                 new_param = None
                 pass
             elif param_type == TincProtocol.PARAMETER_CHOICE :
-                new_param = None
+                new_param = ParameterChoice(self, name, group, details_unpacked.defaultValue.valueUint64)
                 pass
             elif param_type == TincProtocol.PARAMETER_TRIGGER :
                 new_param = None
@@ -235,7 +186,7 @@ class TincClient(object):
         configured = True
         for param in self.parameters:
             if param.get_osc_address() == param_osc_address:
-                param_command = param_details.configureKey
+                param_command = param_details.configurationKey
                 if param_command == TincProtocol.ParameterConfigureType.VALUE:
                     configured = configured and param.set_value_from_message(param_details.configurationValue)
                 elif param_command == TincProtocol.ParameterConfigureType.MIN:
@@ -251,20 +202,36 @@ class TincClient(object):
             print("Parameter configuration failed")
             
     def send_parameter_value(self, param):
-        
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.CONFIGURE
         msg.objectType = TincProtocol.PARAMETER
         config = TincProtocol.ConfigureParameter()
         config.id = param.get_osc_address()
-        config.configureKey = TincProtocol.ParameterConfigureType.VALUE
+        config.configurationKey = TincProtocol.ParameterConfigureType.VALUE
         value = TincProtocol.ParameterValue()
-        value.valueFloat = param.value
+        # TODO implement all types
+        if type(param) == Parameter:
+            value.valueFloat = param.value
+        elif type(param) == ParameterString:
+            value.valueString = param.value
+        elif type(param) == ParameterChoice:
+            value.valueUint64 = param.value
+        elif type(param) == ParameterInt:
+            value.valueInt32 = param.value
+        elif type(param) == ParameterColor:
+            r = TincProtocol.ParameterValue()
+            g = TincProtocol.ParameterValue()
+            b = TincProtocol.ParameterValue()
+            a = TincProtocol.ParameterValue()
+            r.valueFloat = param.value[0]
+            g.valueFloat = param.value[1]
+            b.valueFloat = param.value[2]
+            a.valueFloat = param.value[3]
+            value.valueList.extend([r,g,b,a])
         config.configurationValue.Pack(value)
         msg.details.Pack(config)
-        # print("send")
+        print("send")
         self._send_message(msg)
-
         
     def register_processor(self, message):
         proc_details = any_pb2.Any()
@@ -314,16 +281,15 @@ class TincClient(object):
         else:
             print("Unexpected payload in Register Processor")
         
-    def configure_processor(self, message):
-        
-        proc_details = any_pb2.Any()
-        proc_details.Unpack(message.details)
-        if proc_details.Is(TincProtocol.ConfigureProcessor):
+    def configure_processor(self, details):
+        if details.Is(TincProtocol.ConfigureProcessor.DESCRIPTOR):
+            proc_details = TincProtocol.ConfigureProcessor()
+            details.Unpack(proc_details)
             proc_id= proc_details.id
-            count = proc_details.configureKey
+            count = proc_details.configurationKey
             for proc in self.processors:
                 if proc.name == proc_id:
-                    proc.configuration.update({proc_details.configureKey: proc_details.configurationValue})
+                    proc.configuration.update({proc_details.configurationKey: proc_details.configurationValue})
     
     def processor_update(self, client_address: str , address: str, *args: List[Any]):
         name = args[0]
@@ -357,27 +323,50 @@ class TincClient(object):
                 self.datapools.append(new_datapool)
         else:
             print("Unexpected paylod in Register Datapool")
-            
+        
+    # Disk buffer messages ------------------
     def register_disk_buffer(self, details):
         
-        db_details = any_pb2.Any()
-        db_details.Unpack(message.details)
-        if db_details.Is(TincProtocol.RegisterDiskBuffer):
+        if details.Is(TincProtocol.RegisterDiskBuffer.DESCRIPTOR):
+            
+            db_details = TincProtocol.RegisterDiskBuffer()
+            details.Unpack(db_details)
             disk_buffer_id= db_details.id
             
             found = False
             for db in self.disk_buffers:
                 if db.id == disk_buffer_id:
-                    print(f"DiskBuffer already registered: '{disk_buffer_id}'")
+                    if not db_details.type == db.type:
+                        print(f"DiskBuffer registered: '{disk_buffer_id}' ERROR: type mismatch")
+                    else:
+                        print(f"DiskBuffer already registered: '{disk_buffer_id}'")
                     found = True
                     break
         
             if not found:
-                new_db = DiskBuffer(disk_buffer_id)
+                
+                new_db = DiskBuffer(self, disk_buffer_id, db_details.type,
+                                    db_details.baseFilename, db_details.path)
                 self.disk_buffers.append(new_db)
         else:
             print("Unexpected payload in Register DiskBuffer")
             
+            
+    def send_disk_buffer_current_filename(self, disk_buffer, filename):
+        msg = TincProtocol.TincMessage()
+        msg.messageType  = TincProtocol.CONFIGURE
+        msg.objectType = TincProtocol.DISK_BUFFER
+        config = TincProtocol.ConfigureDiskBuffer()
+        config.id = disk_buffer.id
+        config.configurationKey = TincProtocol.DiskBufferConfigureType.CURRENT_FILE
+        value = TincProtocol.ParameterValue()
+        value.valueString = filename
+        config.configurationValue.Pack(value)
+        msg.details.Pack(config)
+        # print("send")
+        self._send_message(msg)
+    
+    # ParameterSpace messages ------------------
     def register_parameter_space(self, details):
         # print('register ps')
         if details.Is(TincProtocol.RegisterParameterSpace.DESCRIPTOR):
@@ -505,12 +494,12 @@ class TincClient(object):
         self.request_count_lock.release()
         
         message = Message()
-        message.append(commands['OBJECT_COMMAND'])
-        message.insert_as_uint32(request_number)
+        # message.append(commands['OBJECT_COMMAND'])
+        # message.insert_as_uint32(request_number)
         
-        message.append(data_pool_commands['CREATE_DATA_SLICE'])
-        message.insert_string(datapool_id)
-        message.insert_string(field)
+        # message.append(data_pool_commands['CREATE_DATA_SLICE'])
+        # message.insert_string(datapool_id)
+        # message.insert_string(field)
         
         if type(sliceDimensions) == str:
             message.append(b'\x01')
@@ -552,7 +541,7 @@ class TincClient(object):
         size = msg.ByteSize()
         ser_size = struct.pack('N', size)
         num_bytes = self.socket.send(ser_size + msg.SerializeToString())
-        print(f'sent {num_bytes}')
+        # print(f'sent {num_bytes}')
         
     # Server ---------------
     def server_thread_function(self, ip: str, port: int):
@@ -585,23 +574,31 @@ class TincClient(object):
                 print("Connected, sending handshake.")
                 hs_message = bytearray()
                 hs_message.append(commands['HANDSHAKE'])
-                hs_message.append(0x00)
+                hs_message += struct.pack("H", tinc_client_version)
+                hs_message += struct.pack("H", tinc_client_revision)
                 s.send(hs_message)
                 
                 hs_message = Message(s.recv(1024))
                 command = hs_message.get_byte()
                 if command == commands['HANDSHAKE_ACK']:
+                    self.server_version = 0
+                    self.server_revision = 0
+                    if len(hs_message.remaining_bytes()) > 8:
+                        self.server_version = message.get_uint32()
+                        
+                    if len(hs_message.remaining_bytes()) > 8:
+                        self.server_revision = message.get_uint32()
                 
                     self.connected = True
                     self.socket = s
                     failed_attempts = 0
-                    print("Got HANDSHAKE_ACK.")
+                    print(f"Got HANDSHAKE_ACK. Server version {self.server_version} revision {self.server_revision}")
                 else:
                     print("Expected HANDSHAKE_ACK. CLosing connection. Got {message[0]}")
             else:
                 new_message = b''
                 try:
-                    new_message = self.socket.recv(256)
+                    new_message = self.socket.recv(1024)
                     
                 except ConnectionResetError:
                     print("Connection closed.")
