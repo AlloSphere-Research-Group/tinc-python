@@ -40,7 +40,7 @@ class TincClient(object):
         self.parameter_spaces = []
         self.request_timeout = 10.0
         self.pending_requests = {}
-        self.pending_requests_count = 0
+        self.pending_requests_count = 1
         self.pending_replies = {}
         self.request_count_lock = Lock()
         
@@ -388,12 +388,19 @@ class TincClient(object):
 
 # ------------------------------------------------------
     def process_object_command_reply(self, message):
-        command_id = message.get_uint32()
-        try:
-            command_data = self.pending_requests.pop(command_id)
-            self.pending_replies[command_id] = [message, command_data]
-        except KeyError:
-            print(f"Unexpected command reply: {command_id}")
+        command_details = TincProtocol.Command()
+        if message.details.Is(TincProtocol.Command.DESCRIPTOR):
+            message.details.Unpack(command_details)
+            
+            message_id = command_details.message_id
+            # TODO we should verify the object id somehow
+            try:
+                command_data = self.pending_requests.pop(message_id)
+                self.pending_replies[message_id] = [command_details.details, command_data]
+            except KeyError:
+                print(f"Unexpected command reply: {message_id}")
+        else:
+            print("Unsupported payload in Command reply")
         
         
     def process_register_command(self, message):
@@ -431,8 +438,10 @@ class TincClient(object):
             
     def process_command_command(self, message):
         pass
+    
     def process_reply_command(self, message):
-        pass
+        self.process_object_command_reply(message)
+        
     def process_ping_command(self, message):
         pass
     def process_pong_command(self, message):
@@ -493,38 +502,42 @@ class TincClient(object):
             self.pending_requests_count = 0
         self.request_count_lock.release()
         
-        message = Message()
-        # message.append(commands['OBJECT_COMMAND'])
-        # message.insert_as_uint32(request_number)
+        msg = TincProtocol.TincMessage()
+        msg.messageType  = TincProtocol.COMMAND
+        msg.objectType = TincProtocol.DATA_POOL
+        command = TincProtocol.Command()
+        command.id.id = datapool_id
+        command.message_id = request_number
         
-        # message.append(data_pool_commands['CREATE_DATA_SLICE'])
-        # message.insert_string(datapool_id)
-        # message.insert_string(field)
+        slice_details = TincProtocol.DataPoolCommandSlice()
+        slice_details.field = field
         
         if type(sliceDimensions) == str:
-            message.append(b'\x01')
-            message.insert_string(sliceDimensions)
+            slice_details.dimension[:] = [sliceDimensions]
         elif type(sliceDimensions) == list and len(sliceDimensions) > 0:
-            message.append(chr(len(sliceDimensions)))
             for dim in sliceDimensions:
-                message.insert_vector_string(dim)
+                slice_details.dimension.append(dim)
                 
+        command.details.Pack(slice_details)
+        msg.details.Pack(command)
+        
         # TODO check possible race condiiton in pending_requests count
         self.pending_requests[request_number] = [datapool_id]
-        print(f"Sent command: {request_number}")
 
-        if self.socket:
-            self.socket.send(message.data)
-        else:
-            print("Not connected.")
+        self._send_message(msg)
             
+        # print(f"Sent command: {request_number}")
         # FIXME implement timeout
         while not request_number in self.pending_replies:
-            time.sleep(0.1)
+            time.sleep(0.05)
             
-        message, user_data = self.pending_replies.pop(request_number)
-        slice_name = message.get_string()
-        return slice_name
+        command_details, user_data = self.pending_replies.pop(request_number)
+        if command_details.Is(TincProtocol.DataPoolCommandSliceReply.DESCRIPTOR):
+            slice_reply = TincProtocol.DataPoolCommandSliceReply()
+            command_details.Unpack(slice_reply)
+            return slice_reply.filename
+        else:
+            return None
         
     def synchronize(self):
         self.request_parameters()

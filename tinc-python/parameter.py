@@ -156,7 +156,6 @@ class ParameterString(Parameter):
     # def get_value_serialized(self):
     #     return struct.pack('f', self._value)
     def set_value(self, value):
-        print("set")
         if len(value) > 4:
             value = value[:4]
         if len(value) < 4:
