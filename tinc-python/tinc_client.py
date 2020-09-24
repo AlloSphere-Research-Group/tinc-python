@@ -171,7 +171,8 @@ class TincClient(object):
                     
                     self.parameters.append(new_param)
                 else:
-                    print("Parameter already registered.")
+                    pass
+                    # print("Parameter already registered.")
             else:
                 print("Unsupported parameter type")
         else:
@@ -322,7 +323,22 @@ class TincClient(object):
                 new_datapool = DataPool(self, dp_id, ps_id, slice_cache_dir)
                 self.datapools.append(new_datapool)
         else:
-            print("Unexpected paylod in Register Datapool")
+            print("Unexpected payload in Register Datapool")
+            
+    def configure_datapool(self, details):
+        if details.Is(TincProtocol.ConfigureDataPool.DESCRIPTOR):
+            dp_details = TincProtocol.ConfigureDataPool()
+            details.Unpack(dp_details)
+            dp_id = dp_details.id
+            for dp in self.datapools:
+                if dp.id == dp_id:
+                    if dp_details.configurationKey == TincProtocol.DataPoolConfigureType.SLICE_CACHE_DIR:
+                        if dp_details.configurationValue.Is(TincProtocol.ParameterValue.DESCRIPTOR):
+                            value = TincProtocol.ParameterValue()
+                            dp_details.configurationValue.Unpack(value)
+                            dp.slice_cache_dir = value.valueString
+        else:
+            print("Unexpected payload in Configure Datapool")
         
     # Disk buffer messages ------------------
     def register_disk_buffer(self, details):
@@ -559,7 +575,7 @@ class TincClient(object):
     # Server ---------------
     def server_thread_function(self, ip: str, port: int):
 #         print("Starting on port " + str(port))
-        message = b''
+        al_message = b''
         pc_message = TincProtocol.TincMessage()
         
         failed_attempts = 0
@@ -597,10 +613,10 @@ class TincClient(object):
                     self.server_version = 0
                     self.server_revision = 0
                     if len(hs_message.remaining_bytes()) > 8:
-                        self.server_version = message.get_uint32()
+                        self.server_version = hs_message.get_uint32()
                         
                     if len(hs_message.remaining_bytes()) > 8:
-                        self.server_revision = message.get_uint32()
+                        self.server_revision = hs_message.get_uint32()
                 
                     self.connected = True
                     self.socket = s
@@ -624,14 +640,14 @@ class TincClient(object):
                 except socket.timeout:
                     continue
                 
-                message = message + new_message
-                while len(message) > 8:
-                    message_size = struct.unpack("N", message[:8])[0]
+                al_message = al_message + new_message
+                while len(al_message) > 8:
+                    message_size = struct.unpack("N", al_message[:8])[0]
                     
-                    if len(message) < message_size + 8:
+                    if len(al_message) < message_size + 8:
                         break
                     
-                    num_bytes = pc_message.ParseFromString(message[8:8+message_size])
+                    num_bytes = pc_message.ParseFromString(al_message[8:8+message_size])
                     
                     if num_bytes > 0:
                         
@@ -653,7 +669,7 @@ class TincClient(object):
                             self.process_pong_command(pc_message)
                         else:
                             print("Unknown message")
-                        message = message[message_size + 8:]
+                        al_message = al_message[message_size + 8:]
                         # print(f"Processed Byte_size {message_size}:{pc_message.ByteSize()} {len(message)}" )
                     else:
                         break
