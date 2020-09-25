@@ -510,20 +510,56 @@ class TincClient(object):
         tp.details.Pack(obj_id)
         self._send_message(tp)
         
-    def request_datapool_slice_file(self, datapool_id, field, sliceDimensions):
+    def get_command_id(self):
         self.request_count_lock.acquire()
-        request_number = self.pending_requests_count
+        command_id = self.pending_requests_count
         self.pending_requests_count += 1
         if self.pending_requests_count == 4294967295:
             self.pending_requests_count = 0
         self.request_count_lock.release()
+        return command_id
+    
+    def request_parameter_choice_elements(self, parameter):
+        
+        parameter_addr = parameter.get_osc_address()
+        msg = TincProtocol.TincMessage()
+        msg.messageType  = TincProtocol.COMMAND
+        msg.objectType = TincProtocol.PARAMETER
+        command = TincProtocol.Command()
+        command.id.id = parameter_addr
+        request_number = self.get_command_id()
+        command.message_id = request_number
+        
+        slice_details = TincProtocol.ParameterRequestChoiceElements()
+                
+        command.details.Pack(slice_details)
+        msg.details.Pack(command)
+        
+        # TODO check possible race condiiton in pending_requests count. Does the GIL make it safe?
+        self.pending_requests[request_number] = [parameter]
+
+        self._send_message(msg)
+            
+        # print(f"Sent command: {request_number}")
+        # FIXME implement timeout
+        while not request_number in self.pending_replies:
+            time.sleep(0.05)
+            
+        command_details, user_data = self.pending_replies.pop(request_number)
+        if command_details.Is(TincProtocol.ParameterRequestChoiceElementsReply.DESCRIPTOR):
+            slice_reply = TincProtocol.ParameterRequestChoiceElementsReply()
+            command_details.Unpack(slice_reply)
+            print(slice_reply.elements)
+            user_data[0].set_elements(slice_reply.elements)
+        
+    def request_datapool_slice_file(self, datapool_id, field, sliceDimensions):
         
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.COMMAND
         msg.objectType = TincProtocol.DATA_POOL
         command = TincProtocol.Command()
         command.id.id = datapool_id
-        command.message_id = request_number
+        command.message_id =  self.get_command_id()
         
         slice_details = TincProtocol.DataPoolCommandSlice()
         slice_details.field = field

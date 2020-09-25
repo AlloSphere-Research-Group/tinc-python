@@ -286,6 +286,7 @@ class ParameterChoice(Parameter):
         self.minimum = minimum
         self.maximum = maximum
         self.tinc_client = tinc_client
+        self.elements = []
         
         self.parent_bundle = None
         
@@ -331,7 +332,18 @@ class ParameterChoice(Parameter):
         # print(f"max {value.valueFloat}")
         self.maximum = value.valueUint64
         return True
+
+    def set_elements(self, elements):
+        self.elements = elements
         
+    def get_current_elements(self):
+        b = self._value
+        current = []
+        for e in self.elements:
+            if b & 1 == 1:
+                current.append(e)
+            b = b >> 1
+        return current
 
 class ParameterColor(Parameter):
     def __init__(self, tinc_client, id: str, group: str = "", default = [0,0,0,0]):
