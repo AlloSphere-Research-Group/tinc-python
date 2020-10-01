@@ -114,6 +114,11 @@ class Parameter(object):
         addr += self.id    
         return addr
     
+    def get_current_id(self):
+        index = self.values.tolist().index(self._value)
+        return self.ids[index]
+        
+    
     def interactive_widget(self):
         self._interactive_widget = interactive(self.set_from_internal_widget,
                 value=widgets.FloatSlider(
