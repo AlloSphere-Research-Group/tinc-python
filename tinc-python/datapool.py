@@ -15,13 +15,13 @@ class DataPool(object):
         self.tinc_client = tinc_client
         
     def get_slice(self, field, sliceDimensions):
-        slice_file = self.tinc_client.request_datapool_slice_file(self.id, field, sliceDimensions)
+        slice_file = self.tinc_client.command_datapool_slice_file(self.id, field, sliceDimensions)
         nc = netCDF4.Dataset(self.slice_cache_dir + slice_file)
         # print(nc.variables.keys())
         return nc.variables['data'][:]
     
     def get_slice_file(self, field, sliceDimensions):
-        return self.tinc_client.request_datapool_slice_file(self.id, field, sliceDimensions)
+        return self.tinc_client.command_datapool_slice_file(self.id, field, sliceDimensions)
         
     def print(self):
         print(f" ** DataPool: {self.id}")

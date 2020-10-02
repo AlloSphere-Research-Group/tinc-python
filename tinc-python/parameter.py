@@ -15,7 +15,7 @@ from google.protobuf import any_pb2
 
 
 class Parameter(object):
-    def __init__(self, tinc_client, id: str, group: str = "", default: float = 0.0, minimum: float = -99999.0, maximum: float = 99999.0):
+    def __init__(self, id: str, group: str = "", default: float = 0.0, minimum: float = -99999.0, maximum: float = 99999.0,tinc_client = None):
         # Should not change:
         self.id = id
         self.group = group
@@ -52,7 +52,8 @@ class Parameter(object):
             
     def set_value(self, value):
         self._value = self._data_type(value)
-        self.tinc_client.send_parameter_value(self)
+        if self.tinc_client:
+            self.tinc_client.send_parameter_value(self)
         if self._interactive_widget:
             self._interactive_widget.children[0].value = self._data_type(value)
         for cb in self._value_callbacks:
@@ -102,7 +103,8 @@ class Parameter(object):
         
     def set_from_internal_widget(self, value):
         self._value = value
-        self.tinc_client.send_parameter_value(self)
+        if self.tinc_client:
+            self.tinc_client.send_parameter_value(self)
         for cb in self._value_callbacks:
             cb(value)
 
@@ -144,7 +146,7 @@ class Parameter(object):
         self._value_callbacks.append(f)
         
 class ParameterString(Parameter):
-    def __init__(self, tinc_client, id: str, group: str = "", default: str = ""):
+    def __init__(self, id: str, group: str = "", default: str = "", tinc_client= None):
         self._value :str = default
         self._data_type = str
         self.id = id
@@ -166,7 +168,8 @@ class ParameterString(Parameter):
         if len(value) < 4:
             value.append(self._value[len(value):])
         self._value = self._data_type(value)
-        self.tinc_client.send_parameter_value(self)
+        if self.tinc_client:
+            self.tinc_client.send_parameter_value(self)
         if self._interactive_widget:
             self._interactive_widget.children[0].value = self._data_type(value)
         for cb in self._value_callbacks:
@@ -226,7 +229,7 @@ class ParameterString(Parameter):
     
 
 class ParameterInt(Parameter):
-    def __init__(self, tinc_client, id: str, group: str = "", default: int = 0, minimum: int = 0, maximum: int = 127):
+    def __init__(self, id: str, group: str = "", default: int = 0, minimum: int = 0, maximum: int = 127, tinc_client = None):
         self._value :int = default
         self._data_type = int
         self.id = id
@@ -282,7 +285,7 @@ class ParameterInt(Parameter):
         return True
     
 class ParameterChoice(Parameter):
-    def __init__(self, tinc_client, id: str, group: str = "", default: int = 0, minimum: int = 0, maximum: int = 127):
+    def __init__(self, id: str, group: str = "", default: int = 0, minimum: int = 0, maximum: int = 127, tinc_client = None):
         self._value :int = default
         self._data_type = int
         self.id = id
@@ -351,7 +354,7 @@ class ParameterChoice(Parameter):
         return current
 
 class ParameterColor(Parameter):
-    def __init__(self, tinc_client, id: str, group: str = "", default = [0,0,0,0]):
+    def __init__(self, id: str, group: str = "", default = [0,0,0,0], tinc_client = None):
         self._value = default
         self._data_type = lambda l: [float(f) for f in l]
         self.id = id
@@ -411,7 +414,7 @@ class ParameterColor(Parameter):
         return True    
 
 class ParameterBool(Parameter):
-    def __init__(self, p_id: str, group: str = "", default: float = 0.0):
+    def __init__(self, p_id: str, group: str = "", default: float = 0.0, tinc_client = None):
         self._value = default
         self._data_type = float
         self.id = p_id
@@ -419,6 +422,8 @@ class ParameterBool(Parameter):
         self.default = default
         
         self.parent_bundle = None
+        
+        self.tinc_client = tinc_client
         
         self._interactive_widget = None
         self.observers = []
@@ -439,7 +444,8 @@ class ParameterBool(Parameter):
 #         return self._interactive_widget
 
 class ParameterBundle(object):
-    def __init__(self, id):
+    def __init__(self, id, tinc_client = None):
         self.parameters = []
         str:self.id = ''
+        self.tinc_client = None
     

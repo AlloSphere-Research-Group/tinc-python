@@ -9,7 +9,7 @@ from parameter import *
 from processor import *
 
 class ParameterServer(object):
-    def __init__(self, ip: str = "localhost", start_port: int = 9011):
+    def __init__(self, ip: str = "localhost", start_port: int = 9011, tinc_client = None):
         self.ip = ip
         self.port = start_port
         self.parameters = []
@@ -17,6 +17,8 @@ class ParameterServer(object):
         self.bundles = {}
         self.dispatcher = dispatcher.Dispatcher()
         self.dispatcher.set_default_handler(self.default_osc_handler, needs_reply_address = True)
+        
+        self.tinc_client = tinc_client
         
         self.start()
         

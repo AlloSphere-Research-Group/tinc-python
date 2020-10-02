@@ -131,14 +131,14 @@ class TincClient(object):
             param_type = details_unpacked.dataType
     
             if param_type == TincProtocol.PARAMETER_FLOAT : 
-                new_param = Parameter(self, name, group, details_unpacked.defaultValue.valueFloat )
+                new_param = Parameter(name, group, details_unpacked.defaultValue.valueFloat, tinc_client =self)
             elif param_type == TincProtocol.PARAMETER_BOOL: 
-                new_param = ParameterBool(self, name, group, details_unpacked.defaultValue.valueFloat)
+                new_param = ParameterBool(name, group, details_unpacked.defaultValue.valueFloat, tinc_client =self)
                     
             elif param_type == TincProtocol.PARAMETER_STRING :
-                new_param = ParameterString(self, name, group, details_unpacked.defaultValue.valueString)
+                new_param = ParameterString(name, group, details_unpacked.defaultValue.valueString, tinc_client =self)
             elif param_type == TincProtocol.PARAMETER_INT32 : 
-                new_param = ParameterInt(self, name, group, details_unpacked.defaultValue.valueInt32)
+                new_param = ParameterInt(name, group, details_unpacked.defaultValue.valueInt32, tinc_client =self)
             elif param_type == TincProtocol.PARAMETER_VEC3F :
                 new_param = None
                 pass
@@ -147,13 +147,13 @@ class TincClient(object):
                 pass
             elif param_type == TincProtocol.PARAMETER_COLORF :
                 l = [v.valueFloat for v in details_unpacked.defaultValue.valueList]
-                new_param = ParameterColor(self, name, group, l)
+                new_param = ParameterColor(name, group, l, tinc_client =self)
                 pass
             elif param_type == TincProtocol.PARAMETER_POSED :
                 new_param = None
                 pass
             elif param_type == TincProtocol.PARAMETER_CHOICE :
-                new_param = ParameterChoice(self, name, group, details_unpacked.defaultValue.valueUint64)
+                new_param = ParameterChoice(name, group, details_unpacked.defaultValue.valueUint64, tinc_client =self)
                 pass
             elif param_type == TincProtocol.PARAMETER_TRIGGER :
                 new_param = None
@@ -398,7 +398,7 @@ class TincClient(object):
                     break
             
             if not found:
-                new_ps = ParameterSpace(ps_id)
+                new_ps = ParameterSpace(ps_id, tinc_client = self)
                 self.parameter_spaces.append(new_ps)
         
 
@@ -519,7 +519,7 @@ class TincClient(object):
         self.request_count_lock.release()
         return command_id
     
-    def request_parameter_choice_elements(self, parameter):
+    def command_parameter_choice_elements(self, parameter):
         
         parameter_addr = parameter.get_osc_address()
         msg = TincProtocol.TincMessage()
@@ -551,8 +551,70 @@ class TincClient(object):
             command_details.Unpack(slice_reply)
             print(slice_reply.elements)
             user_data[0].set_elements(slice_reply.elements)
+            
+    def command_parameter_space_get_current_path(self, ps):
         
-    def request_datapool_slice_file(self, datapool_id, field, sliceDimensions):
+        msg = TincProtocol.TincMessage()
+        msg.messageType  = TincProtocol.COMMAND
+        msg.objectType = TincProtocol.PARAMETER_SPACE
+        command = TincProtocol.Command()
+        command.id.id = ps.id
+        request_number = self.get_command_id()
+        command.message_id = request_number
+        
+        slice_details = TincProtocol.ParameterSpaceRequestCurrentPath()
+                
+        command.details.Pack(slice_details)
+        msg.details.Pack(command)
+        
+        # TODO check possible race condiiton in pending_requests count. Does the GIL make it safe?
+        self.pending_requests[request_number] = [ps]
+
+        self._send_message(msg)
+            
+        # print(f"Sent command: {request_number}")
+        # FIXME implement timeout
+        while not request_number in self.pending_replies:
+            time.sleep(0.05)
+            
+        command_details, user_data = self.pending_replies.pop(request_number)
+        if command_details.Is(TincProtocol.ParameterSpaceRequestCurrentPathReply.DESCRIPTOR):
+            slice_reply = TincProtocol.ParameterSpaceRequestCurrentPathReply()
+            command_details.Unpack(slice_reply)
+            return slice_reply.path
+        
+    def command_parameter_space_get_root_path(self, ps):
+        
+        msg = TincProtocol.TincMessage()
+        msg.messageType  = TincProtocol.COMMAND
+        msg.objectType = TincProtocol.PARAMETER_SPACE
+        command = TincProtocol.Command()
+        command.id.id = ps.id
+        request_number = self.get_command_id()
+        command.message_id = request_number
+        
+        slice_details = TincProtocol.ParameterSpaceRequestRootPath()
+                
+        command.details.Pack(slice_details)
+        msg.details.Pack(command)
+        
+        # TODO check possible race condiiton in pending_requests count. Does the GIL make it safe?
+        self.pending_requests[request_number] = [ps]
+
+        self._send_message(msg)
+            
+        # print(f"Sent command: {request_number}")
+        # FIXME implement timeout
+        while not request_number in self.pending_replies:
+            time.sleep(0.05)
+            
+        command_details, user_data = self.pending_replies.pop(request_number)
+        if command_details.Is(TincProtocol.ParameterSpaceRequestRootPathReply.DESCRIPTOR):
+            slice_reply = TincProtocol.ParameterSpaceRequestRootPathReply()
+            command_details.Unpack(slice_reply)
+            return slice_reply.path
+        
+    def command_datapool_slice_file(self, datapool_id, field, sliceDimensions):
         
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.COMMAND
