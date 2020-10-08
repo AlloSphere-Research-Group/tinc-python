@@ -120,7 +120,61 @@ class TincClient(object):
         # else:
         #     print("NOT CONNECTED")
         
-    def register_parameter(self, details):
+    def create_parameter(self, parameter_type, param_id, group = "", min_value = None, max_value = None, space = None, default_value= None):
+        new_param = parameter_type(param_id, group, tinc_client = self)
+        if not min_value is None:
+            new_param.minimum = min_value
+        if not max_value is None:
+            new_param.maximum = max_value
+        if not default_value is None:
+            new_param.default_value = default_value
+        if type(space) == dict:
+            new_param.ids = space.values()
+            new_param.values = space.keys()
+        elif type(space) == list:
+            new_param.values = space
+        self.register_parameter_with_client(new_param)
+        self.register_parameter_on_server(new_param)
+        return new_param
+    
+    def register_parameter_with_client(self, new_param):
+        param_found = False
+        for p in self.parameters:
+            if p.id == new_param.id and p.group == new_param.group:
+                param_found = True
+                break
+        if not param_found:
+            self.parameters.append(new_param)
+        else:
+            pass
+    
+    def register_parameter_on_server(self, param):
+        details = TincProtocol.RegisterParameter()
+        details.id = param.id
+        details.group = param.group
+        if type(param) == Parameter:
+            details.dataType = TincProtocol.ParameterDataType.PARAMETER_FLOAT
+        if type(param) == ParameterString:
+            details.dataType = TincProtocol.PARAMETER_STRING
+        if type(param) == ParameterInt:
+            details.dataType = TincProtocol.PARAMETER_INT32
+        if type(param) == ParameterChoice:
+            details.dataType = TincProtocol.PARAMETER_CHOICE
+        if type(param) == ParameterBool:
+            details.dataType = TincProtocol.PARAMETER_BOOL
+            
+        # TODO add sending default value
+        msg = TincProtocol.TincMessage()
+        msg.messageType = TincProtocol.MessageType.REGISTER
+        msg.objectType = TincProtocol.ObjectType.PARAMETER
+        msg.details.Pack(details)
+        
+        self._send_message(msg)
+        self.send_parameter_value(param)
+        self.send_parameter_meta(param)
+        
+        
+    def register_parameter_from_message(self, details):
         if details.Is(TincProtocol.RegisterParameter.DESCRIPTOR):
             # print("Register parameter")
             
@@ -162,16 +216,7 @@ class TincClient(object):
                 new_param = None
                 
             if new_param:
-                param_found = False
-                for p in self.parameters:
-                    if p.id == new_param.id:
-                        param_found = True
-                        break
-                if not param_found:
-                    
-                    self.parameters.append(new_param)
-                else:
-                    pass
+                self.register_parameter_with_client(new_param)
                     # print("Parameter already registered.")
             else:
                 print("Unsupported parameter type")
@@ -231,8 +276,109 @@ class TincClient(object):
             value.valueList.extend([r,g,b,a])
         config.configurationValue.Pack(value)
         msg.details.Pack(config)
-        print("send")
         self._send_message(msg)
+        
+    def send_parameter_meta(self, param):
+        msg = TincProtocol.TincMessage()
+        msg.messageType  = TincProtocol.CONFIGURE
+        msg.objectType = TincProtocol.PARAMETER
+        config = TincProtocol.ConfigureParameter()
+        config.id = param.get_osc_address()
+        config.configurationKey = TincProtocol.ParameterConfigureType.MIN
+        value = TincProtocol.ParameterValue()
+        # TODO implement all types
+        if type(param) == Parameter:
+            value.valueFloat = param.minimum
+            config.configurationValue.Pack(value)
+            msg.details.Pack(config)
+            self._send_message(msg)
+        elif type(param) == ParameterString:
+            pass
+        elif type(param) == ParameterChoice:
+            value.valueUint64 = param.minimum
+            config.configurationValue.Pack(value)
+            msg.details.Pack(config)
+            self._send_message(msg)
+        elif type(param) == ParameterInt:
+            value.valueInt32 = param.minimum
+            config.configurationValue.Pack(value)
+            msg.details.Pack(config)
+            self._send_message(msg)
+        elif type(param) == ParameterColor:
+            pass
+        
+        # Max
+        msg = TincProtocol.TincMessage()
+        msg.messageType  = TincProtocol.CONFIGURE
+        msg.objectType = TincProtocol.PARAMETER
+        config = TincProtocol.ConfigureParameter()
+        config.id = param.get_osc_address()
+        config.configurationKey = TincProtocol.ParameterConfigureType.MAX
+        value = TincProtocol.ParameterValue()
+        # TODO implement all types
+        if type(param) == Parameter:
+            value.valueFloat = param.maximum
+            config.configurationValue.Pack(value)
+            msg.details.Pack(config)
+            self._send_message(msg)
+        elif type(param) == ParameterString:
+            pass
+        elif type(param) == ParameterChoice:
+            value.valueUint64 = param.maximum
+            config.configurationValue.Pack(value)
+            msg.details.Pack(config)
+            self._send_message(msg)
+        elif type(param) == ParameterInt:
+            value.valueInt32 = param.maximum
+            config.configurationValue.Pack(value)
+            msg.details.Pack(config)
+            self._send_message(msg)
+        elif type(param) == ParameterColor:
+            pass
+            
+    def send_parameter_space(self, param):
+        msg = TincProtocol.TincMessage()
+        msg.messageType  = TincProtocol.CONFIGURE
+        msg.objectType = TincProtocol.PARAMETER
+        config = TincProtocol.ConfigureParameter()
+        config.id = param.get_osc_address()
+        config.configurationKey = TincProtocol.ParameterConfigureType.SPACE
+        space_values = TincProtocol.ParameterSpaceValues()
+        if len(param.ids) == len(param.values) and  not len(param.ids) == 0:
+            print("ERROR parameter ids-values mismatch, not sending to remote")
+            return
+        # TODO implement all types
+        if type(param) == Parameter:
+            packed_vals = []
+            for v in param.values:
+                new_val = TincProtocol.ParameterValue()
+                new_val.valueFloat = v
+                packed_vals.append(new_val)
+            if len(param.ids) > 0: 
+                space_values.ids.extend(param.ids)
+            space_values.values.extend(packed_vals)
+            
+            config.configurationValue.Pack(space_values)
+            msg.details.Pack(config)
+            self._send_message(msg)
+        elif type(param) == ParameterString:
+            pass
+        elif type(param) == ParameterChoice:
+            pass
+        elif type(param) == ParameterInt:
+            packed_vals = []
+            for v in param.values:
+                new_val = TincProtocol.ParameterValue()
+                new_val.valueInt32 = v
+                packed_vals.append(new_val)
+            space_values.ids.extend(param.ids)
+            space_values.values.extend(packed_vals)
+            
+            config.configurationValue.Pack(space_values)
+            msg.details.Pack(config)
+            self._send_message(msg)
+        elif type(param) == ParameterColor:
+            pass
         
     def register_processor(self, message):
         proc_details = any_pb2.Any()
@@ -422,7 +568,7 @@ class TincClient(object):
     def process_register_command(self, message):
         # print("Register command")
         if message.objectType == TincProtocol.ObjectType.PARAMETER:
-            self.register_parameter(message.details)
+            self.register_parameter_from_message(message.details)
         elif message.objectType == TincProtocol.ObjectType.PROCESSOR:
             self.register_processor(message.details)
         elif message.objectType == TincProtocol.ObjectType.DISK_BUFFER:

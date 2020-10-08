@@ -26,11 +26,11 @@ class Parameter(object):
         self._data_type = float
         self.minimum = minimum
         self.maximum = maximum
-        self.ids = []
-        self.values = None
+        self._ids = []
+        self._values = None
         
         # Internal
-        self._value:float = default
+        self._value:float = self.default
         self.parent_bundle = None
         
         self._interactive_widget = None
@@ -43,6 +43,22 @@ class Parameter(object):
     @value.setter
     def value(self, value):
         self.set_value(value)
+            
+    @property
+    def ids(self):
+        return self._ids
+
+    @ids.setter
+    def ids(self, ids):
+        self.set_ids(ids)
+        
+    @property
+    def values(self):
+        return self._values
+
+    @values.setter
+    def values(self, values):
+        self.set_values(values)
         
     def print(self):
         print(f" ** Parameter {self.id} group: {self.group} ({type(self.value)})")
@@ -58,6 +74,16 @@ class Parameter(object):
             self._interactive_widget.children[0].value = self._data_type(value)
         for cb in self._value_callbacks:
             cb(value)
+    
+    def set_ids(self, ids):
+        self._ids = [str(id) for id in ids]
+        if self.tinc_client:
+            self.tinc_client.send_parameter_space(self)
+            
+    def set_values(self, values):
+        self._values = values
+        if self.tinc_client:
+            self.tinc_client.send_parameter_space(self)
             
     def get_value_serialized(self):
         return struct.pack('f', self._value)
@@ -79,12 +105,12 @@ class Parameter(object):
     def set_space_from_message(self, message):
         values = TincProtocol.ParameterSpaceValues()
         message.Unpack(values)
-        self.ids = values.ids
+        self._ids = values.ids
         count = len(values.values)
         # print(f'setting space {count}')
-        self.values = np.ndarray((count))
+        self._values = np.ndarray((count))
         for i, v in enumerate(values.values):
-            self.values[i] = v.valueFloat
+            self._values[i] = v.valueFloat
         return True
 
     def set_min_from_message(self, message):
