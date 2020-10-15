@@ -186,13 +186,12 @@ class ParameterString(Parameter):
         self.observers = []
         self._value_callbacks = []
         
+    def print(self):
+        print(f" ** Parameter {self.id} group: {self.group} ({type(self.value)})")
+        print(f"    Default: {self.default}")
     # def get_value_serialized(self):
     #     return struct.pack('f', self._value)
     def set_value(self, value):
-        if len(value) > 4:
-            value = value[:4]
-        if len(value) < 4:
-            value.append(self._value[len(value):])
         self._value = self._data_type(value)
         if self.tinc_client:
             self.tinc_client.send_parameter_value(self)
@@ -206,8 +205,8 @@ class ParameterString(Parameter):
         message.Unpack(value)
         
         # print(f"set {value.valueFloat}")
-        if not self._value == value.valueFloat:
-            self._value = self._data_type(value.valueFloat)
+        if not self._value == value.valueString:
+            self._value = self._data_type(value.valueString)
 
             if self._interactive_widget:
                 self._interactive_widget.children[0].value = self._data_type(value.valueString)
@@ -227,17 +226,17 @@ class ParameterString(Parameter):
         return True
 
     def set_min_from_message(self, message):
-        value = TincProtocol.ParameterValue()
-        message.Unpack(value)
-        # print(f"min {value.valueFloat}")
-        self.minimum = value.valueString
+        # value = TincProtocol.ParameterValue()
+        # message.Unpack(value)
+        # # print(f"min {value.valueFloat}")
+        # self.minimum = value.valueString
         return True
         
     def set_max_from_message(self, message):
-        value = TincProtocol.ParameterValue()
-        message.Unpack(value)
-        # print(f"max {value.valueFloat}")
-        self.maximum = value.valueString
+        # value = TincProtocol.ParameterValue()
+        # message.Unpack(value)
+        # # print(f"max {value.valueFloat}")
+        # self.maximum = value.valueString
         return True
     
     def interactive_widget(self):
