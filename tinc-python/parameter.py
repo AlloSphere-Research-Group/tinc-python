@@ -27,7 +27,7 @@ class Parameter(object):
         self.minimum = minimum
         self.maximum = maximum
         self._ids = []
-        self._values = None
+        self._values = []
         
         # Internal
         self._value:float = self.default

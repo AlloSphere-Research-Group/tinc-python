@@ -122,20 +122,29 @@ class TincClient(object):
         
     def create_parameter(self, parameter_type, param_id, group = "", min_value = None, max_value = None, space = None, default_value= None):
         new_param = parameter_type(param_id, group, tinc_client = self)
+
+        if not default_value is None:
+            new_param.default_value = default_value
+        self.register_parameter_with_client(new_param)
+        self.register_parameter_on_server(new_param)
         if not min_value is None:
             new_param.minimum = min_value
         if not max_value is None:
             new_param.maximum = max_value
-        if not default_value is None:
-            new_param.default_value = default_value
         if type(space) == dict:
             new_param.ids = space.values()
             new_param.values = space.keys()
         elif type(space) == list:
+            new_param.ids = []
             new_param.values = space
-        self.register_parameter_with_client(new_param)
-        self.register_parameter_on_server(new_param)
         return new_param
+    
+    def remove_parameter(self, param_id, group = None):
+        if not type(param_id) == str:
+            group = param_id.group
+            param_id = param_id.id
+        # TODO complete implementation
+        return
     
     def register_parameter_with_client(self, new_param):
         param_found = False
@@ -154,14 +163,19 @@ class TincClient(object):
         details.group = param.group
         if type(param) == Parameter:
             details.dataType = TincProtocol.ParameterDataType.PARAMETER_FLOAT
+            details.defaultValue.valueFloat = param.default
         if type(param) == ParameterString:
             details.dataType = TincProtocol.PARAMETER_STRING
+            details.defaultValue.valueString = param.default
         if type(param) == ParameterInt:
             details.dataType = TincProtocol.PARAMETER_INT32
+            details.defaultValue.valueInt32 = param.default
         if type(param) == ParameterChoice:
             details.dataType = TincProtocol.PARAMETER_CHOICE
+            details.defaultValue.valueUint64 = param.default
         if type(param) == ParameterBool:
             details.dataType = TincProtocol.PARAMETER_BOOL
+            details.defaultValue.valueBool = param.default
             
         # TODO add sending default value
         msg = TincProtocol.TincMessage()
@@ -170,8 +184,9 @@ class TincClient(object):
         msg.details.Pack(details)
         
         self._send_message(msg)
-        self.send_parameter_value(param)
-        self.send_parameter_meta(param)
+        print(f"register {param.id}")
+#        self.send_parameter_value(param)
+#        self.send_parameter_meta(param)
         
         
     def register_parameter_from_message(self, details):
@@ -782,16 +797,16 @@ class TincClient(object):
         msg.details.Pack(command)
         
         # TODO check possible race condiiton in pending_requests count
-        self.pending_requests[request_number] = [datapool_id]
+        self.pending_requests[command.message_id] = [datapool_id]
 
         self._send_message(msg)
             
         # print(f"Sent command: {request_number}")
         # FIXME implement timeout
-        while not request_number in self.pending_replies:
+        while not command.message_id in self.pending_replies:
             time.sleep(0.05)
             
-        command_details, user_data = self.pending_replies.pop(request_number)
+        command_details, user_data = self.pending_replies.pop(command.message_id)
         if command_details.Is(TincProtocol.DataPoolCommandSliceReply.DESCRIPTOR):
             slice_reply = TincProtocol.DataPoolCommandSliceReply()
             command_details.Unpack(slice_reply)
@@ -814,7 +829,7 @@ class TincClient(object):
         size = msg.ByteSize()
         ser_size = struct.pack('N', size)
         num_bytes = self.socket.send(ser_size + msg.SerializeToString())
-        # print(f'sent {num_bytes}')
+        print(f'sent {num_bytes}')
         
     # Server ---------------
     def server_thread_function(self, ip: str, port: int):
