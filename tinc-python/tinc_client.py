@@ -126,6 +126,8 @@ class TincClient(object):
         if not default_value is None:
             new_param.default_value = default_value
         self.register_parameter_with_client(new_param)
+        new_param = self.get_parameter(param_id)
+        
         self.register_parameter_on_server(new_param)
         if not min_value is None:
             new_param.minimum = min_value
