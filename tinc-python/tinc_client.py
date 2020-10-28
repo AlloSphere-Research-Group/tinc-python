@@ -120,7 +120,7 @@ class TincClient(object):
         # else:
         #     print("NOT CONNECTED")
         
-    def create_parameter(self, parameter_type, param_id, group = "", min_value = None, max_value = None, space = None, default_value= None):
+    def create_parameter(self, parameter_type, param_id, group = "", min_value = None, max_value = None, space = None, default_value= None, space_type = None):
         new_param = parameter_type(param_id, group, tinc_client = self)
 
         if not default_value is None:
@@ -131,6 +131,8 @@ class TincClient(object):
             new_param.minimum = min_value
         if not max_value is None:
             new_param.maximum = max_value
+        if not space_type is None:
+            new_param.space_type = space_type
         if type(space) == dict:
             new_param.ids = space.values()
             new_param.values = space.keys()
@@ -256,6 +258,8 @@ class TincClient(object):
                     configured = configured and param.set_max_from_message(param_details.configurationValue)
                 elif param_command == TincProtocol.ParameterConfigureType.SPACE:
                     configured = configured and param.set_space_from_message(param_details.configurationValue)
+                elif param_command == TincProtocol.ParameterConfigureType.SPACE_TYPE:
+                    configured = configured and param.set_space_type_from_message(param_details.configurationValue)
                 else:
                     print("Unrecognized Parameter Configure command")
                 
@@ -389,11 +393,21 @@ class TincClient(object):
             space_values.ids.extend(param.ids)
             space_values.values.extend(packed_vals)
             
-            config.configurationValue.Pack(space_values)
-            msg.details.Pack(config)
-            self._send_message(msg)
         elif type(param) == ParameterColor:
             pass
+        
+    def send_parameter_space_type(self, param):
+        msg = TincProtocol.TincMessage()
+        msg.messageType  = TincProtocol.CONFIGURE
+        msg.objectType = TincProtocol.PARAMETER
+        config = TincProtocol.ConfigureParameter()
+        config.id = param.get_osc_address()
+        config.configurationKey = TincProtocol.ParameterConfigureType.SPACE_TYPE
+        type_value = TincProtocol.ParameterValue()
+        type_value.valueInt32 = param.space_type
+        config.configurationValue.Pack(type_value)
+        msg.details.Pack(config)
+        self._send_message(msg)
         
     def register_processor(self, message):
         proc_details = any_pb2.Any()
@@ -829,7 +843,7 @@ class TincClient(object):
         size = msg.ByteSize()
         ser_size = struct.pack('N', size)
         num_bytes = self.socket.send(ser_size + msg.SerializeToString())
-        print(f'sent {num_bytes}')
+        #print(f'sent {num_bytes}')
         
     # Server ---------------
     def server_thread_function(self, ip: str, port: int):

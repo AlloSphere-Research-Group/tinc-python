@@ -13,6 +13,12 @@ import numpy as np
 import tinc_protocol_pb2 as TincProtocol
 from google.protobuf import any_pb2
 
+parameter_space_type = {
+    "VALUE" : 0x00,
+    "ID" : 0x01,
+    "INDEX" : 0x02
+    }
+
 
 class Parameter(object):
     def __init__(self, id: str, group: str = "", default: float = 0.0, minimum: float = -99999.0, maximum: float = 99999.0,tinc_client = None):
@@ -21,6 +27,7 @@ class Parameter(object):
         self.group = group
         self.default = default
         self.tinc_client = tinc_client
+        self.type = "VALUE"
         
         # Mutable properties
         self._data_type = float
@@ -28,6 +35,7 @@ class Parameter(object):
         self.maximum = maximum
         self._ids = []
         self._values = []
+        self._space_type = parameter_space_type["VALUE"]
         
         # Internal
         self._value:float = self.default
@@ -60,6 +68,14 @@ class Parameter(object):
     def values(self, values):
         self.set_values(values)
         
+    @property
+    def space_type(self):
+        return self._space_type
+
+    @space_type.setter
+    def space_type(self, space_type):
+        self.set_space_type(space_type)
+        
     def print(self):
         print(f" ** Parameter {self.id} group: {self.group} ({type(self.value)})")
         print(f"    Default: {self.default}")
@@ -84,6 +100,15 @@ class Parameter(object):
         self._values = values
         if self.tinc_client:
             self.tinc_client.send_parameter_space(self)
+            
+    def set_space_type(self, space_type):
+        if space_type in parameter_space_type:
+            self._space_type = space_type
+            self.tinc_client.send_parameter_space_type(self)
+        elif type(space_type) == int:
+            self._space_type = parameter_space_type[parameter_space_type.values().index(space_type)]
+        else:
+            raise TypeError("Invalid space type")
             
     def get_value_serialized(self):
         return struct.pack('f', self._value)
@@ -111,6 +136,12 @@ class Parameter(object):
         self._values = np.ndarray((count))
         for i, v in enumerate(values.values):
             self._values[i] = v.valueFloat
+        return True
+    
+    def set_space_type_from_message(self, message):
+        value = TincProtocol.ParameteValue()
+        message.Unpack(value)
+        self._space_type = value.valueInt32
         return True
 
     def set_min_from_message(self, message):
