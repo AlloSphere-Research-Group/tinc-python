@@ -7,13 +7,13 @@ from threading import Lock
 
 from parameter import Parameter, ParameterString, ParameterInt, ParameterChoice, ParameterBool, ParameterColor
 from processor import CppProcessor, ScriptProcessor, ComputationChain
-from parameter_server import ParameterServer
+#from parameter_server import ParameterServer
 from datapool import DataPool
 from parameter_space import ParameterSpace
 from disk_buffer import DiskBuffer
 from message import Message
 import tinc_protocol_pb2 as TincProtocol
-from google.protobuf import any_pb2, message
+from google.protobuf import any_pb2 #, message
 
 tinc_client_version = 1
 tinc_client_revision = 1
@@ -412,26 +412,26 @@ class TincClient(object):
         self._send_message(msg)
         
     def register_processor(self, message):
-        proc_details = any_pb2.Any()
-        proc_details.Unpack(message.details)
-        if proc_details.Is(TincProtocol.RegisterProcessor):
-            processor_type = message.type
-            proc_id  = message.id
+        if message.Is(TincProtocol.RegisterProcessor.DESCRIPTOR):
+            proc_details = TincProtocol.RegisterProcessor()
+            message.Unpack(proc_details)
+            processor_type = proc_details.type
+            proc_id  = proc_details.id
             # print(name)
-            input_dir = message.inputDirectory
+            input_dir = proc_details.inputDirectory
             # print(input_dir)
-            input_files = message.inputFiles
+            input_files = proc_details.inputFiles
             # print(input_files)
-            output_dir = message.outputDirectory
+            output_dir = proc_details.outputDirectory
             # print(output_dir)
-            output_files = message.outputFiles
+            output_files = proc_details.outputFiles
             # print(output_files)
-            running_dir = message.runningDirectory
+            running_dir = proc_details.runningDirectory
             # print(running_dir)
             
             if processor_type == TincProtocol.CPP:
                 new_processor = CppProcessor(proc_id, input_dir, input_files, output_dir, output_files, running_dir)
-            elif processor_type ==  TincProtocol.SCRIPT:
+            elif processor_type ==  TincProtocol.DATASCRIPT:
                 new_processor = ScriptProcessor(proc_id, input_dir, input_files, output_dir, output_files, running_dir)
             elif processor_type == TincProtocol.CHAIN:
                 new_processor = ComputationChain(proc_id, input_dir, input_files, output_dir, output_files, running_dir)
@@ -455,7 +455,7 @@ class TincClient(object):
                 
             if not found and new_processor:
                 self.processors.append(new_processor)
-                print(f"Registered processor '{proc_id}'")
+                #print(f"Registered processor '{proc_id}'")
         else:
             print("Unexpected payload in Register Processor")
         
@@ -827,6 +827,38 @@ class TincClient(object):
             slice_reply = TincProtocol.DataPoolCommandSliceReply()
             command_details.Unpack(slice_reply)
             return slice_reply.filename
+        else:
+            return None
+        
+    def command_datapool_get_files(self, datapool_id):
+        
+        msg = TincProtocol.TincMessage()
+        msg.messageType  = TincProtocol.COMMAND
+        msg.objectType = TincProtocol.DATA_POOL
+        command = TincProtocol.Command()
+        command.id.id = datapool_id
+        command.message_id =  self.get_command_id()
+        
+        command_details = TincProtocol.DataPoolCommandCurrentFiles()
+                
+        command.details.Pack(command_details)
+        msg.details.Pack(command)
+        
+        # TODO check possible race condiiton in pending_requests count
+        self.pending_requests[command.message_id] = [datapool_id]
+
+        self._send_message(msg)
+            
+        # print(f"Sent command: {request_number}")
+        # FIXME implement timeout
+        while not command.message_id in self.pending_replies:
+            time.sleep(0.05)
+            
+        command_details, user_data = self.pending_replies.pop(command.message_id)
+        if command_details.Is(TincProtocol.DataPoolCommandCurrentFilesReply.DESCRIPTOR):
+            command_reply = TincProtocol.DataPoolCommandCurrentFilesReply()
+            command_details.Unpack(command_reply)
+            return command_reply.filenames
         else:
             return None
         

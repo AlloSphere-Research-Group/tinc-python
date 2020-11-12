@@ -10,6 +10,7 @@ class Processor(object):
         self.output_files = output_files
         self.running_dir = running_dir
         self.configuration = {}
+        self.parent = None
         
     def print(self):
         if self.input_dir:

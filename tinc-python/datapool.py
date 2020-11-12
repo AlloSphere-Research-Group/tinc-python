@@ -23,6 +23,11 @@ class DataPool(object):
     def get_slice_file(self, field, sliceDimensions):
         return self.tinc_client.command_datapool_slice_file(self.id, field, sliceDimensions)
         
+    
+    def get_current_files(self):
+        return self.tinc_client.command_datapool_get_files(self.id)
+        
+    
     def print(self):
         print(f" ** DataPool: {self.id}")
         print(f"      ParameterSpace id: {self.parameter_space_id}")
