@@ -21,10 +21,10 @@ parameter_space_type = {
 
 
 class Parameter(object):
-    def __init__(self, id: str, group: str = "", default: float = 0.0, minimum: float = -99999.0, maximum: float = 99999.0,tinc_client = None):
+    def __init__(self, id: str, group = None, minimum: float = -99999.0, maximum: float = 99999.0,default: float = 0.0, tinc_client = None):
         # Should not change:
         self.id = id
-        self.group = group
+        self.group = group if group is not None else ""
         self.default = default
         self.tinc_client = tinc_client
         self.type = "VALUE"
@@ -98,6 +98,11 @@ class Parameter(object):
             
     def set_values(self, values):
         self._values = values
+        try:
+            self.minimum = min(self._values)
+            self.maximum = max(self._values)
+        except:
+            print("Error setting min and max from space values")
         if self.tinc_client:
             self.tinc_client.send_parameter_space(self)
             
@@ -209,6 +214,7 @@ class ParameterString(Parameter):
         self.id = id
         self.group = group
         self.default = default
+        self._values = []
         self.tinc_client = tinc_client
         
         self.parent_bundle = None
@@ -285,7 +291,7 @@ class ParameterString(Parameter):
     
 
 class ParameterInt(Parameter):
-    def __init__(self, id: str, group: str = "", default: int = 0, minimum: int = 0, maximum: int = 127, tinc_client = None):
+    def __init__(self, id: str, group: str = "", minimum: int = 0, maximum: int = 127, default: int = 0, tinc_client = None):
         self._value :int = default
         self._data_type = int
         self.id = id
@@ -293,6 +299,7 @@ class ParameterInt(Parameter):
         self.default = default
         self.minimum = minimum
         self.maximum = maximum
+        self._values = []
         self.tinc_client = tinc_client
         
         self.parent_bundle = None
@@ -341,7 +348,7 @@ class ParameterInt(Parameter):
         return True
     
 class ParameterChoice(Parameter):
-    def __init__(self, id: str, group: str = "", default: int = 0, minimum: int = 0, maximum: int = 127, tinc_client = None):
+    def __init__(self, id: str, group: str = "", minimum: int = 0, maximum: int = 127, default: int = 0, tinc_client = None):
         self._value :int = default
         self._data_type = int
         self.id = id
@@ -349,6 +356,7 @@ class ParameterChoice(Parameter):
         self.default = default
         self.minimum = minimum
         self.maximum = maximum
+        self._values = []
         self.tinc_client = tinc_client
         self.elements = []
         
@@ -418,6 +426,7 @@ class ParameterColor(Parameter):
         self.default = default
         self.minimum = [0,0,0,0]
         self.maximum = [1,1,1,1]
+        self._values = []
         self.tinc_client = tinc_client
         
         self.parent_bundle = None
@@ -475,6 +484,7 @@ class ParameterBool(Parameter):
         self._data_type = float
         self.id = p_id
         self.group = group
+        self._values = []
         self.default = default
         
         self.parent_bundle = None

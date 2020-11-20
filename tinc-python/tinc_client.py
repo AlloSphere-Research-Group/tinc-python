@@ -77,9 +77,11 @@ class TincClient(object):
     
     # Access to objects by id
     
-    def get_parameter(self, parameter_id):
+    def get_parameter(self, parameter_id, group = None):
         for p in self.parameters:
-            if p.id == parameter_id:
+            if p.id == parameter_id and group is None:
+                return p
+            elif p.id == parameter_id and p.group == group:
                 return p
         return None
     
@@ -120,13 +122,13 @@ class TincClient(object):
         # else:
         #     print("NOT CONNECTED")
         
-    def create_parameter(self, parameter_type, param_id, group = "", min_value = None, max_value = None, space = None, default_value= None, space_type = None):
+    def create_parameter(self, parameter_type, param_id, group = None, min_value = None, max_value = None, space = None, default_value= None, space_type = None):
         new_param = parameter_type(param_id, group, tinc_client = self)
 
-        if not default_value is None:
-            new_param.default_value = default_value
+        if default_value is not None:
+            new_param.default = default_value
         self.register_parameter_with_client(new_param)
-        new_param = self.get_parameter(param_id)
+        new_param = self.get_parameter(param_id, group)
         
         self.register_parameter_on_server(new_param)
         if not min_value is None:
@@ -165,8 +167,9 @@ class TincClient(object):
         details = TincProtocol.RegisterParameter()
         details.id = param.id
         details.group = param.group
+        
         if type(param) == Parameter:
-            details.dataType = TincProtocol.ParameterDataType.PARAMETER_FLOAT
+            details.dataType = TincProtocol.PARAMETER_FLOAT
             details.defaultValue.valueFloat = param.default
         if type(param) == ParameterString:
             details.dataType = TincProtocol.PARAMETER_STRING
@@ -181,17 +184,12 @@ class TincClient(object):
             details.dataType = TincProtocol.PARAMETER_BOOL
             details.defaultValue.valueBool = param.default
             
-        # TODO add sending default value
         msg = TincProtocol.TincMessage()
         msg.messageType = TincProtocol.MessageType.REGISTER
         msg.objectType = TincProtocol.ObjectType.PARAMETER
         msg.details.Pack(details)
         
         self._send_message(msg)
-        print(f"register {param.id}")
-#        self.send_parameter_value(param)
-#        self.send_parameter_meta(param)
-        
         
     def register_parameter_from_message(self, details):
         if details.Is(TincProtocol.RegisterParameter.DESCRIPTOR):
