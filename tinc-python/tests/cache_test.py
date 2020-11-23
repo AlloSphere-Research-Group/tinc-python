@@ -27,3 +27,6 @@ ps = ParameterSpace("cache_test")
 
 ps.register_parameters([p1, p2, p3])
 
+ps.enable_caching()
+
+ps.clear_cache()

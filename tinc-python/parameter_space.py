@@ -40,6 +40,7 @@ class ParameterSpace(object):
         self._cache_manager = None
         
     def clear_cache(self):
+        #FIXME this function needs to be moved to the cache manager
         indeces = [0]*len(self._parameters)
         index_max = [len(p.values) for p in self._parameters]
             

@@ -90,6 +90,10 @@ class Parameter(object):
             self._interactive_widget.children[0].value = self._data_type(value)
         for cb in self._value_callbacks:
             cb(value)
+            
+    def set_at(self, index):
+        new_value = self._values[index]
+        self.set_value(new_value)
     
     def set_ids(self, ids):
         self._ids = [str(id) for id in ids]
@@ -101,6 +105,13 @@ class Parameter(object):
         try:
             self.minimum = min(self._values)
             self.maximum = max(self._values)
+            if self.value < self.minimum:
+                self.value = self.minimum
+                
+            if self.value < self.minimum:
+                self.value = self.minimum
+            if self.value > self.maximum:
+                self.value = self.maximum
         except:
             print("Error setting min and max from space values")
         if self.tinc_client:
