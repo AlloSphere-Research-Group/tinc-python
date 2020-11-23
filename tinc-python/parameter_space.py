@@ -7,6 +7,8 @@ Created on Tue Sep  1 17:13:15 2020
 
 from cachemanager import CacheManager
 
+import inspect, dis
+
 class ParameterSpace(object):
     def __init__(self, name = '', tinc_client = None):
         self.id = name
@@ -31,8 +33,30 @@ class ParameterSpace(object):
         if not param_registered:
             self._parameters.append(param)
             
-    def configure_caching(self, directory):
-        self._cache_manager = CacheManager(self, directory)
+    def enable_caching(self, directory = "python_cache"):
+        self._cache_manager = CacheManager(directory)
+        
+    def disable_caching(self):
+        self._cache_manager = None
+        
+    def clear_cache(self):
+        indeces = [0]*len(self._parameters)
+        index_max = [len(p.values) for p in self._parameters]
+            
+        done = False 
+        while not done:
+            args = {p.id:p.values[indeces[i]] for i,p in enumerate(self._parameters)}
+            self._cache_manager.remove_cache_file(args)
+            indeces[0] += 1
+            current_p = 0
+            while indeces[current_p] == index_max[current_p]:
+                indeces[current_p] = 0
+                if current_p == len(indeces) - 1:
+                    if indeces == [0]*len(self._parameters):
+                        done = True
+                    break
+                indeces[current_p + 1] += 1
+                current_p += 1
             
     def get_parameters(self):
         return self._parameters
@@ -46,7 +70,48 @@ class ParameterSpace(object):
             return self.tinc_client.command_parameter_space_get_root_path(self)
         
     def sweep(self, function):
-        function()
+        # TODO store metadata about function to know if we need to reprocess cache
+        if True:
+            print(dis.dis(function))
+            print(inspect.getsource(function))
+        
+        indeces = [0]*len(self._parameters)
+        index_max = [len(p.values) for p in self._parameters]
+    
+        done = False 
+        while not done:
+            args = {p.id:p.values[indeces[i]] for i,p in enumerate(self._parameters)}
+            self._process(function, args)
+            indeces[0] += 1
+            current_p = 0
+            while indeces[current_p] == index_max[current_p]:
+                indeces[current_p] = 0
+                if current_p == len(indeces) - 1:
+                    if indeces == [0]*len(self._parameters):
+                        done = True
+                    break
+                indeces[current_p + 1] += 1
+                current_p += 1
+                
+    
+    def process(self, function, args = None):
+        if args is None:
+            args = {p.id:p.value for p in self._parameters}
+        return self._process(function, args)
+            
+    def _process(self,function, args):
+        
+        if self._cache_manager:
+            out = self._cache_manager.load_cache(args)
+            if out:
+                print("Using cache")
+                return out
+            
+        out = function(**args)
+        if self._cache_manager:
+            self._cache_manager.store_cache(out, args)
+        return out
+        
  
     def print(self):
         print(f" ** ParameterSpace {self.id}")
