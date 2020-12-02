@@ -49,6 +49,8 @@ class TincClient(object):
      
         self.start(server_addr, server_port)
         
+        self.debug = True
+        
     def __del__(self):
         self.stop()
         print("Stopped")
@@ -68,8 +70,8 @@ class TincClient(object):
         if self.running:
             self.running = False
             self.connected = False
-            self.socket.close()
             self.x.join()
+            self.socket.close()
             self.socket = None
         
         self.server_version = 0
@@ -127,10 +129,10 @@ class TincClient(object):
 
         if default_value is not None:
             new_param.default = default_value
-        self.register_parameter_with_client(new_param)
+        self.register_parameter(new_param)
         new_param = self.get_parameter(param_id, group)
         
-        self.register_parameter_on_server(new_param)
+        self._register_parameter_on_server(new_param)
         if not min_value is None:
             new_param.minimum = min_value
         if not max_value is None:
@@ -152,7 +154,7 @@ class TincClient(object):
         # TODO complete implementation
         return
     
-    def register_parameter_with_client(self, new_param):
+    def register_parameter(self, new_param):
         param_found = False
         for p in self.parameters:
             if p.id == new_param.id and p.group == new_param.group:
@@ -163,109 +165,6 @@ class TincClient(object):
         else:
             pass
     
-    def register_parameter_on_server(self, param):
-        details = TincProtocol.RegisterParameter()
-        details.id = param.id
-        details.group = param.group
-        
-        if type(param) == Parameter:
-            details.dataType = TincProtocol.PARAMETER_FLOAT
-            details.defaultValue.valueFloat = param.default
-        if type(param) == ParameterString:
-            details.dataType = TincProtocol.PARAMETER_STRING
-            details.defaultValue.valueString = param.default
-        if type(param) == ParameterInt:
-            details.dataType = TincProtocol.PARAMETER_INT32
-            details.defaultValue.valueInt32 = param.default
-        if type(param) == ParameterChoice:
-            details.dataType = TincProtocol.PARAMETER_CHOICE
-            details.defaultValue.valueUint64 = param.default
-        if type(param) == ParameterBool:
-            details.dataType = TincProtocol.PARAMETER_BOOL
-            details.defaultValue.valueBool = param.default
-            
-        msg = TincProtocol.TincMessage()
-        msg.messageType = TincProtocol.MessageType.REGISTER
-        msg.objectType = TincProtocol.ObjectType.PARAMETER
-        msg.details.Pack(details)
-        
-        self._send_message(msg)
-        
-    def register_parameter_from_message(self, details):
-        if details.Is(TincProtocol.RegisterParameter.DESCRIPTOR):
-            # print("Register parameter")
-            
-            details_unpacked = TincProtocol.RegisterParameter()
-            details.Unpack(details_unpacked)
-            name = details_unpacked.id
-            group = details_unpacked.group
-            param_type = details_unpacked.dataType
-    
-            if param_type == TincProtocol.PARAMETER_FLOAT : 
-                new_param = Parameter(name, group, details_unpacked.defaultValue.valueFloat, tinc_client =self)
-            elif param_type == TincProtocol.PARAMETER_BOOL: 
-                new_param = ParameterBool(name, group, details_unpacked.defaultValue.valueFloat, tinc_client =self)
-                    
-            elif param_type == TincProtocol.PARAMETER_STRING :
-                new_param = ParameterString(name, group, details_unpacked.defaultValue.valueString, tinc_client =self)
-            elif param_type == TincProtocol.PARAMETER_INT32 : 
-                new_param = ParameterInt(name, group, details_unpacked.defaultValue.valueInt32, tinc_client =self)
-            elif param_type == TincProtocol.PARAMETER_VEC3F :
-                new_param = None
-                pass
-            elif param_type == TincProtocol.PARAMETER_VEC4F :
-                new_param = None
-                pass
-            elif param_type == TincProtocol.PARAMETER_COLORF :
-                l = [v.valueFloat for v in details_unpacked.defaultValue.valueList]
-                new_param = ParameterColor(name, group, l, tinc_client =self)
-                pass
-            elif param_type == TincProtocol.PARAMETER_POSED :
-                new_param = None
-                pass
-            elif param_type == TincProtocol.PARAMETER_CHOICE :
-                new_param = ParameterChoice(name, group, details_unpacked.defaultValue.valueUint64, tinc_client =self)
-                pass
-            elif param_type == TincProtocol.PARAMETER_TRIGGER :
-                new_param = None
-                pass
-            else:
-                new_param = None
-                
-            if new_param:
-                self.register_parameter_with_client(new_param)
-                    # print("Parameter already registered.")
-            else:
-                print("Unsupported parameter type")
-        else:
-            print("ERROR: Unexpected payload in REGISTER PARAMETER")
-                
-    def configure_parameter(self, details):
-        param_details = TincProtocol.ConfigureParameter()
-        details.Unpack(param_details)
-  
-        param_osc_address = param_details.id
-        
-        configured = True
-        for param in self.parameters:
-            if param.get_osc_address() == param_osc_address:
-                param_command = param_details.configurationKey
-                if param_command == TincProtocol.ParameterConfigureType.VALUE:
-                    configured = configured and param.set_value_from_message(param_details.configurationValue)
-                elif param_command == TincProtocol.ParameterConfigureType.MIN:
-                    configured = configured and param.set_min_from_message(param_details.configurationValue)
-                elif param_command == TincProtocol.ParameterConfigureType.MAX:
-                    configured = configured and param.set_max_from_message(param_details.configurationValue)
-                elif param_command == TincProtocol.ParameterConfigureType.SPACE:
-                    configured = configured and param.set_space_from_message(param_details.configurationValue)
-                elif param_command == TincProtocol.ParameterConfigureType.SPACE_TYPE:
-                    configured = configured and param.set_space_type_from_message(param_details.configurationValue)
-                else:
-                    print("Unrecognized Parameter Configure command")
-                
-        if not configured:
-            print("Parameter configuration failed")
-            
     def send_parameter_value(self, param):
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.CONFIGURE
@@ -354,7 +253,20 @@ class TincClient(object):
             self._send_message(msg)
         elif type(param) == ParameterColor:
             pass
-            
+        
+    def send_parameter_space_type(self, param):
+        msg = TincProtocol.TincMessage()
+        msg.messageType  = TincProtocol.CONFIGURE
+        msg.objectType = TincProtocol.PARAMETER
+        config = TincProtocol.ConfigureParameter()
+        config.id = param.get_osc_address()
+        config.configurationKey = TincProtocol.ParameterConfigureType.SPACE_TYPE
+        type_value = TincProtocol.ParameterValue()
+        type_value.valueInt32 = param.space_type
+        config.configurationValue.Pack(type_value)
+        msg.details.Pack(config)
+        self._send_message(msg)
+        
     def send_parameter_space(self, param):
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.CONFIGURE
@@ -396,18 +308,166 @@ class TincClient(object):
         elif type(param) == ParameterColor:
             pass
         
-    def send_parameter_space_type(self, param):
+    def _register_parameter_on_server(self, param):
+        details = TincProtocol.RegisterParameter()
+        details.id = param.id
+        details.group = param.group
+        
+        if type(param) == Parameter:
+            details.dataType = TincProtocol.PARAMETER_FLOAT
+            details.defaultValue.valueFloat = param.default
+        if type(param) == ParameterString:
+            details.dataType = TincProtocol.PARAMETER_STRING
+            details.defaultValue.valueString = param.default
+        if type(param) == ParameterInt:
+            details.dataType = TincProtocol.PARAMETER_INT32
+            details.defaultValue.valueInt32 = param.default
+        if type(param) == ParameterChoice:
+            details.dataType = TincProtocol.PARAMETER_CHOICE
+            details.defaultValue.valueUint64 = param.default
+        if type(param) == ParameterBool:
+            details.dataType = TincProtocol.PARAMETER_BOOL
+            details.defaultValue.valueBool = param.default
+            
         msg = TincProtocol.TincMessage()
-        msg.messageType  = TincProtocol.CONFIGURE
-        msg.objectType = TincProtocol.PARAMETER
-        config = TincProtocol.ConfigureParameter()
-        config.id = param.get_osc_address()
-        config.configurationKey = TincProtocol.ParameterConfigureType.SPACE_TYPE
-        type_value = TincProtocol.ParameterValue()
-        type_value.valueInt32 = param.space_type
-        config.configurationValue.Pack(type_value)
-        msg.details.Pack(config)
+        msg.messageType = TincProtocol.MessageType.REGISTER
+        msg.objectType = TincProtocol.ObjectType.PARAMETER
+        msg.details.Pack(details)
+        
         self._send_message(msg)
+        
+    def _register_parameter_from_message(self, details):
+        if details.Is(TincProtocol.RegisterParameter.DESCRIPTOR):
+            # print("Register parameter")
+            
+            details_unpacked = TincProtocol.RegisterParameter()
+            details.Unpack(details_unpacked)
+            name = details_unpacked.id
+            group = details_unpacked.group
+            param_type = details_unpacked.dataType
+    
+            if param_type == TincProtocol.PARAMETER_FLOAT : 
+                new_param = Parameter(name, group, default = details_unpacked.defaultValue.valueFloat, tinc_client =self)
+            elif param_type == TincProtocol.PARAMETER_BOOL: 
+                new_param = ParameterBool(name, group, details_unpacked.defaultValue.valueFloat, tinc_client =self)
+                    
+            elif param_type == TincProtocol.PARAMETER_STRING :
+                new_param = ParameterString(name, group, default = details_unpacked.defaultValue.valueString, tinc_client =self)
+            elif param_type == TincProtocol.PARAMETER_INT32 : 
+                new_param = ParameterInt(name, group, default = details_unpacked.defaultValue.valueInt32, tinc_client =self)
+            elif param_type == TincProtocol.PARAMETER_VEC3F :
+                new_param = None
+                pass
+            elif param_type == TincProtocol.PARAMETER_VEC4F :
+                new_param = None
+                pass
+            elif param_type == TincProtocol.PARAMETER_COLORF :
+                l = [v.valueFloat for v in details_unpacked.defaultValue.valueList]
+                new_param = ParameterColor(name, group, default = l, tinc_client =self)
+                pass
+            elif param_type == TincProtocol.PARAMETER_POSED :
+                new_param = None
+                pass
+            elif param_type == TincProtocol.PARAMETER_CHOICE :
+                new_param = ParameterChoice(name, group, default = details_unpacked.defaultValue.valueUint64, tinc_client =self)
+                pass
+            elif param_type == TincProtocol.PARAMETER_TRIGGER :
+                new_param = None
+                pass
+            else:
+                new_param = None
+                
+            if new_param:
+                self.register_parameter(new_param)
+                    # print("Parameter already registered.")
+            else:
+                print("Unsupported parameter type")
+        else:
+            print("ERROR: Unexpected payload in REGISTER PARAMETER")
+                
+    def _configure_parameter_from_message(self, details):
+        param_details = TincProtocol.ConfigureParameter()
+        details.Unpack(param_details)
+  
+        param_osc_address = param_details.id
+        
+        configured = True
+        if self.debug:
+            print("_configure_parameter_from_message")
+        for param in self.parameters:
+            if param.get_osc_address() == param_osc_address:
+                param_command = param_details.configurationKey
+                if param_command == TincProtocol.ParameterConfigureType.VALUE:
+                    configured = configured and param.set_value_from_message(param_details.configurationValue)
+                elif param_command == TincProtocol.ParameterConfigureType.MIN:
+                    configured = configured and param.set_min_from_message(param_details.configurationValue)
+                elif param_command == TincProtocol.ParameterConfigureType.MAX:
+                    configured = configured and param.set_max_from_message(param_details.configurationValue)
+                elif param_command == TincProtocol.ParameterConfigureType.SPACE:
+                    configured = configured and param.set_space_from_message(param_details.configurationValue)
+                elif param_command == TincProtocol.ParameterConfigureType.SPACE_TYPE:
+                    configured = configured and param.set_space_type_from_message(param_details.configurationValue)
+                else:
+                    print("Unrecognized Parameter Configure command")
+                
+        if not configured:
+            print("Parameter configuration failed")
+            
+    # ParameterSpace messages ------------------
+    def register_parameter_space(self, new_ps):
+        found = False
+        for ps in self.parameter_spaces:
+            if ps.id == new_ps.id:
+                print(f"ParameterSpace already registered: '{new_ps.id}'")
+                found = True
+                break
+        if not found:
+            self.parameter_spaces.append(new_ps)
+            #print(f"REGISTER ParameterSpace: '{new_ps}'")
+    
+    def _register_parameter_space_from_message(self, details):
+        # print('register ps')
+        if details.Is(TincProtocol.RegisterParameterSpace.DESCRIPTOR):
+            ps_details = TincProtocol.RegisterParameterSpace()
+            details.Unpack(ps_details)
+            ps_id = ps_details.id
+            self.register_parameter_space(ParameterSpace(ps_id, tinc_client = self))
+            print(f"NEW ParameterSpace: '{self.parameter_spaces[-1]}'")
+                
+    def _configure_parameter_space_from_message(self, details):
+        param_details = TincProtocol.ConfigureParameterSpace()
+        details.Unpack(param_details)
+  
+        ps_id = param_details.id
+        
+        configured = True
+        if self.debug:
+            print("Processing _configure_parameter_space_from_message")
+        for ps in self.parameter_spaces:
+            if ps_id == ps.id:
+                ps_command = param_details.configurationKey
+                if ps_command == TincProtocol.ParameterSpaceConfigureType.ADD_PARAMETER:
+                    param_value = TincProtocol.ParameterValue()
+                    param_details.configurationValue.Unpack(param_value)
+                    param_id = param_value.valueString
+                    for p in self.parameters:
+                        if p.get_osc_address() == param_id:
+                            print(f"Registering for {ps}")
+                            ps.register_parameter(p)
+                            configured = True
+                            break
+                elif ps_command == TincProtocol.ParameterConfigureType.REMOVE_PARAMETER:
+                    param_id = param_details.configurationValue
+                    for p in self.parameters:
+                        if p.get_osc_address() == param_id:
+                            ps.unregister_parameter(p)
+                            configured = True
+                            break
+                else:
+                    print("Unrecognized ParameterSpace Configure command")
+                
+        if not configured:
+            print("ParameterSpace configuration failed")
         
     def register_processor(self, message):
         if message.Is(TincProtocol.RegisterProcessor.DESCRIPTOR):
@@ -557,24 +617,6 @@ class TincClient(object):
         # print("send")
         self._send_message(msg)
     
-    # ParameterSpace messages ------------------
-    def register_parameter_space(self, details):
-        # print('register ps')
-        if details.Is(TincProtocol.RegisterParameterSpace.DESCRIPTOR):
-            ps_details = TincProtocol.RegisterParameterSpace()
-            details.Unpack(ps_details)
-            ps_id = ps_details.id
-                
-            found = False
-            for ps in self.parameter_spaces:
-                if ps.id == ps_id:
-                    print(f"ParameterSpace already registered: '{ps_id}'")
-                    found = True
-                    break
-            
-            if not found:
-                new_ps = ParameterSpace(ps_id, tinc_client = self)
-                self.parameter_spaces.append(new_ps)
         
 
 # ------------------------------------------------------
@@ -587,6 +629,7 @@ class TincClient(object):
             # TODO we should verify the object id somehow
             try:
                 command_data = self.pending_requests.pop(message_id)
+                print(f"**** Got reply for id {message_id}")
                 self.pending_replies[message_id] = [command_details.details, command_data]
             except KeyError:
                 print(f"Unexpected command reply: {message_id}")
@@ -595,9 +638,10 @@ class TincClient(object):
         
         
     def process_register_command(self, message):
-        # print("Register command")
+        if self.debug:
+            print(f"process_register_command {message.objectType}")
         if message.objectType == TincProtocol.ObjectType.PARAMETER:
-            self.register_parameter_from_message(message.details)
+            self._register_parameter_from_message(message.details)
         elif message.objectType == TincProtocol.ObjectType.PROCESSOR:
             self.register_processor(message.details)
         elif message.objectType == TincProtocol.ObjectType.DISK_BUFFER:
@@ -605,25 +649,30 @@ class TincClient(object):
         elif message.objectType == TincProtocol.ObjectType.DATA_POOL:
             self.register_datapool(message.details)
         elif message.objectType == TincProtocol.ObjectType.PARAMETER_SPACE:
-            self.register_parameter_space(message.details)
+            self._register_parameter_space_from_message(message.details)
         else:
             print("Unexpected Register command")
     
     def process_request_command(self, message):
         pass
+    
     def process_remove_command(self, message):
         pass
+    
     def process_configure_command(self, message):
+        if self.debug:
+            print(f"process_configure_command {message.objectType}")
+            
         if message.objectType == TincProtocol.PARAMETER:
-            self.configure_parameter(message.details)
+            self._configure_parameter_from_message(message.details)
         elif message.objectType == TincProtocol.PROCESSOR:
             self.configure_processor(message.details)
         elif message.objectType == TincProtocol.DISK_BUFFER:
             self.configure_disk_buffer(message.details)
         elif message.objectType == TincProtocol.DATA_POOL:
             self.configure_datapool(message.details)
-        # elif message.objectType == TincProtocol.PARAMETER_SPACE:
-        #     pass
+        elif message.objectType == TincProtocol.PARAMETER_SPACE:
+            self._configure_parameter_space_from_message(message.details)
         else:
             print("Unexpected Configure command")
             
@@ -742,7 +791,7 @@ class TincClient(object):
         command.details.Pack(slice_details)
         msg.details.Pack(command)
         
-        # TODO check possible race condiiton in pending_requests count. Does the GIL make it safe?
+        # TODO check possible race conditon in pending_requests count. Does the GIL make it safe?
         self.pending_requests[request_number] = [ps]
 
         self._send_message(msg)
@@ -975,7 +1024,8 @@ class TincClient(object):
                         else:
                             print("Unknown message")
                         al_message = al_message[message_size + 8:]
-                        # print(f"Processed Byte_size {message_size}:{pc_message.ByteSize()} {len(message)}" )
+                        if self.debug:
+                            print(f"Processed Byte_size {message_size}:{pc_message.ByteSize()}" )
                     else:
                         break
                             
@@ -984,7 +1034,7 @@ class TincClient(object):
         print("Closed command server")                
 
     def print(self): 
-        print("Print")
+        # print("Print")
         if self.socket:
             print("TINC Server")
             if self.connected:
@@ -1001,7 +1051,7 @@ class TincClient(object):
                     dp.print()
                 
             elif self.running:
-                print("Attempting to connect to app.")
+                print("Attempting to connect to app. App is not reponding.")
             else:
                 print("NOT CONNECTED")
         else:

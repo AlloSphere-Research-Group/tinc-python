@@ -336,10 +336,10 @@ class ParameterInt(Parameter):
     def set_space_from_message(self, message):
         values = TincProtocol.ParameterSpaceValues()
         message.Unpack(values)
-        self.ids = values.ids
+        self._ids = values.ids
         count = len(values.values)
         # print(f'setting space {count}')
-        self.values = np.ndarray((count))
+        self._values = np.ndarray((count))
         for i, v in enumerate(values.values):
             self.values[i] = v.valueInt32
         return True
