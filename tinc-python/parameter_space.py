@@ -31,7 +31,14 @@ class ParameterSpace(object):
                     print("ERROR: Registering the same parameter with a different object")
                 param_registered = True
         if not param_registered:
+            print(f'register  for {self}')
             self._parameters.append(param)
+            
+    def unregister_parameter(self, param):
+        for p in self._parameters:
+            if p.id == param.id and p.group == param.group:
+                self._parameters.remove(p)
+                break
             
     def enable_caching(self, directory = "python_cache"):
         self._cache_manager = CacheManager(directory)
@@ -58,7 +65,14 @@ class ParameterSpace(object):
                     break
                 indeces[current_p + 1] += 1
                 current_p += 1
-            
+    
+    def get_parameter(self, param_id, group = None):
+        for p in self._parameters:
+            if p.id == param_id:
+                if group is None or group == p.group:
+                    return p
+        return None
+    
     def get_parameters(self):
         return self._parameters
     
@@ -70,7 +84,7 @@ class ParameterSpace(object):
         if self.tinc_client:
             return self.tinc_client.command_parameter_space_get_root_path(self)
         
-    def sweep(self, function):
+    def sweep(self, function, force_values = False):
         # TODO store metadata about function to know if we need to reprocess cache
         if True:
             print(dis.dis(function))
@@ -78,9 +92,15 @@ class ParameterSpace(object):
         
         indeces = [0]*len(self._parameters)
         index_max = [len(p.values) for p in self._parameters]
+        
+        original_values = {p:p.value for p in self._parameters}
     
         done = False 
         while not done:
+            if force_values:
+                for i,p in enumerate(self._parameters):
+                    p.set_at(indeces[i])
+                
             args = {p.id:p.values[indeces[i]] for i,p in enumerate(self._parameters)}
             self._process(function, args)
             indeces[0] += 1
@@ -94,6 +114,10 @@ class ParameterSpace(object):
                 indeces[current_p + 1] += 1
                 current_p += 1
                 
+        if force_values:
+            for p, orig_val in original_values.items():
+                p.value = orig_val
+                
     
     def process(self, function, args = None):
         if args is None:
@@ -101,6 +125,15 @@ class ParameterSpace(object):
         return self._process(function, args)
             
     def _process(self,function, args):
+        
+        named_args = inspect.getfullargspec(function)[0]
+        
+        unused_args = [a for a in args.keys() if not a in named_args]
+        if len(unused_args) > 0:
+            print(f'Ignoring parameters: {unused_args}. Not used in function')
+        # Only use arguments that can be passed to the function
+        args = {key:value for key, value in args.items() if key in named_args}
+        
         
         if self._cache_manager:
             out = self._cache_manager.load_cache(args)
@@ -115,4 +148,6 @@ class ParameterSpace(object):
         
  
     def print(self):
-        print(f" ** ParameterSpace {self.id}")
+        print(f" ** ParameterSpace {self.id}: {self}")
+        for p in self._parameters:
+            print(f"   -- Parameter {p.id}{':' + p.group if p.group else ''} {p.get_osc_address()}")
