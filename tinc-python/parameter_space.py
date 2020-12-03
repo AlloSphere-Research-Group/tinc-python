@@ -53,7 +53,7 @@ class ParameterSpace(object):
             
         done = False 
         while not done:
-            args = {p.id:p.values[indeces[i]] for i,p in enumerate(self._parameters)}
+            args = {p.id:p.values[indeces[i]] if len(p.values) > 0 else p.value for i,p in enumerate(self._parameters)}
             self._cache_manager.remove_cache_file(args)
             indeces[0] += 1
             current_p = 0

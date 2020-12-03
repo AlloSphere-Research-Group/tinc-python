@@ -42,10 +42,14 @@ class TincClient(object):
         self.pending_requests = {}
         self.pending_requests_count = 1
         self.pending_replies = {}
+        
         self.request_count_lock = Lock()
+        self.pending_requests_lock = Lock()
+        self.pending_lock = Lock()
         
         self.server_version = 0
         self.server_revision = 0
+        
      
         self.start(server_addr, server_port)
         
@@ -386,6 +390,9 @@ class TincClient(object):
             print("ERROR: Unexpected payload in REGISTER PARAMETER")
                 
     def _configure_parameter_from_message(self, details):
+        if not details.Is(TincProtocol.ConfigureParameter.DESCRIPTOR):
+            print("ERROR unexpected paylod in Configure parameter. Aborting.")
+            return
         param_details = TincProtocol.ConfigureParameter()
         details.Unpack(param_details)
   
@@ -766,8 +773,14 @@ class TincClient(object):
             
         # print(f"Sent command: {request_number}")
         # FIXME implement timeout
+        self.pending_lock.lock()
         while not request_number in self.pending_replies:
+            self.pending_lock.release()
             time.sleep(0.05)
+            self.pending_lock.acquire()
+            
+        command_details, user_data = self.pending_replies.pop(request_number)
+        self.pending_lock.release()
             
         command_details, user_data = self.pending_replies.pop(request_number)
         if command_details.Is(TincProtocol.ParameterRequestChoiceElementsReply.DESCRIPTOR):
@@ -798,8 +811,14 @@ class TincClient(object):
             
         # print(f"Sent command: {request_number}")
         # FIXME implement timeout
+        self.pending_lock.acquire()
         while not request_number in self.pending_replies:
+            self.pending_lock.release()
             time.sleep(0.05)
+            self.pending_lock.acquire()
+            
+        command_details, user_data = self.pending_replies.pop(request_number)
+        self.pending_lock.release()
             
         command_details, user_data = self.pending_replies.pop(request_number)
         if command_details.Is(TincProtocol.ParameterSpaceRequestCurrentPathReply.DESCRIPTOR):
@@ -829,8 +848,14 @@ class TincClient(object):
             
         # print(f"Sent command: {request_number}")
         # FIXME implement timeout
+        self.pending_lock.acquire()
         while not request_number in self.pending_replies:
+            self.pending_lock.release()
             time.sleep(0.05)
+            self.pending_lock.acquire()
+            
+        command_details, user_data = self.pending_replies.pop(request_number)
+        self.pending_lock.release()
             
         command_details, user_data = self.pending_replies.pop(request_number)
         if command_details.Is(TincProtocol.ParameterSpaceRequestRootPathReply.DESCRIPTOR):
@@ -866,10 +891,16 @@ class TincClient(object):
             
         # print(f"Sent command: {request_number}")
         # FIXME implement timeout
-        while not command.message_id in self.pending_replies:
+        request_number = slice_details.get_command_id()
+        while not request_number in self.pending_replies:
+        self.pending_lock.acquire()
+            self.pending_lock.release()
             time.sleep(0.05)
+            self.pending_lock.acquire()
             
-        command_details, user_data = self.pending_replies.pop(command.message_id)
+        command_details, user_data = self.pending_replies.pop(request_number)
+        self.pending_lock.release()
+            
         if command_details.Is(TincProtocol.DataPoolCommandSliceReply.DESCRIPTOR):
             slice_reply = TincProtocol.DataPoolCommandSliceReply()
             command_details.Unpack(slice_reply)
@@ -892,16 +923,23 @@ class TincClient(object):
         msg.details.Pack(command)
         
         # TODO check possible race condiiton in pending_requests count
+        
         self.pending_requests[command.message_id] = [datapool_id]
 
         self._send_message(msg)
             
         # print(f"Sent command: {request_number}")
         # FIXME implement timeout
-        while not command.message_id in self.pending_replies:
+        request_number = command_details.get_command_id()
+        self.pending_lock.acquire()
+        while not request_number in self.pending_replies:
+            self.pending_lock.release()
             time.sleep(0.05)
+            self.pending_lock.acquire()
             
-        command_details, user_data = self.pending_replies.pop(command.message_id)
+        command_details, user_data = self.pending_replies.pop(request_number)
+        self.pending_lock.release()
+        
         if command_details.Is(TincProtocol.DataPoolCommandCurrentFilesReply.DESCRIPTOR):
             command_reply = TincProtocol.DataPoolCommandCurrentFilesReply()
             command_details.Unpack(command_reply)
