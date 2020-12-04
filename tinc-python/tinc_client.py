@@ -773,7 +773,7 @@ class TincClient(object):
             
         # print(f"Sent command: {request_number}")
         # FIXME implement timeout
-        self.pending_lock.lock()
+        self.pending_lock.acquire()
         while not request_number in self.pending_replies:
             self.pending_lock.release()
             time.sleep(0.05)
@@ -819,8 +819,7 @@ class TincClient(object):
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
-            
-        command_details, user_data = self.pending_replies.pop(request_number)
+
         if command_details.Is(TincProtocol.ParameterSpaceRequestCurrentPathReply.DESCRIPTOR):
             slice_reply = TincProtocol.ParameterSpaceRequestCurrentPathReply()
             command_details.Unpack(slice_reply)
@@ -857,7 +856,6 @@ class TincClient(object):
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
             
-        command_details, user_data = self.pending_replies.pop(request_number)
         if command_details.Is(TincProtocol.ParameterSpaceRequestRootPathReply.DESCRIPTOR):
             slice_reply = TincProtocol.ParameterSpaceRequestRootPathReply()
             command_details.Unpack(slice_reply)
