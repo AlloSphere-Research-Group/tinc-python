@@ -782,7 +782,6 @@ class TincClient(object):
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
             
-        command_details, user_data = self.pending_replies.pop(request_number)
         if command_details.Is(TincProtocol.ParameterRequestChoiceElementsReply.DESCRIPTOR):
             slice_reply = TincProtocol.ParameterRequestChoiceElementsReply()
             command_details.Unpack(slice_reply)
