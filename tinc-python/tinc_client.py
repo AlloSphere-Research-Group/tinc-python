@@ -892,8 +892,8 @@ class TincClient(object):
         # print(f"Sent command: {request_number}")
         # FIXME implement timeout
         request_number = slice_details.get_command_id()
-        while not request_number in self.pending_replies:
         self.pending_lock.acquire()
+        while not request_number in self.pending_replies:
             self.pending_lock.release()
             time.sleep(0.05)
             self.pending_lock.acquire()
