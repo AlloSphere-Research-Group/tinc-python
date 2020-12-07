@@ -2,8 +2,6 @@ import json
 import os
 import re
 
-from parameter_server import ParameterServer
-
 from filelock import FileLock
 from tinc_protocol_pb2 import DiskBufferType
 

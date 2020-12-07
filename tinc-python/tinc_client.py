@@ -27,6 +27,11 @@ commands = {
     "PONG" : 0x06,
     }
 
+class TincTimeout(ValueError):
+ def __init__(self, arg):
+  self.strerror = arg
+  self.args = {arg}
+
 
 class TincClient(object):
     def __init__(self, server_addr: str = "localhost",
@@ -50,7 +55,8 @@ class TincClient(object):
         self.server_version = 0
         self.server_revision = 0
         
-     
+        self._log = []
+        
         self.start(server_addr, server_port)
         
         self.debug = True
@@ -136,7 +142,6 @@ class TincClient(object):
         self.register_parameter(new_param)
         new_param = self.get_parameter(param_id, group)
         
-        self._register_parameter_on_server(new_param)
         if not min_value is None:
             new_param.minimum = min_value
         if not max_value is None:
@@ -149,6 +154,12 @@ class TincClient(object):
         elif type(space) == list:
             new_param.ids = []
             new_param.values = space
+            
+        self._register_parameter_on_server(new_param)
+        
+        if default_value is not None:
+            new_param.value = default_value
+        
         return new_param
     
     def remove_parameter(self, param_id, group = None):
@@ -629,18 +640,25 @@ class TincClient(object):
 # ------------------------------------------------------
     def process_object_command_reply(self, message):
         command_details = TincProtocol.Command()
+        self._log.append("Reply")
         if message.details.Is(TincProtocol.Command.DESCRIPTOR):
             message.details.Unpack(command_details)
             
             message_id = command_details.message_id
             # TODO we should verify the object id somehow
             try:
-                command_data = self.pending_requests.pop(message_id)
-                print(f"**** Got reply for id {message_id}")
-                self.pending_replies[message_id] = [command_details.details, command_data]
+                with self.pending_requests_lock:
+                    
+                    if self.debug:
+                        print(f"**** Got reply for id {message_id}")
+                    self._log.append(f"Got reply for id {message_id}")
+                    command_data = self.pending_requests.pop(message_id)
+                with self.pending_lock:
+                    self.pending_replies[message_id] = [command_details.details, command_data]
             except KeyError:
                 print(f"Unexpected command reply: {message_id}")
         else:
+            self._log.append("Unsupported payload in Command reply")
             print("Unsupported payload in Command reply")
         
         
@@ -685,9 +703,6 @@ class TincClient(object):
             
     def process_command_command(self, message):
         pass
-    
-    def process_reply_command(self, message):
-        self.process_object_command_reply(message)
         
     def process_ping_command(self, message):
         pass
@@ -750,6 +765,16 @@ class TincClient(object):
         self.request_count_lock.release()
         return command_id
     
+    def wait_for_reply(self, request_number, timeout_sec= 5):
+        start_time = time.time()
+        self.pending_lock.acquire()
+        while not request_number in self.pending_replies:
+            self.pending_lock.release()
+            time.sleep(0.05)
+            if (time.time() - start_time) > timeout_sec:
+                raise TincTimeout("Timeout.")
+            self.pending_lock.acquire()
+    
     def command_parameter_choice_elements(self, parameter):
         
         parameter_addr = parameter.get_osc_address()
@@ -771,13 +796,9 @@ class TincClient(object):
 
         self._send_message(msg)
             
-        # print(f"Sent command: {request_number}")
-        # FIXME implement timeout
-        self.pending_lock.acquire()
-        while not request_number in self.pending_replies:
-            self.pending_lock.release()
-            time.sleep(0.05)
-            self.pending_lock.acquire()
+        print(f"Sent command: {request_number}")
+        
+        self.wait_for_reply(request_number)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
@@ -807,14 +828,8 @@ class TincClient(object):
         self.pending_requests[request_number] = [ps]
 
         self._send_message(msg)
-            
-        # print(f"Sent command: {request_number}")
-        # FIXME implement timeout
-        self.pending_lock.acquire()
-        while not request_number in self.pending_replies:
-            self.pending_lock.release()
-            time.sleep(0.05)
-            self.pending_lock.acquire()
+          
+        self.wait_for_reply(request_number)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
@@ -844,13 +859,7 @@ class TincClient(object):
 
         self._send_message(msg)
             
-        # print(f"Sent command: {request_number}")
-        # FIXME implement timeout
-        self.pending_lock.acquire()
-        while not request_number in self.pending_replies:
-            self.pending_lock.release()
-            time.sleep(0.05)
-            self.pending_lock.acquire()
+        self.wait_for_reply(request_number)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
@@ -868,6 +877,7 @@ class TincClient(object):
         command = TincProtocol.Command()
         command.id.id = datapool_id
         command.message_id =  self.get_command_id()
+        request_number = command.message_id
         
         slice_details = TincProtocol.DataPoolCommandSlice()
         slice_details.field = field
@@ -887,13 +897,7 @@ class TincClient(object):
         self._send_message(msg)
             
         # print(f"Sent command: {request_number}")
-        # FIXME implement timeout
-        request_number = slice_details.get_command_id()
-        self.pending_lock.acquire()
-        while not request_number in self.pending_replies:
-            self.pending_lock.release()
-            time.sleep(0.05)
-            self.pending_lock.acquire()
+        self.wait_for_reply(request_number)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
@@ -913,6 +917,7 @@ class TincClient(object):
         command = TincProtocol.Command()
         command.id.id = datapool_id
         command.message_id =  self.get_command_id()
+        request_number = command.message_id
         
         command_details = TincProtocol.DataPoolCommandCurrentFiles()
                 
@@ -927,12 +932,7 @@ class TincClient(object):
             
         # print(f"Sent command: {request_number}")
         # FIXME implement timeout
-        request_number = command_details.get_command_id()
-        self.pending_lock.acquire()
-        while not request_number in self.pending_replies:
-            self.pending_lock.release()
-            time.sleep(0.05)
-            self.pending_lock.acquire()
+        self.wait_for_reply(request_number)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
@@ -959,7 +959,7 @@ class TincClient(object):
         size = msg.ByteSize()
         ser_size = struct.pack('N', size)
         num_bytes = self.socket.send(ser_size + msg.SerializeToString())
-        #print(f'sent {num_bytes}')
+        print(f'sent {num_bytes}')
         
     # Server ---------------
     def server_thread_function(self, ip: str, port: int):
@@ -1051,7 +1051,7 @@ class TincClient(object):
                         elif pc_message.messageType == TincProtocol.COMMAND:
                             self.process_command_command(pc_message)
                         elif pc_message.messageType == TincProtocol.COMMAND_REPLY:
-                            self.process_reply_command(pc_message)
+                            self.process_object_command_reply(pc_message)
                         elif pc_message.messageType == TincProtocol.PING:
                             self.process_ping_command(pc_message)
                         elif pc_message.messageType == TincProtocol.PONG:
