@@ -59,7 +59,7 @@ class TincClient(object):
         
         self.start(server_addr, server_port)
         
-        self.debug = True
+        self.debug = False
         
     def __del__(self):
         self.stop()

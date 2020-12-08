@@ -6,6 +6,8 @@ except:
     print("Error importin ipywidgets. Notebook widgets not available")
     
 from message import Message
+from tinc_object import TincObject
+
 import struct
 import numpy as np
 
@@ -20,10 +22,10 @@ parameter_space_type = {
     }
 
 
-class Parameter(object):
-    def __init__(self, id: str, group = None, minimum: float = -99999.0, maximum: float = 99999.0,default: float = 0.0, tinc_client = None):
-        # Should not change:
-        self.id = id
+class Parameter(TincObject):
+    def __init__(self, tinc_id: str, group = None, minimum: float = -99999.0, maximum: float = 99999.0,default: float = 0.0, tinc_client = None):
+        # Should not change:tinc_id
+        super().__init__(tinc_id)
         self.group = group if group is not None else ""
         self.default = default
         self.tinc_client = tinc_client
@@ -219,10 +221,11 @@ class Parameter(object):
         self._value_callbacks.append(f)
         
 class ParameterString(Parameter):
-    def __init__(self, id: str, group: str = "", default: str = "", tinc_client= None):
+    def __init__(self, tinc_id: str, group: str = "", default: str = "", tinc_client= None):
+        super().__init__(tinc_id)
+        
         self._value :str = default
         self._data_type = str
-        self.id = id
         self.group = group
         self.default = default
         self._values = []
@@ -302,10 +305,11 @@ class ParameterString(Parameter):
     
 
 class ParameterInt(Parameter):
-    def __init__(self, id: str, group: str = "", minimum: int = 0, maximum: int = 127, default: int = 0, tinc_client = None):
+    def __init__(self, tinc_id: str, group: str = "", minimum: int = 0, maximum: int = 127, default: int = 0, tinc_client = None):
+        super().__init__(tinc_id)
+        
         self._value :int = default
         self._data_type = int
-        self.id = id
         self.group = group
         self.default = default
         self.minimum = minimum
@@ -359,10 +363,11 @@ class ParameterInt(Parameter):
         return True
     
 class ParameterChoice(Parameter):
-    def __init__(self, id: str, group: str = "", minimum: int = 0, maximum: int = 127, default: int = 0, tinc_client = None):
+    def __init__(self, tinc_id: str, group: str = "", minimum: int = 0, maximum: int = 127, default: int = 0, tinc_client = None):
+        super().__init__(tinc_id)
+        
         self._value :int = default
         self._data_type = int
-        self.id = id
         self.group = group
         self.default = default
         self.minimum = minimum
@@ -429,10 +434,10 @@ class ParameterChoice(Parameter):
         return current
 
 class ParameterColor(Parameter):
-    def __init__(self, id: str, group: str = "", default = [0,0,0,0], tinc_client = None):
+    def __init__(self, tinc_id: str, group: str = "", default = [0,0,0,0], tinc_client = None):
+        super().__init__(tinc_id)
         self._value = default
         self._data_type = lambda l: [float(f) for f in l]
-        self.id = id
         self.group = group
         self.default = default
         self.minimum = [0,0,0,0]
@@ -490,10 +495,11 @@ class ParameterColor(Parameter):
         return True    
 
 class ParameterBool(Parameter):
-    def __init__(self, p_id: str, group: str = "", default: float = 0.0, tinc_client = None):
+    def __init__(self, tinc_id: str, group: str = "", default: float = 0.0, tinc_client = None):
+        
+        super().__init__(tinc_id)
         self._value = default
         self._data_type = float
-        self.id = p_id
         self.group = group
         self._values = []
         self.default = default
