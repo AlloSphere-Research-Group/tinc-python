@@ -5,13 +5,14 @@ Created on Tue Sep  1 17:13:15 2020
 @author: Andres
 """
 
+from tinc_object import TincObject
 from cachemanager import CacheManager
 
 import inspect, dis
 
-class ParameterSpace(object):
-    def __init__(self, name = '', tinc_client = None):
-        self.id = name
+class ParameterSpace(TincObject):
+    def __init__(self, tinc_id = '', tinc_client = None):
+        super().__init__(tinc_id)
         self._parameters = []
         self.tinc_client = tinc_client
         self._cache_manager = None

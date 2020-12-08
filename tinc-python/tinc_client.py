@@ -142,7 +142,7 @@ class TincClient(object):
         self.register_parameter(new_param)
         new_param = self.get_parameter(param_id, group)
         
-        if not min_value is None:
+        if min_value is not None:
             new_param.minimum = min_value
         if not max_value is None:
             new_param.maximum = max_value
@@ -450,7 +450,6 @@ class TincClient(object):
             details.Unpack(ps_details)
             ps_id = ps_details.id
             self.register_parameter_space(ParameterSpace(ps_id, tinc_client = self))
-            print(f"NEW ParameterSpace: '{self.parameter_spaces[-1]}'")
                 
     def _configure_parameter_space_from_message(self, details):
         param_details = TincProtocol.ConfigureParameterSpace()
@@ -517,12 +516,12 @@ class TincClient(object):
             
             found = False
             for proc in self.processors:
-                if proc.name == proc_id:
+                if proc.id == proc_id:
                     if type(proc).__name__ == processor_type:
-                        self.name = proc_id
-                        self.input_dir = input_dir
-                        self.output_dir = output_dir
-                        self.running_dir = running_dir
+                        proc.id = proc_id
+                        proc.input_dir = input_dir
+                        proc.output_dir = output_dir
+                        proc.running_dir = running_dir
                         print(f"Updated processor '{proc_id}'")
                         found = True
                         break
@@ -542,7 +541,7 @@ class TincClient(object):
             proc_id= proc_details.id
             count = proc_details.configurationKey
             for proc in self.processors:
-                if proc.name == proc_id:
+                if proc.id == proc_id:
                     proc.configuration.update({proc_details.configurationKey: proc_details.configurationValue})
     
     def processor_update(self, client_address: str , address: str, *args: List[Any]):
@@ -551,7 +550,7 @@ class TincClient(object):
         config_value = args[2]
         
         for proc in self.processors:
-            if proc.name == name:
+            if proc.id == name:
                 proc.configuration[config_key] = config_value
                 print(f"Config [{config_key}] = {config_value}")
                 
@@ -573,7 +572,7 @@ class TincClient(object):
                     break
             
             if not found:
-                new_datapool = DataPool(self, dp_id, ps_id, slice_cache_dir)
+                new_datapool = DataPool(dp_id, ps_id, slice_cache_dir, tinc_client=self)
                 self.datapools.append(new_datapool)
         else:
             print("Unexpected payload in Register Datapool")
@@ -614,8 +613,9 @@ class TincClient(object):
         
             if not found:
                 
-                new_db = DiskBuffer(self, disk_buffer_id, db_details.type,
-                                    db_details.baseFilename, db_details.path)
+                new_db = DiskBuffer(disk_buffer_id, db_details.type,
+                                    db_details.baseFilename, db_details.path,
+                                    tinc_client= self)
                 self.disk_buffers.append(new_db)
         else:
             print("Unexpected payload in Register DiskBuffer")

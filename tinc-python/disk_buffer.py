@@ -2,12 +2,14 @@ import json
 import os
 import re
 
+from tinc_object import TincObject
+
 from filelock import FileLock
 from tinc_protocol_pb2 import DiskBufferType
 
-class DiskBuffer(object):
-    def __init__(self, tinc_client, db_id, db_type, base_filename, path):
-        self.id = db_id
+class DiskBuffer(TincObject):
+    def __init__(self, tinc_id, db_type, base_filename, path, tinc_client = None):
+        super().__init__(tinc_id)
         self.type = db_type
         
         self._data = None
