@@ -84,7 +84,7 @@ class ParameterSpace(object):
         if self.tinc_client:
             return self.tinc_client.command_parameter_space_get_root_path(self)
         
-    def sweep(self, function, force_values = False):
+    def sweep(self, function, force_values = False, dependencies = []):
         # TODO store metadata about function to know if we need to reprocess cache
         if True:
             print(dis.dis(function))
@@ -102,7 +102,7 @@ class ParameterSpace(object):
                     p.set_at(indeces[i])
                 
             args = {p.id:p.values[indeces[i]] for i,p in enumerate(self._parameters)}
-            self._process(function, args)
+            self._process(function, args, dependencies)
             indeces[0] += 1
             current_p = 0
             while indeces[current_p] == index_max[current_p]:
@@ -119,12 +119,12 @@ class ParameterSpace(object):
                 p.value = orig_val
                 
     
-    def process(self, function, args = None):
+    def process(self, function, args = None, dependencies = []):
         if args is None:
             args = {p.id:p.value for p in self._parameters}
-        return self._process(function, args)
+        return self._process(function, args, dependencies)
             
-    def _process(self,function, args):
+    def _process(self,function, args, dependencies = []):
         
         named_args = inspect.getfullargspec(function)[0]
         
@@ -132,18 +132,21 @@ class ParameterSpace(object):
         if len(unused_args) > 0:
             print(f'Ignoring parameters: {unused_args}. Not used in function')
         # Only use arguments that can be passed to the function
-        args = {key:value for key, value in args.items() if key in named_args}
+        calling_args = {key:value for key, value in args.items() if key in named_args}
         
+        cache_args = calling_args.copy()
+        for dep in dependencies:
+            cache_args[dep.id] = dep.value
         
         if self._cache_manager:
-            out = self._cache_manager.load_cache(args)
+            out = self._cache_manager.load_cache(cache_args)
             if out:
                 print("Using cache")
                 return out
             
-        out = function(**args)
+        out = function(**calling_args)
         if self._cache_manager:
-            self._cache_manager.store_cache(out, args)
+            self._cache_manager.store_cache(out, cache_args)
         return out
         
  
