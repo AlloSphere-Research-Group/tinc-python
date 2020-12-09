@@ -31,6 +31,7 @@ class CacheManager(object):
     def store_cache(self, data, args):
         with open(self.construct_filename(args), 'w') as fp:
             json.dump(data, fp)
+            print(f"stored cache: {self.construct_filename(args)}")
     
     def load_cache(self, args):
         data = None
@@ -38,6 +39,8 @@ class CacheManager(object):
         if os.path.exists(filename):
             with open(filename) as fp:
                 data = json.load(fp)
+                
+                print(f"loaded cache: {filename}")
         return data
     
     def remove_cache_file(self, args):

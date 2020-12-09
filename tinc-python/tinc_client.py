@@ -142,6 +142,9 @@ class TincClient(object):
         self.register_parameter(new_param)
         new_param = self.get_parameter(param_id, group)
         
+            
+        self._register_parameter_on_server(new_param)
+        
         if min_value is not None:
             new_param.minimum = min_value
         if not max_value is None:
@@ -155,8 +158,6 @@ class TincClient(object):
             new_param.ids = []
             new_param.values = space
             
-        self._register_parameter_on_server(new_param)
-        
         if default_value is not None:
             new_param.value = default_value
         
@@ -797,8 +798,12 @@ class TincClient(object):
         self._send_message(msg)
             
         print(f"Sent command: {request_number}")
-        
-        self.wait_for_reply(request_number)
+        try:
+            self.wait_for_reply(request_number)
+        except TincTimeout as tm:
+            command_details, user_data = self.pending_replies.pop(request_number)
+            self.pending_lock.release()
+            raise tm
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
