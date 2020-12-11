@@ -409,13 +409,13 @@ class TincClient(object):
         details.Unpack(param_details)
   
         param_osc_address = param_details.id
+        param_command = param_details.configurationKey
         
         configured = True
         if self.debug:
-            print("_configure_parameter_from_message")
+            print(f"_configure_parameter_from_message {param_osc_address} {param_command}")
         for param in self.parameters:
             if param.get_osc_address() == param_osc_address:
-                param_command = param_details.configurationKey
                 if param_command == TincProtocol.ParameterConfigureType.VALUE:
                     configured = configured and param.set_value_from_message(param_details.configurationValue)
                 elif param_command == TincProtocol.ParameterConfigureType.MIN:
@@ -1044,6 +1044,8 @@ class TincClient(object):
                     num_bytes = pc_message.ParseFromString(al_message[8:8+message_size])
                     
                     if num_bytes > 0:
+                        if self.debug:
+                            print(f"Processing message bytes:{num_bytes}")
                         
                         if pc_message.messageType == TincProtocol.REQUEST:
                             self.process_register_command(pc_message)
