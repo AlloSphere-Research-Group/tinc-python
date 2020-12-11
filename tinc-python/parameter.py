@@ -91,7 +91,10 @@ class Parameter(TincObject):
         if self._interactive_widget:
             self._interactive_widget.children[0].value = self._data_type(value)
         for cb in self._value_callbacks:
-            cb(value)
+            try:
+                cb(value)
+            except Exception as e:
+                print(e)
             
     def set_at(self, index):
         new_value = self._values[index]
@@ -142,7 +145,10 @@ class Parameter(TincObject):
             if self._interactive_widget:
                 self._interactive_widget.children[0].value = self._data_type(value.valueFloat)
         for cb in self._value_callbacks:
-            cb(value.valueFloat)
+            try:
+                cb(value.valueFloat)
+            except Exception as e:
+                print(e)
         return True
 
     def set_space_from_message(self, message):
@@ -181,7 +187,10 @@ class Parameter(TincObject):
         if self.tinc_client:
             self.tinc_client.send_parameter_value(self)
         for cb in self._value_callbacks:
-            cb(value)
+            try:
+                cb(value)
+            except Exception as e:
+                print(e) 
 
     def get_osc_address(self):
         # TODO sanitize names
@@ -249,7 +258,10 @@ class ParameterString(Parameter):
         if self._interactive_widget:
             self._interactive_widget.children[0].value = self._data_type(value)
         for cb in self._value_callbacks:
-            cb(value)
+            try:
+                cb(value)
+            except Exception as e:
+                print(e)
     
     def set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
@@ -262,7 +274,10 @@ class ParameterString(Parameter):
             if self._interactive_widget:
                 self._interactive_widget.children[0].value = self._data_type(value.valueString)
         for cb in self._value_callbacks:
-            cb(value.valueString)
+            try:
+                cb(value.valueString)
+            except Exception as e:
+                print(e)
         return True
 
     def set_space_from_message(self, message):
@@ -334,7 +349,10 @@ class ParameterInt(Parameter):
             if self._interactive_widget:
                 self._interactive_widget.children[0].value = self._data_type(value.valueInt32)
         for cb in self._value_callbacks:
-            cb(value.valueInt32)
+            try:
+                cb(value.valueInt32)
+            except Exception as e:
+                print(e)
         return True
 
     def set_space_from_message(self, message):
@@ -386,25 +404,28 @@ class ParameterChoice(Parameter):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         
-        # print(f"set {value.valueFloat}")
+        print(f"set {value.valueUint64}")
         if not self._value == value.valueUint64:
             self._value = self._data_type(value.valueUint64)
 
             if self._interactive_widget:
                 self._interactive_widget.children[0].value = self._data_type(value.valueUint64)
         for cb in self._value_callbacks:
-            cb(value.valueUint64)
+            try:
+                cb(value.valueUint64)
+            except Exception as e:
+                print(e)
         return True
 
     def set_space_from_message(self, message):
         values = TincProtocol.ParameterSpaceValues()
         message.Unpack(values)
-        self.ids = values.ids
+        self._ids = values.ids
         count = len(values.values)
         # print(f'setting space {count}')
-        self.values = np.ndarray((count))
+        self._values = np.ndarray((count))
         for i, v in enumerate(values.values):
-            self.values[i] = v.valueUint64
+            self._values[i] = v.valueUint64
         return True
 
     def set_min_from_message(self, message):
@@ -463,7 +484,10 @@ class ParameterColor(Parameter):
             # if self._interactive_widget:
             #     self._interactive_widget.children[0].value = self._data_type(value.valueUint64)
         for cb in self._value_callbacks:
-            cb(self._value)
+            try:
+                cb(value._value)
+            except Exception as e:
+                print(e)
         return True
 
     def set_space_from_message(self, message):
@@ -498,19 +522,7 @@ class ParameterBool(Parameter):
     def __init__(self, tinc_id: str, group: str = "", default: float = 0.0, tinc_client = None):
         
         super().__init__(tinc_id)
-        self._value = default
         self._data_type = float
-        self.group = group
-        self._values = []
-        self.default = default
-        
-        self.parent_bundle = None
-        
-        self.tinc_client = tinc_client
-        
-        self._interactive_widget = None
-        self.observers = []
-        self._value_callbacks = []
         
         
 #     def interactive_widget(self):
@@ -525,10 +537,3 @@ class ParameterBool(Parameter):
 # #                 readout_format='.3f',
 #             ));
 #         return self._interactive_widget
-
-class ParameterBundle(object):
-    def __init__(self, id, tinc_client = None):
-        self.parameters = []
-        str:self.id = ''
-        self.tinc_client = None
-    
