@@ -5,15 +5,15 @@ from typing import List, Any
 import struct
 from threading import Lock
 
-from parameter import Parameter, ParameterString, ParameterInt, ParameterChoice, ParameterBool, ParameterColor
+# TINC imports
+from parameter import Parameter, ParameterString, ParameterInt, ParameterChoice, ParameterBool, ParameterColor, Trigger
 from processor import CppProcessor, ScriptProcessor, ComputationChain
-#from parameter_server import ParameterServer
 from datapool import DataPool
 from parameter_space import ParameterSpace
 from disk_buffer import DiskBuffer
 from message import Message
 import tinc_protocol_pb2 as TincProtocol
-from google.protobuf import any_pb2 #, message
+#from google.protobuf import any_pb2 #, message
 
 tinc_client_version = 1
 tinc_client_revision = 1
@@ -125,20 +125,10 @@ class TincClient(object):
     
     def handle_ping(self):
         pass
-        # if self.socket:
-        #     message = Message()
-        #     message.append(commands['PONG'])
-        #     message.append(0x00)
-        #     raise ValueError
-        #     self.socket.send(message.data)
-        # else:
-        #     print("NOT CONNECTED")
         
     def create_parameter(self, parameter_type, param_id, group = None, min_value = None, max_value = None, space = None, default_value= None, space_type = None):
-        new_param = parameter_type(param_id, group, tinc_client = self)
+        new_param = parameter_type(param_id, group, default_value = default_value, tinc_client = self)
 
-        if default_value is not None:
-            new_param.default = default_value
         self.register_parameter(new_param)
         new_param = self.get_parameter(param_id, group)
         
@@ -158,6 +148,7 @@ class TincClient(object):
             new_param.ids = []
             new_param.values = space
             
+        # FIXME this setting should be done in the parameter
         if default_value is not None:
             new_param.value = default_value
         
@@ -208,11 +199,17 @@ class TincClient(object):
             b.valueFloat = param.value[2]
             a.valueFloat = param.value[3]
             value.valueList.extend([r,g,b,a])
+            
+        elif type(param) == ParameterBool or type(param) == Trigger:
+            value.valueBool = param.value
+            
         config.configurationValue.Pack(value)
         msg.details.Pack(config)
         self._send_message(msg)
         
     def send_parameter_meta(self, param):
+        
+        # Minimum
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.CONFIGURE
         msg.objectType = TincProtocol.PARAMETER
@@ -240,8 +237,10 @@ class TincClient(object):
             self._send_message(msg)
         elif type(param) == ParameterColor:
             pass
+        elif type(param) == ParameterBool or type(param) == Trigger:
+            pass
         
-        # Max
+        # Maximum
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.CONFIGURE
         msg.objectType = TincProtocol.PARAMETER
@@ -268,6 +267,8 @@ class TincClient(object):
             msg.details.Pack(config)
             self._send_message(msg)
         elif type(param) == ParameterColor:
+            pass
+        elif type(param) == ParameterBool or type(param) == Trigger:
             pass
         
     def send_parameter_space_type(self, param):
@@ -323,6 +324,8 @@ class TincClient(object):
             
         elif type(param) == ParameterColor:
             pass
+        elif type(param) == ParameterBool or type(param) == Trigger:
+            pass
         
     def _register_parameter_on_server(self, param):
         details = TincProtocol.RegisterParameter()
@@ -344,6 +347,9 @@ class TincClient(object):
         if type(param) == ParameterBool:
             details.dataType = TincProtocol.PARAMETER_BOOL
             details.defaultValue.valueBool = param.default
+        if type(param) == Trigger:
+            details.dataType = TincProtocol.PARAMETER_TRIGGER
+            details.defaultValue.valueBool = False
             
         msg = TincProtocol.TincMessage()
         msg.messageType = TincProtocol.MessageType.REGISTER
@@ -354,23 +360,24 @@ class TincClient(object):
         
     def _register_parameter_from_message(self, details):
         if details.Is(TincProtocol.RegisterParameter.DESCRIPTOR):
-            # print("Register parameter")
             
             details_unpacked = TincProtocol.RegisterParameter()
             details.Unpack(details_unpacked)
             name = details_unpacked.id
             group = details_unpacked.group
             param_type = details_unpacked.dataType
+            
+            if self.debug:
+                print(f"Register parameter {name} {group} {param_type}")
     
             if param_type == TincProtocol.PARAMETER_FLOAT : 
-                new_param = Parameter(name, group, default = details_unpacked.defaultValue.valueFloat, tinc_client =self)
+                new_param = Parameter(name, group, default_value = details_unpacked.defaultValue.valueFloat, tinc_client =self)
             elif param_type == TincProtocol.PARAMETER_BOOL: 
-                new_param = ParameterBool(name, group, details_unpacked.defaultValue.valueFloat, tinc_client =self)
-                    
+                new_param = ParameterBool(name, group, default_value = details_unpacked.defaultValue.valueBool, tinc_client =self)
             elif param_type == TincProtocol.PARAMETER_STRING :
-                new_param = ParameterString(name, group, default = details_unpacked.defaultValue.valueString, tinc_client =self)
+                new_param = ParameterString(name, group, default_value = details_unpacked.defaultValue.valueString, tinc_client =self)
             elif param_type == TincProtocol.PARAMETER_INT32 : 
-                new_param = ParameterInt(name, group, default = details_unpacked.defaultValue.valueInt32, tinc_client =self)
+                new_param = ParameterInt(name, group, default_value = details_unpacked.defaultValue.valueInt32, tinc_client =self)
             elif param_type == TincProtocol.PARAMETER_VEC3F :
                 new_param = None
                 pass
@@ -379,23 +386,24 @@ class TincClient(object):
                 pass
             elif param_type == TincProtocol.PARAMETER_COLORF :
                 l = [v.valueFloat for v in details_unpacked.defaultValue.valueList]
-                new_param = ParameterColor(name, group, default = l, tinc_client =self)
+                new_param = ParameterColor(name, group, default_value = l, tinc_client =self)
                 pass
             elif param_type == TincProtocol.PARAMETER_POSED :
                 new_param = None
                 pass
             elif param_type == TincProtocol.PARAMETER_CHOICE :
-                new_param = ParameterChoice(name, group, default = details_unpacked.defaultValue.valueUint64, tinc_client =self)
+                new_param = ParameterChoice(name, group, default_value = details_unpacked.defaultValue.valueUint64, tinc_client =self)
                 pass
             elif param_type == TincProtocol.PARAMETER_TRIGGER :
-                new_param = None
+                new_param = Trigger(name, group)
                 pass
             else:
                 new_param = None
                 
             if new_param:
                 self.register_parameter(new_param)
-                    # print("Parameter already registered.")
+                if self.debug:
+                    print("Parameter already registered.")
             else:
                 print("Unsupported parameter type")
         else:
@@ -428,7 +436,8 @@ class TincClient(object):
                     configured = configured and param.set_space_type_from_message(param_details.configurationValue)
                 else:
                     print("Unrecognized Parameter Configure command")
-                
+        
+        print("_configure_parameter_from_message done")
         if not configured:
             print("Parameter configuration failed")
             
@@ -796,8 +805,9 @@ class TincClient(object):
         self.pending_requests[request_number] = [parameter]
 
         self._send_message(msg)
-            
-        print(f"Sent command: {request_number}")
+        
+        if self.debug:
+            print(f"Sent command: {request_number}")
         try:
             self.wait_for_reply(request_number)
         except TincTimeout as tm:
@@ -964,7 +974,8 @@ class TincClient(object):
         size = msg.ByteSize()
         ser_size = struct.pack('N', size)
         num_bytes = self.socket.send(ser_size + msg.SerializeToString())
-        print(f'sent {num_bytes}')
+        if self.debug:
+            print(f'message sent {num_bytes} bytes')
         
     # Server ---------------
     def server_thread_function(self, ip: str, port: int):
@@ -1037,12 +1048,14 @@ class TincClient(object):
                 al_message = al_message + new_message
                 while len(al_message) > 8:
                     message_size = struct.unpack("N", al_message[:8])[0]
-                    
+                    if self.debug:
+                        print(f'receieved raw {message_size}')
                     if len(al_message) < message_size + 8:
                         break
                     
                     num_bytes = pc_message.ParseFromString(al_message[8:8+message_size])
                     
+                    print(f'unpacked {num_bytes}')
                     if num_bytes > 0:
                         if self.debug:
                             print(f"Processing message bytes:{num_bytes}")

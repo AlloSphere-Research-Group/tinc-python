@@ -4,8 +4,7 @@ try:
     import ipywidgets as widgets
 except:
     print("Error importin ipywidgets. Notebook widgets not available")
-    
-from message import Message
+
 from tinc_object import TincObject
 
 import struct
@@ -13,7 +12,6 @@ import numpy as np
 
 # used in set_XXX_from_message 
 import tinc_protocol_pb2 as TincProtocol
-from google.protobuf import any_pb2
 
 parameter_space_type = {
     "VALUE" : 0x00,
@@ -23,16 +21,13 @@ parameter_space_type = {
 
 
 class Parameter(TincObject):
-    def __init__(self, tinc_id: str, group = None, minimum: float = -99999.0, maximum: float = 99999.0,default: float = 0.0, tinc_client = None):
+    def __init__(self, tinc_id: str, group = None, minimum: float = -99999.0, maximum: float = 99999.0, default_value: float = 0.0, tinc_client = None):
         # Should not change:tinc_id
         super().__init__(tinc_id)
         self.group = group if group is not None else ""
-        self.default = default
         self.tinc_client = tinc_client
-        self.type = "VALUE"
         
         # Mutable properties
-        self._data_type = float
         self.minimum = minimum
         self.maximum = maximum
         self._ids = []
@@ -40,11 +35,16 @@ class Parameter(TincObject):
         self._space_type = parameter_space_type["VALUE"]
         
         # Internal
-        self._value:float = self.default
-        self.parent_bundle = None
-        
         self._interactive_widget = None
         self._value_callbacks = []
+        self._init(default_value)
+        
+    def _init(self, default_value):
+        self._data_type = float
+        self.default = default_value
+        if default_value is None:
+            self.default = 0.0
+        self._value = self.default
         
     @property
     def value(self):
@@ -230,21 +230,16 @@ class Parameter(TincObject):
         self._value_callbacks.append(f)
         
 class ParameterString(Parameter):
-    def __init__(self, tinc_id: str, group: str = "", default: str = "", tinc_client= None):
-        super().__init__(tinc_id)
+    def __init__(self, tinc_id: str, group: str = "", default_value: str = "", tinc_client= None):
+        super().__init__(tinc_id, group, default_value=default_value, tinc_client=tinc_client)
         
-        self._value :str = default
+
+    def _init(self, default_value):
         self._data_type = str
-        self.group = group
-        self.default = default
-        self._values = []
-        self.tinc_client = tinc_client
-        
-        self.parent_bundle = None
-        
-        self._interactive_widget = None
-        self.observers = []
-        self._value_callbacks = []
+        self.default = default_value
+        if default_value is None:
+            self.default = ""
+        self._value = self.default
         
     def print(self):
         print(f" ** Parameter {self.id} group: {self.group} ({type(self.value)})")
@@ -320,23 +315,15 @@ class ParameterString(Parameter):
     
 
 class ParameterInt(Parameter):
-    def __init__(self, tinc_id: str, group: str = "", minimum: int = 0, maximum: int = 127, default: int = 0, tinc_client = None):
-        super().__init__(tinc_id)
+    def __init__(self, tinc_id: str, group: str = "", minimum: int = 0, maximum: int = 127, default_value: int = 0, tinc_client = None):
+        super().__init__(tinc_id, group, minimum = minimum, maximum = maximum, default_value = default_value, tinc_client = tinc_client)
         
-        self._value :int = default
+    def _init(self, default_value):
         self._data_type = int
-        self.group = group
-        self.default = default
-        self.minimum = minimum
-        self.maximum = maximum
-        self._values = []
-        self.tinc_client = tinc_client
-        
-        self.parent_bundle = None
-        
-        self._interactive_widget = None
-        self.observers = []
-        self._value_callbacks = []
+        self.default = default_value
+        if default_value is None:
+            self.default = 0
+        self._value = self.default
         
     def set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
@@ -381,24 +368,17 @@ class ParameterInt(Parameter):
         return True
     
 class ParameterChoice(Parameter):
-    def __init__(self, tinc_id: str, group: str = "", minimum: int = 0, maximum: int = 127, default: int = 0, tinc_client = None):
-        super().__init__(tinc_id)
+    def __init__(self, tinc_id: str, group: str = "", minimum: int = 0, maximum: int = 127, default_value: int = 0, tinc_client = None):
+        super().__init__(tinc_id, group, minimum = minimum, maximum = maximum, default_value = default_value, tinc_client = tinc_client)
+
         
-        self._value :int = default
+        
+    def _init(self, default_value):
         self._data_type = int
-        self.group = group
-        self.default = default
-        self.minimum = minimum
-        self.maximum = maximum
-        self._values = []
-        self.tinc_client = tinc_client
-        self.elements = []
-        
-        self.parent_bundle = None
-        
-        self._interactive_widget = None
-        self.observers = []
-        self._value_callbacks = []
+        self.default = default_value
+        if default_value is None:
+            self.default = 0
+        self._value = self.default
         
     def set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
@@ -455,22 +435,17 @@ class ParameterChoice(Parameter):
         return current
 
 class ParameterColor(Parameter):
-    def __init__(self, tinc_id: str, group: str = "", default = [0,0,0,0], tinc_client = None):
-        super().__init__(tinc_id)
-        self._value = default
+    def __init__(self, tinc_id: str, group: str = "", default_value = [0,0,0,0], tinc_client = None):
+        super().__init__(tinc_id, group, default_value = default_value, tinc_client = tinc_client)
+        
+    def _init(self, default_value):
         self._data_type = lambda l: [float(f) for f in l]
-        self.group = group
-        self.default = default
+        self.default = default_value
+        if default_value is None:
+            self.default = [0,0,0,0]
+        self._value = self.default
         self.minimum = [0,0,0,0]
         self.maximum = [1,1,1,1]
-        self._values = []
-        self.tinc_client = tinc_client
-        
-        self.parent_bundle = None
-        
-        self._interactive_widget = None
-        self.observers = []
-        self._value_callbacks = []
         
     def set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
@@ -519,12 +494,35 @@ class ParameterColor(Parameter):
         return True    
 
 class ParameterBool(Parameter):
-    def __init__(self, tinc_id: str, group: str = "", default: float = 0.0, tinc_client = None):
+    def __init__(self, tinc_id: str, group: str = "", default_value = False, tinc_client = None):
         
-        super().__init__(tinc_id)
-        self._data_type = float
+        super().__init__(tinc_id, group, default_value = default_value, tinc_client = tinc_client)
         
+    def _init(self, default_value):
+        self._data_type = bool
+        self.default = default_value
+        if default_value is None:
+            self.default = False
+        self._value = self.default
         
+    def set_value_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        
+        new_value = value.valueBool
+        if not self._value == new_value:
+            self._value = new_value
+
+            # if self._interactive_widget:
+            #     self._interactive_widget.children[0].value = self._data_type(value.valueUint64)
+        for cb in self._value_callbacks:
+            try:
+                cb(value._value)
+            except Exception as e:
+                print(e)
+        return True
+        
+
 #     def interactive_widget(self):
 #         self._interactive_widget = interactive(self.set_from_internal_widget,
 #                 value=widgets.Textarea(
@@ -537,3 +535,44 @@ class ParameterBool(Parameter):
 # #                 readout_format='.3f',
 #             ));
 #         return self._interactive_widget
+
+class Trigger(ParameterBool):
+    def __init__(self, tinc_id: str, group: str = "", default_value = False, tinc_client = None):
+        # default value is ignored
+        super().__init__(tinc_id, group, default_value = False, tinc_client = tinc_client)
+        
+    def _init(self, default_value):
+        self._data_type = bool
+        self.default = False
+        self._value = False
+        
+    def set_value(self, value):
+        self._value = self._data_type(value)
+        # if self._interactive_widget:
+        #     self._interactive_widget.children[0].value = self._data_type(value)
+            
+        if self.value == True:
+            if self.tinc_client:
+                self.tinc_client.send_parameter_value(self)
+            for cb in self._value_callbacks:
+                try:
+                    cb(value)
+                except Exception as e:
+                    print(e)
+            self._value = False
+
+    def set_value_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        print(f"hello {value.valueBool}")
+        
+        new_value = value.valueBool
+        self._value = new_value
+        if self._value == True:
+            for cb in self._value_callbacks:
+                try:
+                    cb(value.valueBool)
+                except Exception as e:
+                    print(e)
+            self._value = False
+        return True
