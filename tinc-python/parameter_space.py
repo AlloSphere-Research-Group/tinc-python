@@ -85,31 +85,33 @@ class ParameterSpace(TincObject):
         if self.tinc_client:
             return self.tinc_client.command_parameter_space_get_root_path(self)
         
-    def sweep(self, function, force_values = False, dependencies = []):
+    def sweep(self, function, params=[], force_values = False, dependencies = []):
+        if params == []:
+            params = self._parameters
         # TODO store metadata about function to know if we need to reprocess cache
         if True:
             print(dis.dis(function))
             print(inspect.getsource(function))
         
-        indeces = [0]*len(self._parameters)
-        index_max = [len(p.values) for p in self._parameters]
+        indeces = [0]*len(params)
+        index_max = [len(p.values) for p in params]
         
-        original_values = {p:p.value for p in self._parameters}
+        original_values = {p:p.value for p in params}
     
         done = False 
         while not done:
             if force_values:
-                for i,p in enumerate(self._parameters):
+                for i,p in enumerate(params):
                     p.set_at(indeces[i])
                 
-            args = {p.id:p.values[indeces[i]] for i,p in enumerate(self._parameters)}
-            self._process(function, args, dependencies)
+            args = {p.id:p.values[indeces[i]] for i,p in enumerate(params)}
+            self.process(function, args, dependencies)
             indeces[0] += 1
             current_p = 0
             while indeces[current_p] == index_max[current_p]:
                 indeces[current_p] = 0
                 if current_p == len(indeces) - 1:
-                    if indeces == [0]*len(self._parameters):
+                    if indeces == [0]*len(params):
                         done = True
                     break
                 indeces[current_p + 1] += 1
@@ -123,6 +125,9 @@ class ParameterSpace(TincObject):
     def process(self, function, args = None, dependencies = []):
         if args is None:
             args = {p.id:p.value for p in self._parameters}
+        for p in self._parameters:
+            if(p.id not in args):
+                args[p.id] = p.value
         return self._process(function, args, dependencies)
             
     def _process(self,function, args, dependencies = []):
