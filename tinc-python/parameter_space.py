@@ -85,9 +85,20 @@ class ParameterSpace(TincObject):
         if self.tinc_client:
             return self.tinc_client.command_parameter_space_get_root_path(self)
         
-    def sweep(self, function, params=[], force_values = False, dependencies = []):
-        if params == []:
+    def sweep(self, function, params=None, force_values = False, dependencies = []):
+        if params is None or len(params) == 0:
             params = self._parameters
+        else:
+            to_remove = []
+            for p in params:
+                registered = False
+                for existing_param in self._parameters:    
+                    if p.get_osc_address() == existing_param.get_osc_address():
+                        registered = True
+                        break
+                if not registered:
+                    print(f"Warning: Parameter p.get_osc_address() not registered with ParameterSpace")
+
         # TODO store metadata about function to know if we need to reprocess cache
         if True:
             print(dis.dis(function))

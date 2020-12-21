@@ -3,7 +3,7 @@ try:
     from ipywidgets import interact, interactive, interact_manual
     import ipywidgets as widgets
 except:
-    print("Error importin ipywidgets. Notebook widgets not available")
+    print("Can't import ipywidgets. Notebook widgets not available")
 
 from tinc_object import TincObject
 
@@ -379,6 +379,7 @@ class ParameterChoice(Parameter):
         if default_value is None:
             self.default = 0
         self._value = self.default
+        self.elements = []
         
     def set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
@@ -560,6 +561,9 @@ class Trigger(ParameterBool):
                 except Exception as e:
                     print(e)
             self._value = False
+    
+    def trigger(self):
+        self.set_value(True)
 
     def set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()

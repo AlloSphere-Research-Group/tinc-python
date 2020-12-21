@@ -78,6 +78,11 @@ class TincClient(object):
         
     def stop(self):
         if self.running:
+            msg = TincProtocol.TincMessage()
+            msg.messageType  = TincProtocol.GOODBYE
+            
+            self._send_message(msg)
+            
             self.running = False
             self.connected = False
             self.x.join()
@@ -131,7 +136,6 @@ class TincClient(object):
 
         self.register_parameter(new_param)
         new_param = self.get_parameter(param_id, group)
-        
             
         self._register_parameter_on_server(new_param)
         
@@ -147,10 +151,6 @@ class TincClient(object):
         elif type(space) == list:
             new_param.ids = []
             new_param.values = space
-            
-        # FIXME this setting should be done in the parameter
-        if default_value is not None:
-            new_param.value = default_value
         
         return new_param
     
@@ -437,7 +437,8 @@ class TincClient(object):
                 else:
                     print("Unrecognized Parameter Configure command")
         
-        print("_configure_parameter_from_message done")
+        if self.debug:
+            print("_configure_parameter_from_message done")
         if not configured:
             print("Parameter configuration failed")
             
