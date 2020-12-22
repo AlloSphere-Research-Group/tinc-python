@@ -78,11 +78,7 @@ class TincClient(object):
         
     def stop(self):
         if self.running:
-            msg = TincProtocol.TincMessage()
-            msg.messageType  = TincProtocol.GOODBYE
-            
-            self._send_message(msg)
-            
+            self.send_goodbye()
             self.running = False
             self.connected = False
             self.x.join()
@@ -966,6 +962,12 @@ class TincClient(object):
         self.request_disk_buffers()
         self.request_data_pools()
         self.request_parameter_spaces()
+
+    def send_goodbye(self):
+        tp = TincProtocol.TincMessage()
+        tp.messageType  = TincProtocol.GOODBYE
+        tp.objectType = TincProtocol.GLOBAL
+        self._send_message(tp)
         
     def quit_message(self, client_address, address: str, *args: List[Any]):
         print("Got /quit message, closing parameter server")
