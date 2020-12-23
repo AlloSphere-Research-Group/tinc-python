@@ -72,7 +72,7 @@ class TincClient(object):
         self.serverPort = server_port
         
         self.running = True
-        self.x = threading.Thread(target=self.server_thread_function, args=(self.serverAddr,self.serverPort))
+        self.x = threading.Thread(target=self._server_thread_function, args=(self.serverAddr,self.serverPort))
         self.x.start()
         
         
@@ -128,9 +128,6 @@ class TincClient(object):
             
     # Network message handling
     
-    def handle_ping(self):
-        pass
-        
     def create_parameter(self, parameter_type, param_id, group = None, min_value = None, max_value = None, space = None, default_value= None, space_type = None):
         new_param = parameter_type(param_id, group, default_value = default_value, tinc_client = self)
 
@@ -480,7 +477,7 @@ class TincClient(object):
                     param_id = param_value.valueString
                     for p in self.parameters:
                         if p.get_osc_address() == param_id:
-                            print(f"Registering for {ps}")
+                            print(f"Registering {param_id} for {ps}")
                             ps.register_parameter(p)
                             configured = True
                             break
@@ -649,7 +646,7 @@ class TincClient(object):
         
 
 # ------------------------------------------------------
-    def process_object_command_reply(self, message):
+    def _process_object_command_reply(self, message):
         command_details = TincProtocol.Command()
         self._log.append("Reply")
         if message.details.Is(TincProtocol.Command.DESCRIPTOR):
@@ -673,9 +670,9 @@ class TincClient(object):
             print("Unsupported payload in Command reply")
         
         
-    def process_register_command(self, message):
+    def _process_register_command(self, message):
         if self.debug:
-            print(f"process_register_command {message.objectType}")
+            print(f"_process_register_command {message.objectType}")
         if message.objectType == TincProtocol.ObjectType.PARAMETER:
             self._register_parameter_from_message(message.details)
         elif message.objectType == TincProtocol.ObjectType.PROCESSOR:
@@ -689,15 +686,15 @@ class TincClient(object):
         else:
             print("Unexpected Register command")
     
-    def process_request_command(self, message):
+    def _process_request_command(self, message):
         pass
     
-    def process_remove_command(self, message):
+    def _process_remove_command(self, message):
         pass
     
-    def process_configure_command(self, message):
+    def _process_configure_command(self, message):
         if self.debug:
-            print(f"process_configure_command {message.objectType}")
+            print(f"_process_configure_command {message.objectType}")
             
         if message.objectType == TincProtocol.PARAMETER:
             self._configure_parameter_from_message(message.details)
@@ -712,12 +709,28 @@ class TincClient(object):
         else:
             print("Unexpected Configure command")
             
-    def process_command_command(self, message):
+    def _process_command_command(self, message):
+        # TODO implement
         pass
         
-    def process_ping_command(self, message):
+    def _process_ping_command(self, message):
+        # TODO implement
         pass
-    def process_pong_command(self, message):
+    
+    def _process_pong_command(self, message):
+        # TODO implement
+        pass
+    
+    def _process_barrier_request(self, message):
+        # TODO implement
+        pass
+    
+    def _process_barrier_unlock(self, message):
+        # TODO implement
+        pass
+    
+    def _process_status(self, message):
+        # TODO implement
         pass
         
     # Send request commands
@@ -767,7 +780,7 @@ class TincClient(object):
         tp.details.Pack(obj_id)
         self._send_message(tp)
         
-    def get_command_id(self):
+    def _get_command_id(self):
         self.request_count_lock.acquire()
         command_id = self.pending_requests_count
         self.pending_requests_count += 1
@@ -776,7 +789,7 @@ class TincClient(object):
         self.request_count_lock.release()
         return command_id
     
-    def wait_for_reply(self, request_number, timeout_sec= 5):
+    def _wait_for_reply(self, request_number, timeout_sec= 5):
         start_time = time.time()
         self.pending_lock.acquire()
         while not request_number in self.pending_replies:
@@ -786,7 +799,7 @@ class TincClient(object):
                 raise TincTimeout("Timeout.")
             self.pending_lock.acquire()
     
-    def command_parameter_choice_elements(self, parameter):
+    def _command_parameter_choice_elements(self, parameter):
         
         parameter_addr = parameter.get_osc_address()
         msg = TincProtocol.TincMessage()
@@ -794,7 +807,7 @@ class TincClient(object):
         msg.objectType = TincProtocol.PARAMETER
         command = TincProtocol.Command()
         command.id.id = parameter_addr
-        request_number = self.get_command_id()
+        request_number = self._get_command_id()
         command.message_id = request_number
         
         slice_details = TincProtocol.ParameterRequestChoiceElements()
@@ -810,7 +823,7 @@ class TincClient(object):
         if self.debug:
             print(f"Sent command: {request_number}")
         try:
-            self.wait_for_reply(request_number)
+            self._wait_for_reply(request_number)
         except TincTimeout as tm:
             command_details, user_data = self.pending_replies.pop(request_number)
             self.pending_lock.release()
@@ -825,14 +838,14 @@ class TincClient(object):
             print(slice_reply.elements)
             user_data[0].set_elements(slice_reply.elements)
             
-    def command_parameter_space_get_current_path(self, ps):
+    def _command_parameter_space_get_current_path(self, ps):
         
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.COMMAND
         msg.objectType = TincProtocol.PARAMETER_SPACE
         command = TincProtocol.Command()
         command.id.id = ps.id
-        request_number = self.get_command_id()
+        request_number = self._get_command_id()
         command.message_id = request_number
         
         slice_details = TincProtocol.ParameterSpaceRequestCurrentPath()
@@ -845,7 +858,7 @@ class TincClient(object):
 
         self._send_message(msg)
           
-        self.wait_for_reply(request_number)
+        self._wait_for_reply(request_number)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
@@ -855,14 +868,14 @@ class TincClient(object):
             command_details.Unpack(slice_reply)
             return slice_reply.path
         
-    def command_parameter_space_get_root_path(self, ps):
+    def _command_parameter_space_get_root_path(self, ps):
         
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.COMMAND
         msg.objectType = TincProtocol.PARAMETER_SPACE
         command = TincProtocol.Command()
         command.id.id = ps.id
-        request_number = self.get_command_id()
+        request_number = self._get_command_id()
         command.message_id = request_number
         
         slice_details = TincProtocol.ParameterSpaceRequestRootPath()
@@ -875,7 +888,7 @@ class TincClient(object):
 
         self._send_message(msg)
             
-        self.wait_for_reply(request_number)
+        self._wait_for_reply(request_number)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
@@ -885,14 +898,14 @@ class TincClient(object):
             command_details.Unpack(slice_reply)
             return slice_reply.path
         
-    def command_datapool_slice_file(self, datapool_id, field, sliceDimensions):
+    def _command_datapool_slice_file(self, datapool_id, field, sliceDimensions):
         
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.COMMAND
         msg.objectType = TincProtocol.DATA_POOL
         command = TincProtocol.Command()
         command.id.id = datapool_id
-        command.message_id =  self.get_command_id()
+        command.message_id =  self._get_command_id()
         request_number = command.message_id
         
         slice_details = TincProtocol.DataPoolCommandSlice()
@@ -913,7 +926,7 @@ class TincClient(object):
         self._send_message(msg)
             
         # print(f"Sent command: {request_number}")
-        self.wait_for_reply(request_number)
+        self._wait_for_reply(request_number)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
@@ -925,14 +938,14 @@ class TincClient(object):
         else:
             return None
         
-    def command_datapool_get_files(self, datapool_id):
+    def _command_datapool_get_files(self, datapool_id):
         
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.COMMAND
         msg.objectType = TincProtocol.DATA_POOL
         command = TincProtocol.Command()
         command.id.id = datapool_id
-        command.message_id =  self.get_command_id()
+        command.message_id =  self._get_command_id()
         request_number = command.message_id
         
         command_details = TincProtocol.DataPoolCommandCurrentFiles()
@@ -948,7 +961,7 @@ class TincClient(object):
             
         # print(f"Sent command: {request_number}")
         # FIXME implement timeout
-        self.wait_for_reply(request_number)
+        self._wait_for_reply(request_number)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
@@ -966,10 +979,6 @@ class TincClient(object):
         self.request_disk_buffers()
         self.request_data_pools()
         self.request_parameter_spaces()
-        
-    def quit_message(self, client_address, address: str, *args: List[Any]):
-        print("Got /quit message, closing parameter server")
-        self.stop()
 
     def _send_message(self, msg):
         size = msg.ByteSize()
@@ -979,7 +988,7 @@ class TincClient(object):
             print(f'message sent {num_bytes} bytes')
         
     # Server ---------------
-    def server_thread_function(self, ip: str, port: int):
+    def _server_thread_function(self, ip: str, port: int):
 #         print("Starting on port " + str(port))
         al_message = b''
         pc_message = TincProtocol.TincMessage()
@@ -1056,27 +1065,33 @@ class TincClient(object):
                     
                     num_bytes = pc_message.ParseFromString(al_message[8:8+message_size])
                     
-                    print(f'unpacked {num_bytes}')
+                    #print(f'unpacked {num_bytes}')
                     if num_bytes > 0:
                         if self.debug:
                             print(f"Processing message bytes:{num_bytes}")
                         
                         if pc_message.messageType == TincProtocol.REQUEST:
-                            self.process_register_command(pc_message)
+                            self._process_request_command(pc_message)
                         elif pc_message.messageType == TincProtocol.REMOVE:
-                            self.process_remove_command(pc_message)
+                            self._process_remove_command(pc_message)
                         elif pc_message.messageType == TincProtocol.REGISTER:
-                            self.process_register_command(pc_message)
+                            self._process_register_command(pc_message)
                         elif pc_message.messageType == TincProtocol.CONFIGURE:
-                            self.process_configure_command(pc_message)
+                            self._process_configure_command(pc_message)
                         elif pc_message.messageType == TincProtocol.COMMAND:
-                            self.process_command_command(pc_message)
+                            self._process_command_command(pc_message)
                         elif pc_message.messageType == TincProtocol.COMMAND_REPLY:
-                            self.process_object_command_reply(pc_message)
+                            self._process_object_command_reply(pc_message)
                         elif pc_message.messageType == TincProtocol.PING:
-                            self.process_ping_command(pc_message)
+                            self._process_ping_command(pc_message)
                         elif pc_message.messageType == TincProtocol.PONG:
-                            self.process_pong_command(pc_message)
+                            self._process_pong_command(pc_message)
+                        elif pc_message.messageType == TincProtocol.BARRIER_REQUEST:
+                            self._process_barrier_request(pc_message)
+                        elif pc_message.messageType == TincProtocol.BARRIER_UNLOCK:
+                            self._process_barrier_unlock(pc_message)
+                        elif pc_message.messageType == TincProtocol.status:
+                            self._process_status(pc_message)
                         else:
                             print("Unknown message")
                         al_message = al_message[message_size + 8:]

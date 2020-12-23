@@ -85,11 +85,11 @@ class ParameterSpace(TincObject):
     
     def get_current_path(self):
         if self.tinc_client:
-            return self.tinc_client.command_parameter_space_get_current_path(self)
+            return self.tinc_client._command_parameter_space_get_current_path(self)
         
     def get_root_path(self):
         if self.tinc_client:
-            return self.tinc_client.command_parameter_space_get_root_path(self)
+            return self.tinc_client._command_parameter_space_get_root_path(self)
         
     def sweep(self, function, params=None, force_values = False, dependencies = []):
         if params is None or len(params) == 0:
