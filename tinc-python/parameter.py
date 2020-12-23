@@ -94,7 +94,7 @@ class Parameter(TincObject):
             try:
                 cb(value)
             except Exception as e:
-                print(e)
+                print(e.with_traceback())
             
     def set_at(self, index):
         new_value = self._values[index]
