@@ -59,6 +59,8 @@ class TincClient(object):
         
         self.start(server_addr, server_port)
         
+        self._server_status = TincProtocol.StatusTypes.UNKNOWN
+        
         self.debug = False
         
     def __del__(self):
@@ -87,7 +89,10 @@ class TincClient(object):
         
         self.server_version = 0
         self.server_revision = 0
-    
+        
+    def server_status(self):
+        return self._server_status
+        
     # Access to objects by id
     
     def get_parameter(self, parameter_id, group = None):
@@ -726,7 +731,11 @@ class TincClient(object):
         pass
     
     def _process_status(self, message):
-        # TODO implement
+        details = message.details
+        if details.Is(TincProtocol.StatusMessage.DESCRIPTOR):
+            status_details = TincProtocol.StatusMessage()
+            details.Unpack(status_details)
+            self._server_status =  status_details.status
         pass
         
     # Send request commands
@@ -1011,7 +1020,7 @@ class TincClient(object):
                         print(f"Attempt connection. {ip}:{port}")
                     failed_attempts += 1
                     if failed_attempts == 100:
-                        print(f"Connection failed.")
+                        print("Connection failed.")
                         self.stop()
                         return
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
