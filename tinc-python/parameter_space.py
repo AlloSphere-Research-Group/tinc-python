@@ -29,11 +29,17 @@ class ParameterSpace(TincObject):
         for p in self._parameters:
             if p.id == param.id and p.group == param.group:
                 if not p is param:
-                    print("ERROR: Registering the same parameter with a different object")
+                    print("ERROR: Attempting to register the same parameter id with a different object")
+                else:
+                    # print("Parameter already registered")
+                    p._value_callbacks = param._value_callbacks
+                    param = p
                 param_registered = True
+                break
         if not param_registered:
-            print(f'register  for {self}')
+            print(f'register {param.id} for {self}')
             self._parameters.append(param)
+        return param
             
     def unregister_parameter(self, param):
         for p in self._parameters:
