@@ -78,11 +78,7 @@ class TincClient(object):
         
     def stop(self):
         if self.running:
-            msg = TincProtocol.TincMessage()
-            msg.messageType  = TincProtocol.GOODBYE
-            
-            self._send_message(msg)
-            
+            self.send_goodbye()
             self.running = False
             self.connected = False
             self.x.join()
@@ -980,6 +976,18 @@ class TincClient(object):
         self.request_data_pools()
         self.request_parameter_spaces()
 
+    def send_goodbye(self):
+        tp = TincProtocol.TincMessage()
+        tp.messageType  = TincProtocol.GOODBYE
+        tp.objectType = TincProtocol.GLOBAL
+        self._send_message(tp)
+        
+    def _process_goodbye(self, client_address, address: str, *args: List[Any]):
+        # TODO we need to define behavior. Should client stay alive and then
+        # restore the state on the server if it comes up again?
+        print("Got GOODBYE message, stopping TincClient")
+        self.stop()
+
     def _send_message(self, msg):
         size = msg.ByteSize()
         ser_size = struct.pack('N', size)
@@ -1086,11 +1094,13 @@ class TincClient(object):
                             self._process_ping_command(pc_message)
                         elif pc_message.messageType == TincProtocol.PONG:
                             self._process_pong_command(pc_message)
+                        elif pc_message.messageType == TincProtocol.GOODBYE:
+                            self._process_goodbye(pc_message)
                         elif pc_message.messageType == TincProtocol.BARRIER_REQUEST:
                             self._process_barrier_request(pc_message)
                         elif pc_message.messageType == TincProtocol.BARRIER_UNLOCK:
                             self._process_barrier_unlock(pc_message)
-                        elif pc_message.messageType == TincProtocol.status:
+                        elif pc_message.messageType == TincProtocol.STATUS:
                             self._process_status(pc_message)
                         else:
                             print("Unknown message")
