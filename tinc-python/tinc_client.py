@@ -92,6 +92,15 @@ class TincClient(object):
         
     def server_status(self):
         return self._server_status
+    
+    def wait_for_server_available(self, timeout = 30.0):
+        time_count = 0.0
+        wait_granularity = 0.1
+        while self._server_status != TincProtocol.StatusTypes.AVAILABLE:
+            time.sleep(wait_granularity)
+            time_count += wait_granularity
+            if time_count > timeout:
+                raise TincTimeout("Server still busy after timeout")
         
     # Access to objects by id
     
