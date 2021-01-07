@@ -1048,7 +1048,7 @@ class TincClient(object):
                 hs_message += struct.pack("H", tinc_client_revision)
                 s.send(hs_message)
                 
-                hs_message = Message(s.recv(1024))
+                hs_message = Message(s.recv(2))
                 command = hs_message.get_byte()
                 if command == commands['HANDSHAKE_ACK']:
                     self.server_version = 0
@@ -1085,7 +1085,7 @@ class TincClient(object):
                 while len(al_message) > 8:
                     message_size = struct.unpack("N", al_message[:8])[0]
                     if self.debug:
-                        print(f'receieved raw {message_size}')
+                        print(f'received raw {message_size}')
                     if len(al_message) < message_size + 8:
                         break
                     
