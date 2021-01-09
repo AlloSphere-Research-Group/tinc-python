@@ -143,8 +143,6 @@ class TincClient(object):
 
         self.register_parameter(new_param)
         new_param = self.get_parameter(param_id, group)
-            
-        self._register_parameter_on_server(new_param)
         
         if min_value is not None:
             new_param.minimum = min_value
@@ -158,6 +156,9 @@ class TincClient(object):
         elif type(space) == list:
             new_param.ids = []
             new_param.values = space
+
+        self._register_parameter_on_server(new_param)
+        self.send_parameter_meta(new_param)
         
         return new_param
     
