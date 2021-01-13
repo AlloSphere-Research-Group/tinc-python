@@ -23,6 +23,8 @@ parameter_space_type = {
 class Parameter(TincObject):
     def __init__(self, tinc_id: str, group = None, minimum: float = -99999.0, maximum: float = 99999.0, default_value: float = 0.0, tinc_client = None):
         # Should not change:tinc_id
+        if tinc_id.count(' ') != 0 or group.count(' ') != 0:
+            raise ValueError("Parameter names and group can't contain spaces")
         super().__init__(tinc_id)
         self.group = group if group is not None else ""
         self.tinc_client = tinc_client
