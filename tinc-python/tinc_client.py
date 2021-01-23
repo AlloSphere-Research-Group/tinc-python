@@ -112,6 +112,13 @@ class TincClient(object):
                 return p
         return None
     
+    def get_parameters(self, group = None):
+        params = []
+        for p in self.parameters:
+            if group is None or p.group == group:
+                params.append(p)
+        return params
+    
     def get_processor(self, processor_id):
         for p in self.processors:
             if p.id == processor_id:
@@ -279,6 +286,10 @@ class TincClient(object):
         elif type(param) == ParameterBool or type(param) == Trigger:
             pass
         
+        if len(param.values) > 0:
+            self.send_parameter_space_type(param)
+            self.send_parameter_space(param)
+        
     def send_parameter_space_type(self, param):
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.CONFIGURE
@@ -300,7 +311,7 @@ class TincClient(object):
         config.id = param.get_osc_address()
         config.configurationKey = TincProtocol.ParameterConfigureType.SPACE
         space_values = TincProtocol.ParameterSpaceValues()
-        if len(param.ids) == len(param.values) and  not len(param.ids) == 0:
+        if len(param.ids) != len(param.values) and len(param.ids) != 0:
             print("ERROR parameter ids-values mismatch, not sending to remote")
             return
         # TODO implement all types
@@ -538,7 +549,7 @@ class TincClient(object):
             found = False
             for proc in self.processors:
                 if proc.id == proc_id:
-                    if type(proc).__name__ == processor_type:
+                    if type(proc).__name__ == type(new_processor):
                         proc.id = proc_id
                         proc.input_dir = input_dir
                         proc.output_dir = output_dir
@@ -857,7 +868,7 @@ class TincClient(object):
             print(slice_reply.elements)
             user_data[0].set_elements(slice_reply.elements)
             
-    def _command_parameter_space_get_current_path(self, ps):
+    def _command_parameter_space_get_current_relative_path(self, ps):
         
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.COMMAND
@@ -1067,6 +1078,7 @@ class TincClient(object):
                     self.connected = True
                     self.socket = s
                     failed_attempts = 0
+                    self.synchronize()
                     print(f"Got HANDSHAKE_ACK. Server version {self.server_version} revision {self.server_revision}")
                 else:
                     print("Expected HANDSHAKE_ACK. CLosing connection. Got {message[0]}")

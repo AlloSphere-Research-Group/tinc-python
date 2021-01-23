@@ -23,7 +23,7 @@ parameter_space_type = {
 class Parameter(TincObject):
     def __init__(self, tinc_id: str, group = None, minimum: float = -99999.0, maximum: float = 99999.0, default_value: float = 0.0, tinc_client = None):
         # Should not change:tinc_id
-        if tinc_id.count(' ') != 0 or group.count(' ') != 0:
+        if tinc_id.count(' ') != 0 or (group and (group.count(' ') != 0)):
             raise ValueError("Parameter names and group can't contain spaces")
         super().__init__(tinc_id)
         self.group = group if group is not None else ""
@@ -87,6 +87,12 @@ class Parameter(TincObject):
         print(f"    Max: {self.maximum}")
             
     def set_value(self, value):
+        if value < self.minimum:
+            value = self.minimum
+        if value > self.maximum:
+            value = self.maximum
+        value = self._find_nearest(value)
+            
         self._value = self._data_type(value)
         if self.tinc_client:
             self.tinc_client.send_parameter_value(self)
@@ -108,6 +114,7 @@ class Parameter(TincObject):
             self.tinc_client.send_parameter_space(self)
             
     def set_values(self, values):
+        # TODO sort values before storing
         self._values = values
         try:
             self.minimum = min(self._values)
@@ -203,10 +210,30 @@ class Parameter(TincObject):
         return addr
     
     def get_current_id(self):
-        index = self.values.tolist().index(self._value)
+        if type(self.values) == np.ndarray:
+            index = self.values.tolist().index(self._value)
+        elif type(self.values) == list:
+            index = self.values.index(self._value)
+        else:
+            raise ValueError("Unsupported list type for values")
         return self.ids[index]
-        
     
+    def get_current_index(self):
+        if type(self.values) ==list:
+            return self.values.index(self.value)
+        elif type(self.values) == np.ndarray:
+            return np.where (self.values == self.value)[0]
+    
+    def _find_nearest(self, value):
+        # TODO assumes values are sorted ascending. Add checks and support for other models.
+        if len(self._values) > 0:
+            for i in range(len(self._values) - 1):
+                if value < (self._values[i] + self._values[i + 1]) /2:
+                    return self._values[i]
+            return self._values[-1]
+        else:
+            return value
+            
     def interactive_widget(self):
         self._interactive_widget = interactive(self.set_from_internal_widget,
                 value=widgets.FloatSlider(
@@ -230,6 +257,9 @@ class Parameter(TincObject):
                 return
                 
         self._value_callbacks.append(f)
+        
+    def clear_callbacks(self):
+        self._value_callbacks = []
         
 class ParameterString(Parameter):
     def __init__(self, tinc_id: str, group: str = "", default_value: str = "", tinc_client= None):
@@ -347,7 +377,7 @@ class ParameterInt(Parameter):
     def set_space_from_message(self, message):
         values = TincProtocol.ParameterSpaceValues()
         message.Unpack(values)
-        self._ids = values.ids
+        self._ids = list(values.ids)
         count = len(values.values)
         # print(f'setting space {count}')
         self._values = np.ndarray((count))

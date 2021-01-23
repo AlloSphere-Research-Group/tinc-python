@@ -16,6 +16,7 @@ class ParameterSpace(TincObject):
         self._parameters = []
         self.tinc_client = tinc_client
         self._cache_manager = None
+        self._path_template = ""
         # self._local_current_path
         # self._local_root_path
         # self._local_path_template
@@ -83,9 +84,51 @@ class ParameterSpace(TincObject):
     def get_parameters(self):
         return self._parameters
     
-    def get_current_path(self):
+    def set_current_path_template(self, path_template):
+        if type(path_template) != str:
+            raise ValueError('Path template must be a string')
+        self._path_template = path_template
+        
+    def resolve_path(self, path_template, index_map = None):
+        resolved_template = ''
+        end = 0
+        if index_map is None:
+            index_map = {}
+            for p in self._parameters:
+                if len(p.values) > 0:
+                    index_map[p.id] = p.get_current_index()
+                else:
+                    index_map[p.id] = -1
+        while path_template.count("%%", end)> 0:
+            start = path_template.index("%%", end)
+            resolved_template += path_template[end: start]
+            end = path_template.index("%%", start + 2)
+            token = path_template[start + 2: end]
+            end += 2
+            representation = 'VALUE'
+            if token.count(':') > 0:
+                sep_index = token. index(':')
+                representation = token[sep_index+1:]
+                token = token[:sep_index]
+            param = self.get_parameter(token)
+            index = index_map[token]
+            if param:
+                if representation == 'VALUE':
+                    resolved_template += str(param.value)
+                elif representation == 'ID':
+                    resolved_template += str(param.ids[index])
+                elif representation == 'INDEX':
+                    resolved_template += str(index)
+            else:
+                print(f"Warning: could not resolve token {token} in template")
+        return resolved_template
+            
+
+    def get_current_realtive_path(self):
         if self.tinc_client:
-            return self.tinc_client._command_parameter_space_get_current_path(self)
+            return self.tinc_client._command_parameter_space_get_current_relative_path(self)
+        else:
+            return self.resolve_path(self._path_template)
         
     def get_root_path(self):
         if self.tinc_client:
@@ -122,7 +165,7 @@ class ParameterSpace(TincObject):
                     p.set_at(indeces[i])
                 
             args = {p.id:p.values[indeces[i]] for i,p in enumerate(params)}
-            self.process(function, args, dependencies)
+            self.run_process(function, args, dependencies)
             indeces[0] += 1
             current_p = 0
             while indeces[current_p] == index_max[current_p]:
@@ -139,7 +182,7 @@ class ParameterSpace(TincObject):
                 p.value = orig_val
                 
     
-    def process(self, function, args = None, dependencies = []):
+    def run_process(self, function, args = None, dependencies = []):
         if args is None:
             args = {p.id:p.value for p in self._parameters}
         for p in self._parameters:
