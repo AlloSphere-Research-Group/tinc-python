@@ -455,7 +455,8 @@ class TincClient(object):
         found = False
         for ps in self.parameter_spaces:
             if ps.id == new_ps.id:
-                print(f"ParameterSpace already registered: '{new_ps.id}'")
+                if self.debug:
+                    print(f"ParameterSpace already registered: '{new_ps.id}'")
                 found = True
                 break
         if not found:
@@ -488,7 +489,8 @@ class TincClient(object):
                     param_id = param_value.valueString
                     for p in self.parameters:
                         if p.get_osc_address() == param_id:
-                            print(f"Registering {param_id} for {ps}")
+                            if self.debug:
+                                print(f"Registering {param_id} for {ps}")
                             ps.register_parameter(p)
                             configured = True
                             break
@@ -586,7 +588,8 @@ class TincClient(object):
             found = False
             for dp in self.datapools:
                 if dp.id == dp_id:
-                    print(f"DataPool already registered: '{dp_id}'")
+                    if self.debug:
+                        print(f"DataPool already registered: '{dp_id}'")
                     found = True
                     break
             
@@ -623,10 +626,11 @@ class TincClient(object):
             found = False
             for db in self.disk_buffers:
                 if db.id == disk_buffer_id:
-                    if not db_details.type == db.type:
-                        print(f"DiskBuffer registered: '{disk_buffer_id}' ERROR: type mismatch")
-                    else:
-                        print(f"DiskBuffer already registered: '{disk_buffer_id}'")
+                    if self.debug:
+                        if not db_details.type == db.type:
+                            print(f"DiskBuffer registered: '{disk_buffer_id}' ERROR: type mismatch")
+                        else:
+                            print(f"DiskBuffer already registered: '{disk_buffer_id}'")
                     found = True
                     break
         

@@ -37,7 +37,7 @@ class ParameterSpace(TincObject):
                 param_registered = True
                 break
         if not param_registered:
-            print(f'register {param.id} for {self}')
+            # print(f'register {param.id} for {self}')
             self._parameters.append(param)
         return param
             

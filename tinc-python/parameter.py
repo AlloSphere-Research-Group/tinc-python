@@ -387,7 +387,7 @@ class ParameterChoice(Parameter):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         
-        print(f"set {value.valueUint64}")
+        # print(f"set {value.valueUint64}")
         if not self._value == value.valueUint64:
             self._value = self._data_type(value.valueUint64)
 
