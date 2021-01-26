@@ -2,6 +2,7 @@ import unittest
 
 import sys
 sys.path.append('../')
+sys.path.append('./tinc-python/tinc-python')
 from parameter import *
 
 external_value = 0
