@@ -31,6 +31,11 @@ class Message(object):
         self.read_counter += 1
         return b
     
+    def get_uint16(self):
+        b = struct.unpack('H', self.data[self.read_counter: self.read_counter + 2])
+        self.read_counter += 2
+        return b[0]
+    
     def get_uint32(self):
         b = struct.unpack('L', self.data[self.read_counter: self.read_counter + 4])
         self.read_counter += 4

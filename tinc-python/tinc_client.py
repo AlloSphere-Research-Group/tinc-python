@@ -16,7 +16,7 @@ import tinc_protocol_pb2 as TincProtocol
 #from google.protobuf import any_pb2 #, message
 
 tinc_client_version = 1
-tinc_client_revision = 1
+tinc_client_revision = 0
 
 commands = {
     "HANDSHAKE" : 0x01,
@@ -1057,29 +1057,34 @@ class TincClient(object):
                     continue
                     
                 s.settimeout(10.0)
-                print("Connected, sending handshake.")
+                if self.debug:
+                    print("Connected, sending handshake.")
                 hs_message = bytearray()
                 hs_message.append(commands['HANDSHAKE'])
-                hs_message += struct.pack("H", tinc_client_version)
-                hs_message += struct.pack("H", tinc_client_revision)
+                hs_message += struct.pack("L", tinc_client_version)
+                hs_message += struct.pack("L", tinc_client_revision)
                 s.send(hs_message)
                 
-                hs_message = Message(s.recv(2))
+                hs_message = Message(s.recv(5))
                 command = hs_message.get_byte()
                 if command == commands['HANDSHAKE_ACK']:
                     self.server_version = 0
                     self.server_revision = 0
-                    if len(hs_message.remaining_bytes()) > 8:
-                        self.server_version = hs_message.get_uint32()
+                    if len(hs_message.remaining_bytes()) > 3:
+                        self.server_version = hs_message.get_uint16()
                         
-                    if len(hs_message.remaining_bytes()) > 8:
-                        self.server_revision = hs_message.get_uint32()
-                
+                    if len(hs_message.remaining_bytes()) > 1:
+                        self.server_revision = hs_message.get_uint16()
+                    if self.server_version != tinc_client_version:
+                        raise ValueError("Tinc protocol version mismatch")
+                    if self.server_revision != tinc_client_revision:
+                        print("WARNING: protocol revision mismatch")
+                    
                     self.connected = True
                     self.socket = s
                     failed_attempts = 0
                     self.synchronize()
-                    print(f"Got HANDSHAKE_ACK. Server version {self.server_version} revision {self.server_revision}")
+                    print(f"Connected. Server version {self.server_version} revision {self.server_revision}")
                 else:
                     print("Expected HANDSHAKE_ACK. CLosing connection. Got {message[0]}")
             else:
