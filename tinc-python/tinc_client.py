@@ -1041,8 +1041,9 @@ class TincClient(object):
                 self.socket = None
                 try:
                     # Attempt a connection
-                    if failed_attempts == 0:
-                        print(f"Attempt connection. {ip}:{port}")
+                    if failed_attempts == 1:
+                        if self.debug:
+                            print(f"Attempt connection. {ip}:{port}")
                     failed_attempts += 1
                     if failed_attempts == 100:
                         print("Connection failed.")
@@ -1084,7 +1085,7 @@ class TincClient(object):
                     self.socket = s
                     failed_attempts = 0
                     self.synchronize()
-                    print(f"Connected. Server version {self.server_version} revision {self.server_revision}")
+                    print(f"Connected to {ip}:{port}. Server version {self.server_version} revision {self.server_revision}")
                 else:
                     print("Expected HANDSHAKE_ACK. CLosing connection. Got {message[0]}")
             else:
