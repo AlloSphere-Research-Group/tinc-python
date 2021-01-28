@@ -1,12 +1,13 @@
 import unittest
 
-import sys
+import sys,time
 sys.path.append('../')
 sys.path.append('./tinc-python/tinc-python')
 from parameter import *
 
 external_value = 0
 def callback(value):
+    time.sleep(0.5)
     global external_value
     external_value = value
 
@@ -36,6 +37,19 @@ class ParameterTest(unittest.TestCase):
         # External value shoudl not change because callback is removed
         p.value = 0.7
         self.assertEqual(external_value, 0.4)
+        
+    def test_parameter_cb_async(self):
+        global external_value
+        p = Parameter("name", "group", -1, 1, 0.5)
+        
+        external_value = 0.5
+        p.register_callback(callback, False)
+        p.value = 0.4
+
+        self.assertNotEqual(external_value, 0.4)
+        time.sleep(0.3)
+        
+        self.assertNotEqual(external_value, 0.4)
 
     def test_parameter_space(self):
         global external_value
