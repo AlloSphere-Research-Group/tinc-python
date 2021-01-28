@@ -124,7 +124,7 @@ class ParameterSpace(TincObject):
         return resolved_template
             
 
-    def get_current_realtive_path(self):
+    def get_current_relative_path(self):
         if self.tinc_client:
             return self.tinc_client._command_parameter_space_get_current_relative_path(self)
         else:
