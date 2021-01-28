@@ -9,6 +9,7 @@ from tinc_object import TincObject
 
 import struct
 import numpy as np
+import threading
 
 # used in set_XXX_from_message 
 import tinc_protocol_pb2 as TincProtocol
@@ -39,6 +40,7 @@ class Parameter(TincObject):
         # Internal
         self._interactive_widget = None
         self._value_callbacks = []
+        self._async_callbacks = []
         self._init(default_value)
         
     def _init(self, default_value):
@@ -98,11 +100,7 @@ class Parameter(TincObject):
             self.tinc_client.send_parameter_value(self)
         if self._interactive_widget:
             self._interactive_widget.children[0].value = self._data_type(value)
-        for cb in self._value_callbacks:
-            try:
-                cb(value)
-            except Exception as e:
-                print(e.with_traceback())
+        self._trigger_callbacks(self._value)
             
     def set_at(self, index):
         new_value = self._values[index]
@@ -153,11 +151,7 @@ class Parameter(TincObject):
 
             if self._interactive_widget:
                 self._interactive_widget.children[0].value = self._data_type(value.valueFloat)
-        for cb in self._value_callbacks:
-            try:
-                cb(value.valueFloat)
-            except Exception as e:
-                print(e)
+            self._trigger_callbacks(self._value)
         return True
 
     def set_space_from_message(self, message):
@@ -195,11 +189,7 @@ class Parameter(TincObject):
         self._value = value
         if self.tinc_client:
             self.tinc_client.send_parameter_value(self)
-        for cb in self._value_callbacks:
-            try:
-                cb(value)
-            except Exception as e:
-                print(e) 
+        self._trigger_callbacks(value)
 
     def get_osc_address(self):
         # TODO sanitize names
@@ -249,17 +239,38 @@ class Parameter(TincObject):
             ));
         return self._interactive_widget
     
-    def register_callback(self, f):
+    def register_callback(self, f, synchronous = True):
         for i,cb in enumerate(self._value_callbacks):
             if f.__name__ == cb.__name__:
                 print("Replacing previously registered callback")
+                
+                if self._async_callbacks.count(self._value_callbacks[i]) > 0:
+                    self._async_callbacks.remove(self._value_callbacks[i])
                 self._value_callbacks[i] = f
+                if not synchronous:
+                    self._async_callbacks.append(f)
                 return
                 
         self._value_callbacks.append(f)
+        if not synchronous:
+            self._async_callbacks.append(f)
+    
+    
+    def register_callback_async(self, f):
+        self.register_callback(f, False)
         
     def clear_callbacks(self):
         self._value_callbacks = []
+        
+    def _trigger_callbacks(self, value):
+        for cb in self._value_callbacks:
+            if self._async_callbacks.count(cb):
+                threading.Thread(target=cb, args=(value), daemon=True)
+            else:
+                try:
+                    cb(value)
+                except Exception as e:
+                    print(e.with_traceback())
         
 class ParameterString(Parameter):
     def __init__(self, tinc_id: str, group: str = "", default_value: str = "", tinc_client= None):
