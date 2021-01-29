@@ -10,6 +10,7 @@ from tinc_object import TincObject
 import struct
 import numpy as np
 import threading
+import traceback
 
 # used in set_XXX_from_message 
 import tinc_protocol_pb2 as TincProtocol
@@ -242,8 +243,6 @@ class Parameter(TincObject):
     def register_callback(self, f, synchronous = True):
         for i,cb in enumerate(self._value_callbacks):
             if f.__name__ == cb.__name__:
-                print("Replacing previously registered callback")
-                
                 if self._async_callbacks.count(self._value_callbacks[i]) > 0:
                     self._async_callbacks.remove(self._value_callbacks[i])
                 self._value_callbacks[i] = f
@@ -265,12 +264,21 @@ class Parameter(TincObject):
     def _trigger_callbacks(self, value):
         for cb in self._value_callbacks:
             if self._async_callbacks.count(cb):
-                threading.Thread(target=cb, args=(value), daemon=True)
+                threading.Thread(target=self._cb_async_wrapper, args=(cb, value), daemon=True)
             else:
                 try:
                     cb(value)
                 except Exception as e:
-                    print(e.with_traceback())
+                    print("Exception in parameter callback (Continuing):")
+                    traceback.print_exc()
+    
+    def _cb_async_wrapper(cb, value):
+        try:
+            cb(value)
+        except Exception as e:
+            print("Exception in *async* parameter callback (Continuing):")
+            traceback.print_exc()
+        
         
 class ParameterString(Parameter):
     def __init__(self, tinc_id: str, group: str = "", default_value: str = "", tinc_client= None):
