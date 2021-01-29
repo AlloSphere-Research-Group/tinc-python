@@ -7,9 +7,11 @@ from parameter import *
 
 external_value = 0
 def callback(value):
-    time.sleep(0.5)
+    #print("enter callback")
+    time.sleep(0.2)
     global external_value
     external_value = value
+    #print("exit callback")
 
 
 class ParameterTest(unittest.TestCase):
@@ -49,7 +51,7 @@ class ParameterTest(unittest.TestCase):
         self.assertNotEqual(external_value, 0.4)
         time.sleep(0.3)
         
-        self.assertNotEqual(external_value, 0.4)
+        self.assertEqual(external_value, 0.4)
 
     def test_parameter_space(self):
         global external_value

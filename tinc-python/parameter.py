@@ -264,7 +264,8 @@ class Parameter(TincObject):
     def _trigger_callbacks(self, value):
         for cb in self._value_callbacks:
             if self._async_callbacks.count(cb):
-                threading.Thread(target=self._cb_async_wrapper, args=(cb, value), daemon=True)
+                x = threading.Thread(target=self._cb_async_wrapper, args=(cb, value), daemon=True)
+                x.start()
             else:
                 try:
                     cb(value)
@@ -272,7 +273,7 @@ class Parameter(TincObject):
                     print("Exception in parameter callback (Continuing):")
                     traceback.print_exc()
     
-    def _cb_async_wrapper(cb, value):
+    def _cb_async_wrapper(self, cb, value):
         try:
             cb(value)
         except Exception as e:

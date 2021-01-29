@@ -819,7 +819,7 @@ class TincClient(object):
         self.request_count_lock.release()
         return command_id
     
-    def _wait_for_reply(self, request_number, timeout_sec= 5):
+    def _wait_for_reply(self, request_number, timeout_sec= 30):
         start_time = time.time()
         self.pending_lock.acquire()
         while not request_number in self.pending_replies:
@@ -828,6 +828,8 @@ class TincClient(object):
             if (time.time() - start_time) > timeout_sec:
                 raise TincTimeout("Timeout.")
             self.pending_lock.acquire()
+        # don't release the lock, it is released by the caller.
+        # TODO avoid this by including the popping in this function
     
     def _command_parameter_choice_elements(self, parameter):
         
