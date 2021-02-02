@@ -20,9 +20,19 @@ class TincArgumentParser(argparse.ArgumentParser):
         import sys
         if len(sys.argv) == 2 and sys.argv[1][-5:] == ".json":
             self.config_file = sys.argv[1]
+        else:
+            self.config_file = None
         # self.add_argument('config_file', type=str, default="config.json", nargs='?')
 
     def get_args(self):
+      if  self.config_file is None:
+          print("TincArgumentParser: No config file provided, setting defaults")
+          args = vars(self.parse_args())
+          if '__input_names' in args and type(args['__input_names']) != list:
+              args['__input_names'] = [args['__input_names']]
+          if '__output_names' in args and type(args['__output_names']) != list:
+              args['__output_names'] = [args['__output_names']]
+          return args
       with open(self.config_file) as cf:
             out_args = json.load(cf)
             if '__tinc_metadata_version' in out_args:
