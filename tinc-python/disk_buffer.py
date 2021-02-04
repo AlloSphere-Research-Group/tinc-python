@@ -23,7 +23,7 @@ class DiskBuffer(TincObject):
         
         self._file_lock:bool = False
         
-        self.client = tinc_client
+        self.tinc_client = tinc_client
         pass
     
     def cleanup_cache(self):
@@ -72,8 +72,8 @@ class DiskBuffer(TincObject):
         with open(self._path + outname, 'w') as outfile:
             json.dump(data, outfile)
             
-        if self.client:
-            self.client.send_disk_buffer_current_filename(self, outname)
+        if self.tinc_client:
+            self.tinc_client.send_disk_buffer_current_filename(self, outname)
     
         if self._file_lock:
             self._lock.release()
@@ -102,8 +102,8 @@ class DiskBuffer(TincObject):
             # TODO more robust checking that we are managing that file.
             raise ValueError('Invalid filename')
 
-        if self.client:
-            self.client.send_disk_buffer_current_filename(self, filename)
+        if self.tinc_client:
+            self.tinc_client.send_disk_buffer_current_filename(self, filename)
             
         if self._file_lock:
             self._lock.release()
