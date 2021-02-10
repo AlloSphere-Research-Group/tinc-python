@@ -549,7 +549,7 @@ class TincClient(object):
             found = False
             for proc in self.processors:
                 if proc.id == proc_id:
-                    if type(proc).__name__ == type(new_processor):
+                    if type(proc).__name__ == type(new_processor).__name__:
                         proc.id = proc_id
                         proc.input_dir = input_dir
                         proc.output_dir = output_dir

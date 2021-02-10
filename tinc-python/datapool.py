@@ -19,6 +19,8 @@ class DataPool(TincObject):
     def get_slice(self, field, sliceDimensions):
         if not self.tinc_client:
             # TODO implement slicing for local data
+            
+            print("Datapool get_slice not implemented without connection")
             return None
         slice_file = self.tinc_client._command_datapool_slice_file(self.id, field, sliceDimensions)
         nc = netCDF4.Dataset(self.slice_cache_dir + slice_file)
@@ -28,12 +30,14 @@ class DataPool(TincObject):
     def get_slice_file(self, field, sliceDimensions):
         if not self.tinc_client:
             # TODO implement slicing for local data
+            print("Datapool get_slice_file not implemented without connection")
             return None
         return self.tinc_client._command_datapool_slice_file(self.id, field, sliceDimensions)
         
     def get_current_files(self):
         if not self.tinc_client:
             # TODO implement for local data
+            print("Datapool get_current_files not implemented without connection")
             return None
         return self.tinc_client._command_datapool_get_files(self.id)
         
