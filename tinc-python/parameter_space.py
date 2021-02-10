@@ -126,13 +126,13 @@ class ParameterSpace(TincObject):
 
     def get_current_relative_path(self):
         if self.tinc_client:
-            return self.tinc_client._command_parameter_space_get_current_relative_path(self)
+            return self.tinc_client._command_parameter_space_get_current_relative_path(self, self.server_timeout)
         else:
             return self.resolve_path(self._path_template)
         
     def get_root_path(self):
         if self.tinc_client:
-            return self.tinc_client._command_parameter_space_get_root_path(self)
+            return self.tinc_client._command_parameter_space_get_root_path(self, self.server_timeout)
         
     def sweep(self, function, params=None, force_values = False, dependencies = []):
         if params is None or len(params) == 0:

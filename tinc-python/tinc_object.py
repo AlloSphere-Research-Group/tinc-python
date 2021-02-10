@@ -16,3 +16,4 @@ class TincObject(object):
         self.id = tinc_id
         self.remote = False
         self.remote_stale = False
+        self.server_timeout = 30

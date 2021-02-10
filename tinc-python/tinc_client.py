@@ -831,7 +831,7 @@ class TincClient(object):
         # don't release the lock, it is released by the caller.
         # TODO avoid this by including the popping in this function
     
-    def _command_parameter_choice_elements(self, parameter):
+    def _command_parameter_choice_elements(self, parameter, timeout=30):
         
         parameter_addr = parameter.get_osc_address()
         msg = TincProtocol.TincMessage()
@@ -855,7 +855,7 @@ class TincClient(object):
         if self.debug:
             print(f"Sent command: {request_number}")
         try:
-            self._wait_for_reply(request_number)
+            self._wait_for_reply(request_number, timeout)
         except TincTimeout as tm:
             command_details, user_data = self.pending_replies.pop(request_number)
             self.pending_lock.release()
@@ -870,7 +870,7 @@ class TincClient(object):
             print(slice_reply.elements)
             user_data[0].set_elements(slice_reply.elements)
             
-    def _command_parameter_space_get_current_relative_path(self, ps):
+    def _command_parameter_space_get_current_relative_path(self, ps, timeout=30):
         
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.COMMAND
@@ -890,7 +890,7 @@ class TincClient(object):
 
         self._send_message(msg)
           
-        self._wait_for_reply(request_number)
+        self._wait_for_reply(request_number, timeout)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
@@ -900,7 +900,7 @@ class TincClient(object):
             command_details.Unpack(slice_reply)
             return slice_reply.path
         
-    def _command_parameter_space_get_root_path(self, ps):
+    def _command_parameter_space_get_root_path(self, ps, timeout=30):
         
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.COMMAND
@@ -920,7 +920,7 @@ class TincClient(object):
 
         self._send_message(msg)
             
-        self._wait_for_reply(request_number)
+        self._wait_for_reply(request_number, timeout)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
@@ -930,7 +930,7 @@ class TincClient(object):
             command_details.Unpack(slice_reply)
             return slice_reply.path
         
-    def _command_datapool_slice_file(self, datapool_id, field, sliceDimensions):
+    def _command_datapool_slice_file(self, datapool_id, field, sliceDimensions, timeout=30):
         
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.COMMAND
@@ -958,7 +958,7 @@ class TincClient(object):
         self._send_message(msg)
             
         # print(f"Sent command: {request_number}")
-        self._wait_for_reply(request_number)
+        self._wait_for_reply(request_number, timeout)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
@@ -970,7 +970,7 @@ class TincClient(object):
         else:
             return None
         
-    def _command_datapool_get_files(self, datapool_id):
+    def _command_datapool_get_files(self, datapool_id, timeout=30):
         
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.COMMAND
@@ -993,7 +993,7 @@ class TincClient(object):
             
         # print(f"Sent command: {request_number}")
         # FIXME implement timeout
-        self._wait_for_reply(request_number)
+        self._wait_for_reply(request_number, timeout)
             
         command_details, user_data = self.pending_replies.pop(request_number)
         self.pending_lock.release()
