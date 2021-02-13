@@ -48,10 +48,10 @@ class ParameterSpace(TincObject):
                 self._parameters.remove(p)
                 break
             
-    def enable_caching(self, directory = "python_cache"):
+    def enable_cache(self, directory = "python_cache"):
         self._cache_manager = CacheManager(directory)
         
-    def disable_caching(self):
+    def disable_cache(self):
         self._cache_manager = None
         
     def clear_cache(self):

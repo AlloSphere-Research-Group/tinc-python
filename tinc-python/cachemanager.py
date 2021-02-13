@@ -8,10 +8,7 @@ Created on Thu Oct 15 14:32:03 2020
 import json
 import os
 
-# FIXME we need to make more robust by having a central metadata to help
-# if cache can be reused when parameter space has changed and to know what
-# functions and parameter spaces have generated what cache to be able to 
-# construct a clear cache function
+# FIXME use more robust cache metadata defined in the metadata schema
 
 class CacheManager(object):
     def __init__(self, directory = "python_cache"):
