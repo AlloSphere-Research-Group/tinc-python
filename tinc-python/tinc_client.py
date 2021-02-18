@@ -93,7 +93,7 @@ class TincClient(object):
     def server_status(self):
         return self._server_status
     
-    def wait_for_server_available(self, timeout = 30.0):
+    def wait_for_server_available(self, timeout = 3000.0):
         time_count = 0.0
         wait_granularity = 0.1
         while self._server_status != TincProtocol.StatusTypes.AVAILABLE:
@@ -828,8 +828,10 @@ class TincClient(object):
             if (time.time() - start_time) > timeout_sec:
                 raise TincTimeout("Timeout.")
             self.pending_lock.acquire()
-        # don't release the lock, it is released by the caller.
-        # TODO avoid this by including the popping in this function
+        reply = self.pending_replies.pop(request_number)
+        self.pending_lock.release()
+   
+        return reply
     
     def _command_parameter_choice_elements(self, parameter, timeout=30):
         
@@ -855,15 +857,11 @@ class TincClient(object):
         if self.debug:
             print(f"Sent command: {request_number}")
         try:
-            self._wait_for_reply(request_number, timeout)
+            command_details, user_data = self._wait_for_reply(request_number, timeout)
         except TincTimeout as tm:
-            command_details, user_data = self.pending_replies.pop(request_number)
-            self.pending_lock.release()
+            self.pending_requests.pop(request_number)
             raise tm
-            
-        command_details, user_data = self.pending_replies.pop(request_number)
-        self.pending_lock.release()
-            
+
         if command_details.Is(TincProtocol.ParameterRequestChoiceElementsReply.DESCRIPTOR):
             slice_reply = TincProtocol.ParameterRequestChoiceElementsReply()
             command_details.Unpack(slice_reply)
@@ -890,10 +888,11 @@ class TincClient(object):
 
         self._send_message(msg)
           
-        self._wait_for_reply(request_number, timeout)
-            
-        command_details, user_data = self.pending_replies.pop(request_number)
-        self.pending_lock.release()
+        try:
+            command_details, user_data = self._wait_for_reply(request_number, timeout)
+        except TincTimeout as tm:
+            self.pending_requests.pop(request_number)
+            raise tm
 
         if command_details.Is(TincProtocol.ParameterSpaceRequestCurrentPathReply.DESCRIPTOR):
             slice_reply = TincProtocol.ParameterSpaceRequestCurrentPathReply()
@@ -920,10 +919,11 @@ class TincClient(object):
 
         self._send_message(msg)
             
-        self._wait_for_reply(request_number, timeout)
-            
-        command_details, user_data = self.pending_replies.pop(request_number)
-        self.pending_lock.release()
+        try:
+            command_details, user_data = self._wait_for_reply(request_number, timeout)
+        except TincTimeout as tm:
+            self.pending_requests.pop(request_number)
+            raise tm
             
         if command_details.Is(TincProtocol.ParameterSpaceRequestRootPathReply.DESCRIPTOR):
             slice_reply = TincProtocol.ParameterSpaceRequestRootPathReply()
@@ -958,10 +958,11 @@ class TincClient(object):
         self._send_message(msg)
             
         # print(f"Sent command: {request_number}")
-        self._wait_for_reply(request_number, timeout)
-            
-        command_details, user_data = self.pending_replies.pop(request_number)
-        self.pending_lock.release()
+        try:
+            command_details, user_data = self._wait_for_reply(request_number, timeout)
+        except TincTimeout as tm:
+            self.pending_requests.pop(request_number)
+            raise tm
             
         if command_details.Is(TincProtocol.DataPoolCommandSliceReply.DESCRIPTOR):
             slice_reply = TincProtocol.DataPoolCommandSliceReply()
@@ -992,11 +993,11 @@ class TincClient(object):
         self._send_message(msg)
             
         # print(f"Sent command: {request_number}")
-        # FIXME implement timeout
-        self._wait_for_reply(request_number, timeout)
-            
-        command_details, user_data = self.pending_replies.pop(request_number)
-        self.pending_lock.release()
+        try:
+            command_details, user_data = self._wait_for_reply(request_number, timeout)
+        except TincTimeout as tm:
+            self.pending_requests.pop(request_number)
+            raise tm
         
         if command_details.Is(TincProtocol.DataPoolCommandCurrentFilesReply.DESCRIPTOR):
             command_reply = TincProtocol.DataPoolCommandCurrentFilesReply()

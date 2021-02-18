@@ -263,7 +263,8 @@ class Parameter(TincObject):
         
     def _trigger_callbacks(self, value):
         for cb in self._value_callbacks:
-            if self._async_callbacks.count(cb):
+            if self._async_callbacks.count(cb) == 1:
+                print("starting async callback")
                 x = threading.Thread(target=self._cb_async_wrapper, args=(cb, value), daemon=True)
                 x.start()
             else:
@@ -304,11 +305,7 @@ class ParameterString(Parameter):
             self.tinc_client.send_parameter_value(self)
         if self._interactive_widget:
             self._interactive_widget.children[0].value = self._data_type(value)
-        for cb in self._value_callbacks:
-            try:
-                cb(value)
-            except Exception as e:
-                print(e)
+        self._trigger_callbacks(self._value)
     
     def set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
@@ -320,11 +317,7 @@ class ParameterString(Parameter):
 
             if self._interactive_widget:
                 self._interactive_widget.children[0].value = self._data_type(value.valueString)
-        for cb in self._value_callbacks:
-            try:
-                cb(value.valueString)
-            except Exception as e:
-                print(e)
+        self._trigger_callbacks(self._value)
         return True
 
     def set_space_from_message(self, message):
@@ -387,11 +380,7 @@ class ParameterInt(Parameter):
 
             if self._interactive_widget:
                 self._interactive_widget.children[0].value = self._data_type(value.valueInt32)
-        for cb in self._value_callbacks:
-            try:
-                cb(value.valueInt32)
-            except Exception as e:
-                print(e)
+        self._trigger_callbacks(self._value)
         return True
 
     def set_space_from_message(self, message):
@@ -443,11 +432,7 @@ class ParameterChoice(Parameter):
 
             if self._interactive_widget:
                 self._interactive_widget.children[0].value = self._data_type(value.valueUint64)
-        for cb in self._value_callbacks:
-            try:
-                cb(value.valueUint64)
-            except Exception as e:
-                print(e)
+        self._trigger_callbacks(self._value)
         return True
 
     def set_space_from_message(self, message):
@@ -511,11 +496,7 @@ class ParameterColor(Parameter):
 
             # if self._interactive_widget:
             #     self._interactive_widget.children[0].value = self._data_type(value.valueUint64)
-        for cb in self._value_callbacks:
-            try:
-                cb(value._value)
-            except Exception as e:
-                print(e)
+        self._trigger_callbacks(new_value)
         return True
 
     def set_space_from_message(self, message):
@@ -568,11 +549,8 @@ class ParameterBool(Parameter):
 
             # if self._interactive_widget:
             #     self._interactive_widget.children[0].value = self._data_type(value.valueUint64)
-        for cb in self._value_callbacks:
-            try:
-                cb(value._value)
-            except Exception as e:
-                print(e)
+
+        self._trigger_callbacks(self._value)
         return True
         
 
@@ -604,14 +582,11 @@ class Trigger(ParameterBool):
         # if self._interactive_widget:
         #     self._interactive_widget.children[0].value = self._data_type(value)
             
-        if self.value == True:
+        if self._value == True:
             if self.tinc_client:
                 self.tinc_client.send_parameter_value(self)
-            for cb in self._value_callbacks:
-                try:
-                    cb(value)
-                except Exception as e:
-                    print(e)
+            
+            self._trigger_callbacks(self._value)
             self._value = False
     
     def trigger(self):
@@ -625,10 +600,6 @@ class Trigger(ParameterBool):
         new_value = value.valueBool
         self._value = new_value
         if self._value == True:
-            for cb in self._value_callbacks:
-                try:
-                    cb(value.valueBool)
-                except Exception as e:
-                    print(e)
+            self._trigger_callbacks(self._value)
             self._value = False
         return True

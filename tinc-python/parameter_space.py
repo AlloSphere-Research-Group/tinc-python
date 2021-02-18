@@ -8,6 +8,8 @@ Created on Tue Sep  1 17:13:15 2020
 from tinc_object import TincObject
 from cachemanager import CacheManager
 
+import traceback
+
 import inspect, dis
 
 class ParameterSpace(TincObject):
@@ -182,15 +184,15 @@ class ParameterSpace(TincObject):
                 p.value = orig_val
                 
     
-    def run_process(self, function, args = None, dependencies = []):
+    def run_process(self, function, args = None, dependencies = [], force_recompute = False):
         if args is None:
             args = {p.id:p.value for p in self._parameters}
         for p in self._parameters:
             if(p.id not in args):
                 args[p.id] = p.value
-        return self._process(function, args, dependencies)
+        return self._process(function, args, dependencies, force_recompute)
             
-    def _process(self,function, args, dependencies = []):
+    def _process(self,function, args, dependencies = [], force_recompute = False):
         
         named_args = inspect.getfullargspec(function)[0]
         
@@ -204,15 +206,20 @@ class ParameterSpace(TincObject):
         for dep in dependencies:
             cache_args[dep.id] = dep.value
         
-        if self._cache_manager:
+        out = None
+        if self._cache_manager and not force_recompute:
             out = self._cache_manager.load_cache(cache_args)
             if out:
                 print("Using cache")
                 return out
-            
-        out = function(**calling_args)
-        if self._cache_manager:
-            self._cache_manager.store_cache(out, cache_args)
+        try:
+            out = function(**calling_args)
+            if self._cache_manager:
+                print("Stored cache")
+                self._cache_manager.store_cache(out, cache_args)
+        except Exception as e:
+            print("Function call exception")
+            traceback.print_exc()
         return out
         
  
