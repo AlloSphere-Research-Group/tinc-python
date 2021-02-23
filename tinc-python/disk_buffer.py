@@ -18,32 +18,34 @@ class DiskBuffer(TincObject):
         if not path == '' and not os.path.exists(path):
             os.makedirs(path)
         
-        self._cache_size:int  = -1
-        self._cache_counter: int = 0
+        self._round_robin_size  = None
+        self._round_robin_counter: int = 0
         
         self._file_lock:bool = False
         
         self.tinc_client = tinc_client
         pass
     
-    def cleanup_cache(self):
+    def cleanup_round_robin_files(self):
         prefix, suffix = self._get_file_components()
         if os.path.exists(self._path):
             files = [f for f in os.listdir(self._path) if re.match(prefix + '(_[0-9]+)?' + suffix + '(.lock)?', f)]
             for f in files:
                     os.remove(self._path + f)
     
-    def allow_cache(self, cache_size: int = 0):
+    def enable_round_robin(self, cache_size = 0, clear_locks: bool = True):
         # 0 is unlimited cache
-        self._cache_size = cache_size
+        self._round_robin_size = cache_size
+        if self._round_robin_counter >= cache_size:
+            self._round_robin_counter = 0
         if self._file_lock:
             # To force clearing locks. Should this be optional?
-            self.use_file_lock()
+            self.use_file_lock(self._file_lock, clear_locks)
     
     def use_file_lock(self, use:bool = True, clear_locks: bool = True):
         self._file_lock = use
         try:
-            if self._cache_size == -1:
+            if self._round_robin_size == None:
                 os.remove(self._path + self._base_filename)
             else:
                 files = [f for f in os.listdir(self._path) if re.match(r'.*_[0-9]+.*\.lock', f)]
@@ -111,11 +113,11 @@ class DiskBuffer(TincObject):
     def _make_next_filename(self):
         outname = self._base_filename
         
-        if self._cache_size >=0:
-            if self._cache_size > 0 and self._cache_counter == self._cache_size:
-                self._cache_counter = 0
-            outname = self._make_filename(self._cache_counter)
-            self._cache_counter += 1
+        if self._round_robin_size is not None and self._round_robin_size >=0:
+            if self._round_robin_size > 0 and self._round_robin_counter == self._round_robin_size:
+                self._round_robin_counter = 0
+            outname = self._make_filename(self._round_robin_counter)
+            self._round_robin_counter += 1
         return outname
         
     def _make_filename(self, index):

@@ -83,7 +83,7 @@ print(tclient.command_parameter_choice_elements(shellsites))
 tclient.synchronize()
 
 imageBuffer = tclient.get_disk_buffer('graph')
-imageBuffer.allow_cache(5)
+imageBuffer.enable_round_robin(5)
 print(imageBuffer._path)
 print(imageBuffer.get_filename_for_writing())
 
