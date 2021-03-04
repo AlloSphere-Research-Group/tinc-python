@@ -201,10 +201,8 @@ class Parameter(TincObject):
         return addr
     
     def get_current_id(self):
-        if type(self.values) == np.ndarray:
-            index = self.values.tolist().index(self._value)
-        elif type(self.values) == list:
-            index = self.values.index(self._value)
+        if type(self.values) == np.ndarray or type(self.values) == list:
+            index = self.get_current_index()
         else:
             raise ValueError("Unsupported list type for values")
         return self.ids[index]
@@ -213,7 +211,7 @@ class Parameter(TincObject):
         if type(self.values) ==list:
             return self.values.index(self.value)
         elif type(self.values) == np.ndarray:
-            return np.where (self.values == self.value)[0]
+            return np.where (self.values == self.value)[0][0]
     
     def _find_nearest(self, value):
         # TODO assumes values are sorted ascending. Add checks and support for other models.
@@ -595,7 +593,7 @@ class Trigger(ParameterBool):
     def set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
-        print(f"hello {value.valueBool}")
+        #print(f"hello {value.valueBool}")
         
         new_value = value.valueBool
         self._value = new_value
