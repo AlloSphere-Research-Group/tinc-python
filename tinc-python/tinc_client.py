@@ -148,13 +148,14 @@ class TincClient(object):
     def create_parameter(self, parameter_type, param_id, group = None, min_value = None, max_value = None, space = None, default_value= None, space_type = None):
         new_param = parameter_type(param_id, group, default_value = default_value, tinc_client = self)
 
-        self.register_parameter(new_param)
-        new_param = self.get_parameter(param_id, group)
+        new_param = self.register_parameter(new_param)
         
-        if min_value is not None:
-            new_param.minimum = min_value
-        if not max_value is None:
-            new_param.maximum = max_value
+        if not min_value is None:
+            # avoid callbacks
+            new_param._minimum = min_value
+        if not max_value is  None:
+            # avoid callbacks
+            new_param._maximum = max_value
         if not space_type is None:
             new_param.space_type = space_type
         if type(space) == dict:
@@ -163,8 +164,9 @@ class TincClient(object):
         elif type(space) == list:
             new_param.ids = []
             new_param.values = space
-
+            
         self._register_parameter_on_server(new_param)
+
         self.send_parameter_meta(new_param)
         
         return new_param
@@ -177,15 +179,13 @@ class TincClient(object):
         return
     
     def register_parameter(self, new_param):
-        param_found = False
         for p in self.parameters:
             if p.id == new_param.id and p.group == new_param.group:
-                param_found = True
-                break
-        if not param_found:
-            self.parameters.append(new_param)
-        else:
-            pass
+                if self.debug:
+                    print(f"Parameter already registered: {new_param.id}")
+                return p
+        self.parameters.append(new_param)
+        return new_param
     
     def send_parameter_value(self, param):
         msg = TincProtocol.TincMessage()
@@ -222,72 +222,75 @@ class TincClient(object):
         msg.details.Pack(config)
         self._send_message(msg)
         
-    def send_parameter_meta(self, param):
-        
+    def send_parameter_meta(self, param, fields = None):
+        if fields is None:
+            fields = ("minimum", "maximum", "space", "space_type")
         # Minimum
-        msg = TincProtocol.TincMessage()
-        msg.messageType  = TincProtocol.CONFIGURE
-        msg.objectType = TincProtocol.PARAMETER
-        config = TincProtocol.ConfigureParameter()
-        config.id = param.get_osc_address()
-        config.configurationKey = TincProtocol.ParameterConfigureType.MIN
-        value = TincProtocol.ParameterValue()
-        # TODO implement all types
-        if type(param) == Parameter:
-            value.valueFloat = param.minimum
-            config.configurationValue.Pack(value)
-            msg.details.Pack(config)
-            self._send_message(msg)
-        elif type(param) == ParameterString:
-            pass
-        elif type(param) == ParameterChoice:
-            value.valueUint64 = param.minimum
-            config.configurationValue.Pack(value)
-            msg.details.Pack(config)
-            self._send_message(msg)
-        elif type(param) == ParameterInt:
-            value.valueInt32 = param.minimum
-            config.configurationValue.Pack(value)
-            msg.details.Pack(config)
-            self._send_message(msg)
-        elif type(param) == ParameterColor:
-            pass
-        elif type(param) == ParameterBool or type(param) == Trigger:
-            pass
+        if "minimum" in fields:
+            msg = TincProtocol.TincMessage()
+            msg.messageType  = TincProtocol.CONFIGURE
+            msg.objectType = TincProtocol.PARAMETER
+            config = TincProtocol.ConfigureParameter()
+            config.id = param.get_osc_address()
+            config.configurationKey = TincProtocol.ParameterConfigureType.MIN
+            value = TincProtocol.ParameterValue()
+            # TODO implement all types
+            if type(param) == Parameter:
+                value.valueFloat = param.minimum
+                config.configurationValue.Pack(value)
+                msg.details.Pack(config)
+                self._send_message(msg)
+            elif type(param) == ParameterString:
+                pass
+            elif type(param) == ParameterChoice:
+                value.valueUint64 = param.minimum
+                config.configurationValue.Pack(value)
+                msg.details.Pack(config)
+                self._send_message(msg)
+            elif type(param) == ParameterInt:
+                value.valueInt32 = param.minimum
+                config.configurationValue.Pack(value)
+                msg.details.Pack(config)
+                self._send_message(msg)
+            elif type(param) == ParameterColor:
+                pass
+            elif type(param) == ParameterBool or type(param) == Trigger:
+                pass
         
-        # Maximum
-        msg = TincProtocol.TincMessage()
-        msg.messageType  = TincProtocol.CONFIGURE
-        msg.objectType = TincProtocol.PARAMETER
-        config = TincProtocol.ConfigureParameter()
-        config.id = param.get_osc_address()
-        config.configurationKey = TincProtocol.ParameterConfigureType.MAX
-        value = TincProtocol.ParameterValue()
-        # TODO implement all types
-        if type(param) == Parameter:
-            value.valueFloat = param.maximum
-            config.configurationValue.Pack(value)
-            msg.details.Pack(config)
-            self._send_message(msg)
-        elif type(param) == ParameterString:
-            pass
-        elif type(param) == ParameterChoice:
-            value.valueUint64 = param.maximum
-            config.configurationValue.Pack(value)
-            msg.details.Pack(config)
-            self._send_message(msg)
-        elif type(param) == ParameterInt:
-            value.valueInt32 = param.maximum
-            config.configurationValue.Pack(value)
-            msg.details.Pack(config)
-            self._send_message(msg)
-        elif type(param) == ParameterColor:
-            pass
-        elif type(param) == ParameterBool or type(param) == Trigger:
-            pass
+        if "maximum" in fields:
+            msg = TincProtocol.TincMessage()
+            msg.messageType  = TincProtocol.CONFIGURE
+            msg.objectType = TincProtocol.PARAMETER
+            config = TincProtocol.ConfigureParameter()
+            config.id = param.get_osc_address()
+            config.configurationKey = TincProtocol.ParameterConfigureType.MAX
+            value = TincProtocol.ParameterValue()
+            # TODO implement all types
+            if type(param) == Parameter:
+                value.valueFloat = param.maximum
+                config.configurationValue.Pack(value)
+                msg.details.Pack(config)
+                self._send_message(msg)
+            elif type(param) == ParameterString:
+                pass
+            elif type(param) == ParameterChoice:
+                value.valueUint32 = param.maximum
+                config.configurationValue.Pack(value)
+                msg.details.Pack(config)
+                self._send_message(msg)
+            elif type(param) == ParameterInt:
+                value.valueInt32 = param.maximum
+                config.configurationValue.Pack(value)
+                msg.details.Pack(config)
+                self._send_message(msg)
+            elif type(param) == ParameterColor:
+                pass
+            elif type(param) == ParameterBool or type(param) == Trigger:
+                pass
         
-        if len(param.values) > 0:
+        if "space_type" in fields:
             self.send_parameter_space_type(param)
+        if "space" in fields:
             self.send_parameter_space(param)
         
     def send_parameter_space_type(self, param):
@@ -298,7 +301,7 @@ class TincClient(object):
         config.id = param.get_osc_address()
         config.configurationKey = TincProtocol.ParameterConfigureType.SPACE_TYPE
         type_value = TincProtocol.ParameterValue()
-        type_value.valueInt32 = param.space_type
+        type_value.valueInt32 = int(param.space_type)
         config.configurationValue.Pack(type_value)
         msg.details.Pack(config)
         self._send_message(msg)
@@ -336,11 +339,14 @@ class TincClient(object):
             packed_vals = []
             for v in param.values:
                 new_val = TincProtocol.ParameterValue()
-                new_val.valueInt32 = v
+                new_val.valueInt32 = int(v)
                 packed_vals.append(new_val)
             space_values.ids.extend(param.ids)
             space_values.values.extend(packed_vals)
             
+            config.configurationValue.Pack(space_values)
+            msg.details.Pack(config)
+            self._send_message(msg)
         elif type(param) == ParameterColor:
             pass
         elif type(param) == ParameterBool or type(param) == Trigger:

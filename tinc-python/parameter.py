@@ -17,8 +17,8 @@ import tinc_protocol_pb2 as TincProtocol
 
 parameter_space_type = {
     "VALUE" : 0x00,
-    "ID" : 0x01,
-    "INDEX" : 0x02
+    "INDEX" : 0x01,
+    "ID" : 0x02
     }
 
 
@@ -32,8 +32,8 @@ class Parameter(TincObject):
         self.tinc_client = tinc_client
         
         # Mutable properties
-        self.minimum = minimum
-        self.maximum = maximum
+        self._minimum = minimum
+        self._maximum = maximum
         self._ids = []
         self._values = []
         self._space_type = parameter_space_type["VALUE"]
@@ -82,6 +82,22 @@ class Parameter(TincObject):
     @space_type.setter
     def space_type(self, space_type):
         self.set_space_type(space_type)
+         
+    @property
+    def minimum(self):
+        return self._minimum
+
+    @minimum.setter
+    def minimum(self, minimum):
+        self.set_minimum(minimum)
+        
+    @property
+    def maximum(self):
+        return self._maximum
+
+    @maximum.setter
+    def maximum(self, maximum):
+        self.set_maximum(maximum)
         
     def print(self):
         print(f" ** Parameter {self.id} group: {self.group} ({type(self.value)})")
@@ -90,10 +106,10 @@ class Parameter(TincObject):
         print(f"    Max: {self.maximum}")
             
     def set_value(self, value):
-        if value < self.minimum:
-            value = self.minimum
-        if value > self.maximum:
-            value = self.maximum
+        if value < self._minimum:
+            value = self._minimum
+        if value > self._maximum:
+            value = self._maximum
         value = self._find_nearest(value)
             
         self._value = self._data_type(value)
@@ -116,11 +132,8 @@ class Parameter(TincObject):
         # TODO sort values before storing
         self._values = values
         try:
-            self.minimum = min(self._values)
-            self.maximum = max(self._values)
-            if self.value < self.minimum:
-                self.value = self.minimum
-                
+            self._minimum = min(self._values)
+            self._maximum = max(self._values)
             if self.value < self.minimum:
                 self.value = self.minimum
             if self.value > self.maximum:
@@ -132,13 +145,23 @@ class Parameter(TincObject):
             
     def set_space_type(self, space_type):
         if space_type in parameter_space_type:
-            self._space_type = space_type
+            self._space_type = parameter_space_type[space_type]
             self.tinc_client.send_parameter_space_type(self)
         elif type(space_type) == int:
             self._space_type = parameter_space_type[parameter_space_type.values().index(space_type)]
         else:
             raise TypeError("Invalid space type")
             
+    def set_minimum(self, minimum):
+        self._minimum = minimum   
+        if self.tinc_client:
+            self.tinc_client.send_parameter_meta(self, fields=("minimum"))
+        
+    def set_maximum(self, maximum):
+        self._maximum = maximum 
+        if self.tinc_client:
+            self.tinc_client.send_parameter_meta(self, fields= ("maximum"))  
+    
     def get_value_serialized(self):
         return struct.pack('f', self._value)
     
@@ -176,14 +199,13 @@ class Parameter(TincObject):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         # print(f"min {value.valueFloat}")
-        self.minimum = value.valueFloat
+        self._minimum = value.valueFloat
         return True
         
     def set_max_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
-        # print(f"max {value.valueFloat}")
-        self.maximum = value.valueFloat
+        self._maximum = value.valueFloat
         return True
         
     def set_from_internal_widget(self, value):
@@ -262,7 +284,7 @@ class Parameter(TincObject):
     def _trigger_callbacks(self, value):
         for cb in self._value_callbacks:
             if self._async_callbacks.count(cb) == 1:
-                print("starting async callback")
+                print(f"starting async callback {cb}")
                 x = threading.Thread(target=self._cb_async_wrapper, args=(cb, value), daemon=True)
                 x.start()
             else:
@@ -396,14 +418,14 @@ class ParameterInt(Parameter):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         # print(f"min {value.valueFloat}")
-        self.minimum = value.valueInt32
+        self._minimum = value.valueInt32
         return True
         
     def set_max_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         # print(f"max {value.valueFloat}")
-        self.maximum = value.valueInt32
+        self._maximum = value.valueInt32
         return True
     
 class ParameterChoice(Parameter):
@@ -448,14 +470,14 @@ class ParameterChoice(Parameter):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         # print(f"min {value.valueFloat}")
-        self.minimum = value.valueUint64
+        self._minimum = value.valueUint64
         return True
         
     def set_max_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         # print(f"max {value.valueFloat}")
-        self.maximum = value.valueUint64
+        self._maximum = value.valueUint64
         return True
 
     def set_elements(self, elements):
