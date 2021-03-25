@@ -52,6 +52,11 @@ class TincClient(object):
         self.pending_requests_lock = Lock()
         self.pending_lock = Lock()
         
+        self._barrier_queues_lock = Lock()
+        self._barrier_requests = []
+        self._barrier_unlocks = []
+        self.barrierWaitGranularTimeMs = 20;
+        
         self.server_version = 0
         self.server_revision = 0
         
@@ -92,6 +97,72 @@ class TincClient(object):
         
     def server_status(self):
         return self._server_status
+
+    barrierRequests = []
+
+    def barrier(self, group = 0, timeout_sec = 0):
+        with self._barrier_queues_lock:
+            # first flush all requests that match unlocks
+            matched_unlocks = []
+            for unlock in self._barrier_unlocks:
+                if self._barrier_requests.count(unlock) > 0:
+                    self._barrier_requests.remove(unlock)
+                    matched_unlocks.append(unlock)
+            for matched in matched_unlocks:
+                if self._barrier_unlocks.count(matched) > 0:
+                    self._barrier_requests.remove(matched)
+            
+            print("-----",len(self._barrier_requests))
+            if len(self._barrier_requests)  > 1:
+                print("Unexpected inconsistent state in barrier. Aborting and flushing barriers.")
+                self._barrier_requests.clear()
+                self._barrier_unlocks.clear()
+                return False
+            
+        
+        timems = 0.0
+        current_consecutive = 0
+        while timems < (timeout_sec * 1000) or timeout_sec == 0:
+            if (self._barrier_queues_lock.acquire(False)):
+                if len(self._barrier_requests) > 0:
+                    current_consecutive = self._barrier_requests[0]
+                    
+                    msg = TincProtocol.TincMessage()
+                    msg.messageType  = TincProtocol.BARRIER_ACK_LOCK
+                    msg.objectType = TincProtocol.GLOBAL
+                    comm = TincProtocol.Command()
+                    comm.message_id = current_consecutive
+                    msg.details.Pack(comm)
+                    self._send_message(msg)
+                    self._barrier_requests.remove(current_consecutive)
+                    self._barrier_queues_lock.release()
+                    break
+                self._barrier_queues_lock.release()
+            time.sleep(self.barrierWaitGranularTimeMs* 0.001)
+            timems += self.barrierWaitGranularTimeMs
+                        
+        if timems > (timeout_sec * 1000) and timeout_sec != 0.0:
+            # Timeout.
+            return False
+        
+        # Now wait for unlock
+        timems = 0.0
+        while timems < (timeout_sec * 1000) or timeout_sec == 0:
+            if (self._barrier_queues_lock.acquire(False)):
+                if self._barrier_unlocks.count(current_consecutive) > 0:
+                    self._barrier_unlocks.remove(current_consecutive)
+                    self._barrier_queues_lock.release()
+                    break
+                
+                self._barrier_queues_lock.release()
+            
+            time.sleep(self.barrierWaitGranularTimeMs* 0.001)
+            timems += self.barrierWaitGranularTimeMs
+            
+        print("Exit client barrier")
+        return timems < (timeout_sec * 1000) or timeout_sec == 0
+                
+            
     
     def wait_for_server_available(self, timeout = 3000.0):
         time_count = 0.0
@@ -752,14 +823,22 @@ class TincClient(object):
     def _process_pong_command(self, message):
         # TODO implement
         pass
-    
+
     def _process_barrier_request(self, message):
-        # TODO implement
-        pass
+        command_details = TincProtocol.Command()
+        if message.details.Is(TincProtocol.Command.DESCRIPTOR):
+            message.details.Unpack(command_details)
+            with self._barrier_queues_lock:
+                print(f"_process_barrier_request added barrier {command_details.message_id}")
+                self._barrier_requests.append(command_details.message_id)
     
     def _process_barrier_unlock(self, message):
-        # TODO implement
-        pass
+        command_details = TincProtocol.Command()
+        if message.details.Is(TincProtocol.Command.DESCRIPTOR):
+            message.details.Unpack(command_details)
+            with self._barrier_queues_lock:
+                print(f"_process_barrier_unlock added barrier unlock {command_details.message_id}")
+                self._barrier_unlocks.append(command_details.message_id)
     
     def _process_status(self, message):
         details = message.details
