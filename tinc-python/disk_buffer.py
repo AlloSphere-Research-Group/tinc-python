@@ -22,6 +22,7 @@ class DiskBuffer(TincObject):
         self._round_robin_counter: int = 0
         
         self._file_lock:bool = False
+        self._lock = None
         
         self.tinc_client = tinc_client
         pass
@@ -109,6 +110,7 @@ class DiskBuffer(TincObject):
             
         if self._file_lock:
             self._lock.release()
+            self._lock = None
             
     def _make_next_filename(self):
         outname = self._base_filename
