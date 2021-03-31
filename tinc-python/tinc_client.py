@@ -62,26 +62,25 @@ class TincClient(object):
         
         self._log = []
         
-        self.start(server_addr, server_port)
+        self.debug = False
         
         self._server_status = TincProtocol.StatusTypes.UNKNOWN
         
-        self.debug = False
+        self.start(server_addr, server_port)
+        
         
     def __del__(self):
         self.stop()
         print("Stopped")
         
     def start(self, server_addr = "localhost", server_port = 34450):
-        
         # self.pserver = pserver
         self.serverAddr = server_addr
         self.serverPort = server_port
         
         self.running = True
         self.x = threading.Thread(target=self._server_thread_function, args=(self.serverAddr,self.serverPort))
-        self.x.start()
-        
+        self.x.start()  
         
     def stop(self):
         if self.running:
@@ -97,8 +96,6 @@ class TincClient(object):
         
     def server_status(self):
         return self._server_status
-
-    barrierRequests = []
 
     def barrier(self, group = 0, timeout_sec = 0):
         with self._barrier_queues_lock:
@@ -162,8 +159,6 @@ class TincClient(object):
         print("Exit client barrier")
         return timems < (timeout_sec * 1000) or timeout_sec == 0
                 
-            
-    
     def wait_for_server_available(self, timeout = 3000.0):
         time_count = 0.0
         wait_granularity = 0.1
@@ -174,7 +169,6 @@ class TincClient(object):
                 raise TincTimeout("Server still busy after timeout")
         
     # Access to objects by id
-    
     def get_parameter(self, parameter_id, group = None):
         for p in self.parameters:
             if p.id == parameter_id and group is None:
@@ -582,7 +576,7 @@ class TincClient(object):
                             ps.register_parameter(p)
                             configured = True
                             break
-                elif ps_command == TincProtocol.ParameterConfigureType.REMOVE_PARAMETER:
+                elif ps_command == TincProtocol.ParameterSpaceConfigureType.REMOVE_PARAMETER:
                     param_id = param_details.configurationValue
                     for p in self.parameters:
                         if p.get_osc_address() == param_id:
