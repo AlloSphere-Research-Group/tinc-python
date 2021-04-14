@@ -5,8 +5,8 @@ Created on Tue Sep  1 17:13:15 2020
 @author: Andres
 """
 
-from tinc_object import TincObject
-from cachemanager import CacheManager
+from .tinc_object import TincObject
+from .cachemanager import CacheManager
 from threading import Lock
 
 import traceback
@@ -194,6 +194,7 @@ class ParameterSpace(TincObject):
             for p in self._parameters:
                 if(p.id not in args):
                     args[p.id] = p.value
+            print("running _process()")
             return self._process(function, args, dependencies, force_recompute)
             
     def _process(self,function, args, dependencies = [], force_recompute = False):
@@ -224,6 +225,8 @@ class ParameterSpace(TincObject):
         except Exception as e:
             print("Function call exception")
             traceback.print_exc()
+            
+        print("done _process()")
         return out
         
  

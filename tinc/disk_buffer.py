@@ -2,10 +2,10 @@ import json
 import os
 import re
 
-from tinc_object import TincObject
+from .tinc_object import TincObject
 
 from filelock import FileLock
-from tinc_protocol_pb2 import DiskBufferType
+from .tinc_protocol_pb2 import DiskBufferType
 
 class DiskBuffer(TincObject):
     def __init__(self, tinc_id, db_type, base_filename, path, tinc_client = None):
@@ -81,7 +81,8 @@ class DiskBuffer(TincObject):
         if self._file_lock:
             self._lock.release()
             
-    def get_filename_for_writing(self):
+    def get_filename_for_writing(self, timeout_secs = 0):
+        # TODO implement timeout when locked.
         outname = ''
         if self._file_lock:
             if self._lock:
@@ -91,7 +92,7 @@ class DiskBuffer(TincObject):
             outname = self._make_next_filename()
             self._lock = FileLock(self._path + outname + ".lock", timeout=1)
             if self._lock.is_locked:
-                print("Locked " + outname)
+                print("File is locked " + outname)
             self._lock.acquire()
         else:
             outname = self._make_next_filename()

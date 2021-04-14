@@ -5,7 +5,7 @@ try:
 except:
     print("Can't import ipywidgets. Notebook widgets not available")
 
-from tinc_object import TincObject
+from .tinc_object import TincObject
 
 import struct
 import numpy as np
@@ -205,6 +205,7 @@ class Parameter(TincObject):
     def set_max_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
+        # print(f"max {value.valueFloat}")
         self._maximum = value.valueFloat
         return True
         

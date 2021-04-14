@@ -6,12 +6,12 @@ import struct
 from threading import Lock
 
 # TINC imports
-from parameter import Parameter, ParameterString, ParameterInt, ParameterChoice, ParameterBool, ParameterColor, Trigger
-from processor import CppProcessor, ScriptProcessor, ComputationChain
-from datapool import DataPool
-from parameter_space import ParameterSpace
-from disk_buffer import DiskBuffer
-from message import Message
+from .parameter import Parameter, ParameterString, ParameterInt, ParameterChoice, ParameterBool, ParameterColor, Trigger
+from .processor import CppProcessor, ScriptProcessor, ComputationChain
+from .datapool import DataPool
+from .parameter_space import ParameterSpace
+from .disk_buffer import DiskBuffer
+from .disk_buffermessage import Message
 import tinc_protocol_pb2 as TincProtocol
 #from google.protobuf import any_pb2 #, message
 
@@ -1235,7 +1235,7 @@ class TincClient(object):
                             
 
                         
-        print("Closed command server")                
+        print("Closed TINC client")                
 
     def print(self): 
         # print("Print")

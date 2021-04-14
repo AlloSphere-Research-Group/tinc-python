@@ -5,8 +5,8 @@ import threading
 import time
 from typing import List, Any
 
-from parameter import *
-from processor import *
+from .parameter import *
+from .processor import *
 
 class ParameterServer(object):
     def __init__(self, ip: str = "localhost", start_port: int = 9011, tinc_client = None):

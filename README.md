@@ -1,8 +1,17 @@
 # TINC python module and tools
 
-# Installing jupyterlab on macOS
+This is the python module for TINC. It can be used standalone, or in conjunction with a C++ application written with TINC to provide a TINC server:
 
-## Through homebrew
+https://github.com/AlloSphere-Research-Group/tinc
+
+tinc-python depends on numpy, matplotlib, netcdf4 and filelock. If ipywidgets is available, tinc-python can provide interactive widgets for the jupyter notebook.
+
+To install additional dependencies for tinc-python:
+```
+pip install ipywidgets
+```
+
+# Installing jupyterlab on macOS Through homebrew
 There are many ways to install jupyterlab. Here is one we have tested to work with TINC.
 ```
 brew install jupyterlab
@@ -10,8 +19,8 @@ brew install jupyterlab
 
 When brew installs jupyter lab and installs python3.8, it mentions it is keg only, so need to follow brew's instructions:
 ```
-Python has been installed as  /usr/local/opt/python@3.8/bin/python3  
-You can install Python packages with  /usr/local/opt/python@3.8/bin/pip3 install <package>
+Python has been installed as /usr/local/opt/python@3.8/bin/python3
+You can install Python packages with /usr/local/opt/python@3.8/bin/pip3 install <package>
 They will install into the site-package directory
 /usr/local/opt/python@3.8/Frameworks/Python.framework/Versions/3.8/lib/python3.8/site-packages
 See: https://docs.brew.sh/Homebrew-and-Python
@@ -25,7 +34,7 @@ For pkg-config to find python@3.8 you may need to set:
 export PKG_CONFIG_PATH="/usr/local/opt/python@3.8/lib/pkgconfig"
 ```
 
-To install additional dependencies for tinc-python:
+To install additional dependencies for tinc-python for the jupyter python:
 ```
-/usr/local/opt/python@3.8/bin/pip3 install python-osc filelock matplotlib ipywidgets
+/usr/local/opt/python@3.8/bin/pip3 install filelock matplotlib ipywidgets
 ```

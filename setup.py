@@ -4,10 +4,10 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="tinc-python-YOUR-USERNAME-HERE", # Replace with your own username
-    version="0.0.1",
+    name="tinc", 
+    version="0.9.1",
     author="Andres Cabrera",
-    author_email="mantaraya36@gmail.com",
+    author_email="acabrera@ucsb.edu",
     description="TINC python module",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -18,5 +18,7 @@ setuptools.setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
+    py_modules= ['tinc'],
+    install_requires=['numpy', 'matplotlib', 'filelock', 'netcdf4'],
     python_requires='>=3.6',
 )

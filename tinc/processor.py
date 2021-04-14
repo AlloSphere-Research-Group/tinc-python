@@ -1,4 +1,4 @@
-from tinc_object import TincObject
+from .tinc_object import TincObject
 
 class Processor(TincObject):
     def __init__(self, tinc_id = "_", input_dir = "", input_files = [],

@@ -5,7 +5,7 @@ Created on Tue Sep  1 15:47:46 2020
 @author: Andres
 """
 
-from tinc_object import TincObject
+from .tinc_object import TincObject
 
 import netCDF4
 
