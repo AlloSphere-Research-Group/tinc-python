@@ -7,9 +7,7 @@ Created on Mon Nov 23 11:13:52 2020
 
 # Not needed if tinc-python is installed
 import sys
-sys.path.append('../../tinc-python')
-
-from parameter import Parameter, ParameterInt
+from tinc import Parameter, ParameterInt
 
 p1 = Parameter("param1")
 p1.set_values([0.1, 0.2, 0.3, 0.4, 0.5, 0.6])

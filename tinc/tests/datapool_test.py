@@ -10,7 +10,7 @@ import time
 
 sys.path.append('../')
 
-from tinc_client import *
+from tinc import *
 
 tclient = TincClient()
 

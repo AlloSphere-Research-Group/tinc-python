@@ -7,8 +7,8 @@ Created on Tue Nov 24 10:12:47 2020
 
 import time
 import sys
-sys.path.append('../../tinc-python')
-from tinc_client import *
+from tinc import *
+
 tclient = TincClient()
 tclient.debug = True
 time.sleep(0.5)

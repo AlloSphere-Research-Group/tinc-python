@@ -1,9 +1,7 @@
 import unittest
 
 import sys,time
-sys.path.append('../')
-sys.path.append('./tinc-python/tinc-python')
-from parameter import *
+from tinc import *
 
 external_value = 0
 def callback(value):
