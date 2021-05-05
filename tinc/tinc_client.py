@@ -6,13 +6,13 @@ import struct
 from threading import Lock
 
 # TINC imports
-from .parameter import Parameter, ParameterString, ParameterInt, ParameterChoice, ParameterBool, ParameterColor, Trigger
+from .parameter import Parameter, ParameterString, ParameterInt, ParameterChoice, ParameterBool, ParameterColor, Trigger, ParameterVec
 from .processor import CppProcessor, ScriptProcessor, ComputationChain
 from .datapool import DataPool
 from .parameter_space import ParameterSpace
-from .disk_buffer import DiskBuffer
-from .disk_buffermessage import Message
-import tinc_protocol_pb2 as TincProtocol
+from .disk_buffer import *
+from .message import Message
+from . import tinc_protocol_pb2 as TincProtocol
 #from google.protobuf import any_pb2 #, message
 
 tinc_client_version = 1
@@ -279,7 +279,11 @@ class TincClient(object):
             b.valueFloat = param.value[2]
             a.valueFloat = param.value[3]
             value.valueList.extend([r,g,b,a])
-            
+        elif type(param) == ParameterVec:
+            for v in param.value:
+                v_ = TincProtocol.ParameterValue()
+                v_.valueFloat = v
+                value.valueList.extend([v_])
         elif type(param) == ParameterBool or type(param) == Trigger:
             value.valueBool = param.value
             
@@ -469,15 +473,12 @@ class TincClient(object):
             elif param_type == TincProtocol.PARAMETER_INT32 : 
                 new_param = ParameterInt(name, group, default_value = details_unpacked.defaultValue.valueInt32, tinc_client =self)
             elif param_type == TincProtocol.PARAMETER_VEC3F :
-                new_param = None
-                pass
+                new_param = ParameterVec(name, group, 3, tinc_client=self)
             elif param_type == TincProtocol.PARAMETER_VEC4F :
-                new_param = None
-                pass
+                new_param = ParameterVec(name, group, 4, tinc_client=self)
             elif param_type == TincProtocol.PARAMETER_COLORF :
                 l = [v.valueFloat for v in details_unpacked.defaultValue.valueList]
                 new_param = ParameterColor(name, group, default_value = l, tinc_client =self)
-                pass
             elif param_type == TincProtocol.PARAMETER_POSED :
                 new_param = None
                 pass
@@ -495,7 +496,7 @@ class TincClient(object):
                 if self.debug:
                     print("Parameter already registered.")
             else:
-                print("Unsupported parameter type")
+                print(f"Unsupported parameter type for id: {name} group: {group}")
         else:
             print("ERROR: Unexpected payload in REGISTER PARAMETER")
                 
@@ -717,14 +718,49 @@ class TincClient(object):
                     break
         
             if not found:
-                
-                new_db = DiskBuffer(disk_buffer_id, db_details.type,
-                                    db_details.baseFilename, db_details.path,
-                                    tinc_client= self)
-                self.disk_buffers.append(new_db)
+                new_db = None
+                if db_details.type == TincProtocol.JSON:
+                    new_db = JsonDiskBuffer(disk_buffer_id,
+                                        db_details.baseFilename, db_details.path,
+                                        tinc_client= self)
+                elif db_details.type == TincProtocol.NETCDF:
+                    new_db = NetCDFDiskBuffer(disk_buffer_id,
+                                        db_details.baseFilename, db_details.path,
+                                        tinc_client= self)
+                elif db_details.type == TincProtocol.IMAGE:
+                    new_db = ImageDiskBuffer(disk_buffer_id,
+                                        db_details.baseFilename, db_details.path,
+                                        tinc_client= self)
+                elif db_details.type == TincProtocol.BINARY:
+                    new_db = BinaryDiskBuffer(disk_buffer_id,
+                                        db_details.baseFilename, db_details.path,
+                                        tinc_client= self)
+                elif db_details.type == TincProtocol.TEXT:
+                    new_db = TextDiskBuffer(disk_buffer_id,
+                                        db_details.baseFilename, db_details.path,
+                                        tinc_client= self)
+                if new_db is not None:
+                    self.disk_buffers.append(new_db)
+                else:
+                    self._log.append("Disk buffer type not recognized. Not creating DiskBuffer")
         else:
             print("Unexpected payload in Register DiskBuffer")
-            
+    
+    def configure_disk_buffer(self, details):
+        if details.Is(TincProtocol.ConfigureDiskBuffer.DESCRIPTOR):
+            db_details = TincProtocol.ConfigureDiskBuffer()
+            details.Unpack(db_details)
+            db_id = db_details.id
+            for db in self.disk_buffers:
+                if db.id == db_id:
+                    if db_details.configurationKey == TincProtocol.DiskBufferConfigureType.CURRENT_FILE:
+                        if db_details.configurationValue.Is(TincProtocol.ParameterValue.DESCRIPTOR):
+                            value = TincProtocol.ParameterValue()
+                            db_details.configurationValue.Unpack(value)
+                            
+                            db._parse_file(value.valueString)
+        else:
+            print("Unexpected payload in Configure Datapool")
             
     def send_disk_buffer_current_filename(self, disk_buffer, filename):
         msg = TincProtocol.TincMessage()
@@ -739,8 +775,6 @@ class TincClient(object):
         msg.details.Pack(config)
         # print("send")
         self._send_message(msg)
-    
-        
 
 # ------------------------------------------------------
     def _process_object_command_reply(self, message):

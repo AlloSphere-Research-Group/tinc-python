@@ -134,5 +134,15 @@ class ParameterTest(unittest.TestCase):
         p.set_at(2)
         self.assertEqual(p.get_current_id(), 'C')
 
+    def test_parameter_vec_space(self):
+        global external_value
+        p = ParameterVec("name", "group", 3)
+        p.value = [2,4,6]
+
+        self.assertEqual(p.value, [2,4,6])
+        
+        # TODO test wrong sizes
+
+
 if __name__ == '__main__': 
     unittest.main()

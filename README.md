@@ -4,7 +4,12 @@ This is the python module for TINC. It can be used standalone, or in conjunction
 
 https://github.com/AlloSphere-Research-Group/tinc
 
-tinc-python depends on numpy, matplotlib, netcdf4 and filelock. If ipywidgets is available, tinc-python can provide interactive widgets for the jupyter notebook.
+tinc-python depends on numpy, matplotlib, netcdf4, filelock and jsonschema. If ipywidgets is available, tinc-python can provide interactive widgets for the jupyter notebook.
+
+To install additional dependencies for tinc-python:
+```
+pip install tinc
+```
 
 To install additional dependencies for tinc-python:
 ```

@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="tinc", 
-    version="0.9.3",
+    version="0.9.5",
     author="Andres Cabrera",
     author_email="acabrera@ucsb.edu",
     description="TINC python module",
@@ -19,6 +19,6 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     py_modules= ['tinc'],
-    install_requires=['numpy', 'matplotlib', 'filelock', 'netcdf4'],
+    install_requires=['numpy', 'matplotlib', 'filelock', 'netcdf4', "jsonschema", "protobuf"],
     python_requires='>=3.6',
 )

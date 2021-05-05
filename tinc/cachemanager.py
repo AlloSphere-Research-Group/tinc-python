@@ -7,6 +7,7 @@ Created on Thu Oct 15 14:32:03 2020
 
 import json
 import os
+import jsonschema
 
 # FIXME use more robust cache metadata defined in the metadata schema
 
@@ -15,7 +16,12 @@ class CacheManager(object):
         if not os.path.exists(directory):
             os.makedirs(directory)
         self._cache_dir = directory
-        
+        self._validator = None
+        # FIXME implement schema validation
+        # with open("tinc_cache_schema.json")as f:
+        #     schema = json.load(f)
+        #     self._validator = jsonschema.Draft7Validator(schema)
+            
     def construct_filename(self, args):
         # TODO allow setting filename template.
         filename = self._cache_dir + '/cache_'
@@ -46,3 +52,8 @@ class CacheManager(object):
         if os.path.exists(filename):
             print(f"removing {filename}")
             os.remove(filename)
+
+
+if __name__ == "__main__":
+    c = CacheManager()
+    #print(c._validator)

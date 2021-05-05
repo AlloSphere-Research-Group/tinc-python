@@ -13,7 +13,7 @@ import threading
 import traceback
 
 # used in set_XXX_from_message 
-import tinc_protocol_pb2 as TincProtocol
+from . import tinc_protocol_pb2 as TincProtocol
 
 parameter_space_type = {
     "VALUE" : 0x00,
@@ -494,6 +494,7 @@ class ParameterChoice(Parameter):
         return current
 
 class ParameterColor(Parameter):
+    # TODO merge color with ParameterVec, make ParameterColor sub class of ParameterVec
     def __init__(self, tinc_id: str, group: str = "", default_value = [0,0,0,0], tinc_client = None):
         super().__init__(tinc_id, group, default_value = default_value, tinc_client = tinc_client)
         
@@ -623,4 +624,97 @@ class Trigger(ParameterBool):
         if self._value == True:
             self._trigger_callbacks(self._value)
             self._value = False
+        return True
+
+
+class ParameterVec(Parameter):
+    def __init__(self, tinc_id: str, group: str = "", size = 3, tinc_client = None):
+        
+        self.default = [0 for i in range(size)]
+        super().__init__(tinc_id, group, minimum = None, maximum = None, default_value = None, tinc_client = tinc_client)
+        self.size = size
+
+    def _init(self, default_value):
+        self._data_type = list
+        # self.default = default_value
+        # TODO implement default
+        # if default_value is None:
+        #     self.default = 0
+        self._value = self.default
+        
+    def set_value(self, value):
+        # if value < self._minimum:
+        #     value = self._minimum
+        # if value > self._maximum:
+        #     value = self._maximum
+        # TODO implement support for parameter space values for ParameterVec
+        # value = self._find_nearest(value)
+            
+        self._value = self._data_type(value)
+        if self.tinc_client:
+            self.tinc_client.send_parameter_value(self)
+        # TODO implement interactive widget for ParameterVec
+        # if self._interactive_widget:
+        #     self._interactive_widget.children[0].value = self._data_type(value)
+        self._trigger_callbacks(self._value)
+            
+            
+    def set_values(self, values):
+        
+        # TODO implement support for parameter space values for ParameterVec
+        # TODO sort values before storing
+        self._values = values
+        # try:
+        #     self._minimum = min(self._values)
+        #     self._maximum = max(self._values)
+        #     if self.value < self.minimum:
+        #         self.value = self.minimum
+        #     if self.value > self.maximum:
+        #         self.value = self.maximum
+        # except:
+        #     print("Error setting min and max from space values")
+        # if self.tinc_client:
+        #     self.tinc_client.send_parameter_space(self)
+
+    def set_value_from_message(self, message):
+        value = TincProtocol.ParameterValue()
+        message.Unpack(value)
+        
+        # print(f"set {value.valueFloat}")
+        # TODO check if equal to current value and don't set if equal
+        self._value = [v.valueFloat for v in value.valueList]
+        # if not self._value == value.valueInt32:
+        #     self._value = self._data_type(value.valueInt32)
+
+        #     if self._interactive_widget:
+        #         self._interactive_widget.children[0].value = self._data_type(value.valueInt32)
+        self._trigger_callbacks(self._value)
+        return True
+
+    def set_space_from_message(self, message):
+        # TODO implement support for parameter space values for ParameterVec
+        # values = TincProtocol.ParameterSpaceValues()
+        # message.Unpack(values)
+        # self._ids = list(values.ids)
+        # count = len(values.values)
+        # # print(f'setting space {count}')
+        # self._values = np.ndarray((count))
+        # for i, v in enumerate(values.values):
+        #     self.values[i] = v.valueInt32
+        return True
+
+    def set_min_from_message(self, message):
+        # TODO implement min
+        # value = TincProtocol.ParameterValue()
+        # message.Unpack(value)
+        # # print(f"min {value.valueFloat}")
+        # self._minimum = value.valueInt32
+        return True
+        
+    def set_max_from_message(self, message):
+        # TODO implement max
+        # value = TincProtocol.ParameterValue()
+        # message.Unpack(value)
+        # # print(f"max {value.valueFloat}")
+        # self._maximum = value.valueInt32
         return True
