@@ -720,23 +720,23 @@ class TincClient(object):
             if not found:
                 new_db = None
                 if db_details.type == TincProtocol.JSON:
-                    new_db = JsonDiskBuffer(disk_buffer_id,
+                    new_db = DiskBufferJson(disk_buffer_id,
                                         db_details.baseFilename, db_details.path,
                                         tinc_client= self)
                 elif db_details.type == TincProtocol.NETCDF:
-                    new_db = NetCDFDiskBuffer(disk_buffer_id,
+                    new_db = DiskBufferNetCDFData(disk_buffer_id,
                                         db_details.baseFilename, db_details.path,
                                         tinc_client= self)
                 elif db_details.type == TincProtocol.IMAGE:
-                    new_db = ImageDiskBuffer(disk_buffer_id,
+                    new_db = DiskBufferImage(disk_buffer_id,
                                         db_details.baseFilename, db_details.path,
                                         tinc_client= self)
                 elif db_details.type == TincProtocol.BINARY:
-                    new_db = BinaryDiskBuffer(disk_buffer_id,
+                    new_db = DiskBufferBinary(disk_buffer_id,
                                         db_details.baseFilename, db_details.path,
                                         tinc_client= self)
                 elif db_details.type == TincProtocol.TEXT:
-                    new_db = TextDiskBuffer(disk_buffer_id,
+                    new_db = DiskBufferText(disk_buffer_id,
                                         db_details.baseFilename, db_details.path,
                                         tinc_client= self)
                 if new_db is not None:
@@ -758,7 +758,11 @@ class TincClient(object):
                             value = TincProtocol.ParameterValue()
                             db_details.configurationValue.Unpack(value)
                             
-                            db._parse_file(value.valueString)
+                            if value.valueString == '':
+                                db._data = None
+                                db._filename = ''
+                            else:
+                                db._parse_file(value.valueString)
         else:
             print("Unexpected payload in Configure Datapool")
             

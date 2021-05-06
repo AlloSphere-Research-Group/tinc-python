@@ -38,6 +38,9 @@ class DiskBuffer(TincObject):
         return self._filename
     
     def load_data(self, filename):
+        if filename == '':
+            self._data = None
+            self._filename = ''
         self._data = self._parse_file(filename)
         self.done_writing_file(filename)
         # TODO implement update callbacks
@@ -63,11 +66,10 @@ class DiskBuffer(TincObject):
             for f in files:
                     os.remove(self._path + f)
     
-    def enable_round_robin(self, cache_size = 0, clear_locks: bool = True):
+    def enable_round_robin(self, cache_size = 2, clear_locks: bool = True):
         # 0 is unlimited cache
         self._round_robin_size = cache_size
-        if self._round_robin_counter >= cache_size:
-            self._round_robin_counter = 0
+        self._round_robin_counter = int(cache_size/2)
         if self._file_lock:
             # To force clearing locks. Should this be optional?
             self.use_file_lock(self._file_lock, clear_locks)
@@ -123,7 +125,7 @@ class DiskBuffer(TincObject):
             self._lock.release()
             self._lock = None
    
-    def _parse_file(filename):
+    def _parse_file(self, filename):
         # Reimplement in sub classes
         raise RuntimeError("load_data() not implemented. Don't use DiskBuffer directly")
         
@@ -230,6 +232,9 @@ class DiskBufferText(DiskBuffer):
     def data(self, data):
         pass
 
+    def _parse_file(self, filename):
+        pass
+
 class DiskBufferImage(DiskBuffer):
     def __init__(self, tinc_id, base_filename, path, tinc_client = None):
         super().__init__(tinc_id, base_filename, path, tinc_client)
@@ -245,16 +250,25 @@ class DiskBufferImage(DiskBuffer):
     @data.setter
     def data(self, data):
         pass
+    
+    def _parse_file(self, filename):
+        pass
 
 class DiskBufferNetCDFData(DiskBuffer):
 
     def __init__(self, tinc_id, base_filename, path, tinc_client = None):
         super().__init__(tinc_id, base_filename, path, tinc_client)
         self.type = DiskBufferType['NETCDF']
+        self.enable_round_robin()
 
-    def write_from_array(array, filename):
-        with open(filename, 'w') as outfile:
-            json.dump(data, outfile)
+    def write_from_array(self, array, filename):
+        # TODO more flexible data types
+        datatype = np.float32
+        outfile = netCDF4.Dataset(self.get_path() + filename, mode='w', format='NETCDF4')
+        dim = outfile.createDimension('data_dim', size=len(array))
+        var = outfile.createVariable('data', datatype,('data_dim'), zlib=True)
+        var[:] = array
+        outfile.close()
 
     @property
     def data(self):
@@ -262,7 +276,6 @@ class DiskBufferNetCDFData(DiskBuffer):
 
     @data.setter
     def data(self, data):
-        self._data = data
         
         # TODO implement file lock
         
@@ -274,12 +287,19 @@ class DiskBufferNetCDFData(DiskBuffer):
                 print("Locked " + outname)
             self._lock.acquire()
         try:
-            if type(data) == list:
-                write_from_array(data, self._path + outname)
-            if type(data) == np.ndarray:
-                write_from_array(data, self._path + outname)
+            if outname.find(self._path) == 0:
+                fname = outname
             else:
-                raise ValueError("Unsupported format for data in NETCDFDiskBuffer")
+                fname = self._path + outname
+            if type(data) == list:
+                self.write_from_array(data, outname)
+            elif type(data) == np.ndarray:
+                self.write_from_array(data, outname)
+            else:
+                raise ValueError(f"Unsupported format for data in NETCDFDiskBuffer: {type(data)}")
+            
+            self._data = data
+            self._filename = outname
             if self.tinc_client:
                 self.tinc_client.send_disk_buffer_current_filename(self, outname)
         except:
@@ -292,6 +312,11 @@ class DiskBufferNetCDFData(DiskBuffer):
 
     def _parse_file(self, filename):
         # TODO being called twice on startup. investigate
-        self._data = np.array(netCDF4.Dataset(self.get_path() +filename, mode='r').variables["data"][:])
+        
+        print(self.get_path())
+        print(filename)
+        f = netCDF4.Dataset(self.get_path() +filename, mode='r')
+        self._data = np.array(f.variables["data"][:])
+        f.close()
         self._filename = filename
     
