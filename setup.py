@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="tinc", 
-    version="0.9.6",
+    version="0.9.7",
     author="Andres Cabrera",
     author_email="acabrera@ucsb.edu",
     description="TINC python module",

@@ -260,15 +260,22 @@ class DiskBufferNetCDFData(DiskBuffer):
         super().__init__(tinc_id, base_filename, path, tinc_client)
         self.type = DiskBufferType['NETCDF']
         self.enable_round_robin()
+        self._attrs = {}
 
-    def write_from_array(self, array, filename):
+    def write_from_array(self, array, filename, attributes = {}):
         # TODO more flexible data types
         datatype = np.float32
         outfile = netCDF4.Dataset(self.get_path() + filename, mode='w', format='NETCDF4')
         dim = outfile.createDimension('data_dim', size=len(array))
         var = outfile.createVariable('data', datatype,('data_dim'), zlib=True)
+        for name, value in attributes.items():
+            # TODO validate values for attributes
+            setattr(var, name, value)
         var[:] = array
         outfile.close()
+
+    def set_attributes(self, attrs):
+        self._attrs = attrs
 
     @property
     def data(self):
@@ -292,9 +299,9 @@ class DiskBufferNetCDFData(DiskBuffer):
             else:
                 fname = self._path + outname
             if type(data) == list:
-                self.write_from_array(data, outname)
+                self.write_from_array(data, outname, self._attrs)
             elif type(data) == np.ndarray:
-                self.write_from_array(data, outname)
+                self.write_from_array(data, outname, self._attrs)
             else:
                 raise ValueError(f"Unsupported format for data in NETCDFDiskBuffer: {type(data)}")
             
