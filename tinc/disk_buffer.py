@@ -113,7 +113,7 @@ class DiskBuffer(TincObject):
         return self._path + outname
     
     def done_writing_file(self, filename: str =''):
-        print(filename)
+        # print(filename)
         if self._path == '' or filename.find(self._path) == 0:
             filename = filename[len(self._path):]
 
@@ -273,6 +273,12 @@ class DiskBufferNetCDFData(DiskBuffer):
             setattr(var, name, value)
         var[:] = array
         outfile.close()
+        # Hack to ensure file has been released for others to read.
+        try:
+            f = open(self.get_path() + filename)
+            f.close()
+        except:
+            print("ERROR attempting to open newly created buffer file " + self.get_path() + filename)
 
     def set_attributes(self, attrs):
         self._attrs = attrs
@@ -320,8 +326,8 @@ class DiskBufferNetCDFData(DiskBuffer):
     def _parse_file(self, filename):
         # TODO being called twice on startup. investigate
         
-        print(self.get_path())
-        print(filename)
+        # print(self.get_path())
+        # print(filename)
         f = netCDF4.Dataset(self.get_path() +filename, mode='r')
         self._data = np.array(f.variables["data"][:])
         f.close()
