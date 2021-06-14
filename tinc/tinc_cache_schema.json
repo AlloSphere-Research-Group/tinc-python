@@ -1,0 +1,176 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://allosphere.ucsb.edu/tinc-schema/1.0/tinc_cache_schema.json",
+  "title": "TINC Cache Metadata",
+  "description": "Schema for TINC metadata",
+  "type": "object",
+  "properties": {
+    "tincMetaVersionMajor": {
+      "description": "Major version of schema used in this document",
+      "type": "integer"
+    },
+    "tincMetaVersionMinor": {
+      "description": "Minor version of schema used in this document",
+      "type": "integer"
+    },
+    "entries": {
+      "description": "Cache entries",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "end": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "_comment": "/* ISO 8601 https://stackoverflow.com/questions/10286204/what-is-the-right-json-date-format */"
+          },
+          "filenames": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string"
+              ]
+            }
+          },
+          "userInfo": {
+            "type": "object",
+            "properties": {
+              "userName": {
+                "type": "string"
+              },
+              "userHash": {
+                "type": "string"
+              },
+              "ip": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer"
+              },
+              "server": {
+                "type": "boolean"
+              }
+            }
+          },
+          "sourceInfo": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "_comment_type": "/*InMemoryCpp, InMemoryPython, Commandline, Script*/"
+              },
+              "tincId": {
+                "type": "string"
+              },
+              "commandLineArguments": {
+                "type": "string"
+              },
+              "workingPath": {
+                "type": "object",
+                "properties": {
+                  "relativePath": {
+                    "type": "string"
+                  },
+                  "rootPath": {
+                    "type": "string"
+                  }
+                },
+                "_comment_type": "path for execution"
+              },
+              "hash": {
+                "type": "string",
+                "_comment_hash": "/* needs richer details for cpp, python and script */"
+              },
+              "arguments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "nctype": {
+                      "type": "integer"
+                    },
+                    "value": {}
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "dependencies": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "nctype": {
+                      "type": "integer"
+                    },
+                    "value": {}
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "fileDependencies": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "file": {
+                      "type": "object",
+                      "properties": {
+                        "relativePath": {
+                          "type": "string"
+                        },
+                        "rootPath": {
+                          "type": "string"
+                        },
+                        "filename": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "modified": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "size": {
+                      "type": "integer"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "cacheHits": {
+            "type": "integer"
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "tincMetaVersionMajor",
+    "tincMetaVersionMinor",
+    "entries"
+  ]
+}

@@ -524,7 +524,7 @@ class TincClient(object):
                 elif param_command == TincProtocol.ParameterConfigureType.SPACE:
                     configured = configured and param.set_space_from_message(param_details.configurationValue)
                 elif param_command == TincProtocol.ParameterConfigureType.SPACE_TYPE:
-                    configured = configured and param.set_space_type_from_message(param_details.configurationValue)
+                    configured = configured and param.set_space_representation_type_from_message(param_details.configurationValue)
                 else:
                     print("Unrecognized Parameter Configure command")
         
@@ -1125,10 +1125,10 @@ class TincClient(object):
         
     def synchronize(self):
         self.request_parameters()
+        self.request_parameter_spaces()
         self.request_processors()
         self.request_disk_buffers()
         self.request_data_pools()
-        self.request_parameter_spaces()
 
     def send_goodbye(self):
         tp = TincProtocol.TincMessage()

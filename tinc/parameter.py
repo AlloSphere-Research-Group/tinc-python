@@ -5,21 +5,38 @@ try:
 except:
     print("Can't import ipywidgets. Notebook widgets not available")
 
+from tinc.cachemanager import VariantValue, VariantType
 from .tinc_object import TincObject
+from .variant import VariantType
 
 import struct
 import numpy as np
 import threading
 import traceback
+from enum import IntEnum
 
 # used in set_XXX_from_message 
 from . import tinc_protocol_pb2 as TincProtocol
 
-parameter_space_type = {
-    "VALUE" : 0x00,
-    "INDEX" : 0x01,
-    "ID" : 0x02
-    }
+
+def to_variant(param):
+    if type(param) == Parameter:
+        return VariantValue(nctype=VariantType.VARIANT_FLOAT,
+                            value = param.value())
+    elif type(param) == ParameterString:
+        return VariantValue(nctype=VariantType.VARIANT_STRING,
+                            value = param.value())
+    elif type(param) == ParameterInt:
+        return VariantValue(nctype=VariantType.VARIANT_INT,
+                            value = param.value())
+    elif type(param) == ParameterString:
+        return VariantValue(nctype=VariantType.VARIANT_STRING,
+                            value = param.value())
+
+class parameter_space_representation_types(IntEnum):
+    VALUE = 0x00
+    INDEX = 0x01
+    ID = 0x02
 
 
 class Parameter(TincObject):
@@ -36,7 +53,8 @@ class Parameter(TincObject):
         self._maximum = maximum
         self._ids = []
         self._values = []
-        self._space_type = parameter_space_type["VALUE"]
+        self._space_repr_type = parameter_space_representation_types.VALUE
+        self._space_data_type = VariantType.VARIANT_FLOAT
         
         # Internal
         self._interactive_widget = None
@@ -77,11 +95,11 @@ class Parameter(TincObject):
         
     @property
     def space_type(self):
-        return self._space_type
+        return self._space_repr_type
 
     @space_type.setter
     def space_type(self, space_type):
-        self.set_space_type(space_type)
+        self.set_space_representation_type(space_type)
          
     @property
     def minimum(self):
@@ -131,6 +149,38 @@ class Parameter(TincObject):
     def set_values(self, values):
         # TODO sort values before storing
         self._values = values
+        if len(values) > 0:
+            if type(values) == list:
+                    if type(values[0]) == int:
+                        self._space_data_type = VariantType.VARIANT_INT32
+                    elif type(values[0]) == float:
+                        self._space_data_type = VariantType.VARIANT_FLOAT
+                    elif type(values[0]) == str:
+                        self._space_data_type = VariantType.VARIANT_STRING
+            elif type(values).__module__ == np.__name__:
+                if values.dtype == np.float64:
+                    self._space_data_type = VariantType.VARIANT_DOUBLE
+                elif values.dtype == np.float64:
+                    self._space_data_type = VariantType.VARIANT_DOUBLE
+                elif values.dtype == np.int8:
+                    self._space_data_type = VariantType.VARIANT_INT8
+                elif values.dtype == np.int16:
+                    self._space_data_type = VariantType.VARIANT_INT16
+                elif values.dtype == np.int32:
+                    self._space_data_type = VariantType.VARIANT_INT32
+                elif values.dtype == np.int64:
+                    self._space_data_type = VariantType.VARIANT_INT64
+                elif values.dtype == np.uint8:
+                    self._space_data_type = VariantType.VARIANT_UINT8
+                elif values.dtype == np.uint16:
+                    self._space_data_type = VariantType.VARIANT_UINT16
+                elif values.dtype == np.uint32:
+                    self._space_data_type = VariantType.VARIANT_UINT32
+                elif values.dtype == np.uint64:
+                    self._space_data_type = VariantType.VARIANT_UINT64
+                else:
+                    raise ValueError("Unsupported numpy data type")
+
         try:
             self._minimum = min(self._values)
             self._maximum = max(self._values)
@@ -143,14 +193,12 @@ class Parameter(TincObject):
         if self.tinc_client:
             self.tinc_client.send_parameter_space(self)
             
-    def set_space_type(self, space_type):
-        if space_type in parameter_space_type:
-            self._space_type = parameter_space_type[space_type]
-            self.tinc_client.send_parameter_space_type(self)
-        elif type(space_type) == int:
-            self._space_type = parameter_space_type[parameter_space_type.values().index(space_type)]
-        else:
-            raise TypeError("Invalid space type")
+    def set_space_representation_type(self, space_type):
+        try:
+            self._space_repr_type = parameter_space_representation_types(space_type)
+            self.tinc_client.send_parameter_space_representation_types(self)
+        except:
+            print("Unsupported space type: " + str(space_type))
             
     def set_minimum(self, minimum):
         self._minimum = minimum   
@@ -185,14 +233,49 @@ class Parameter(TincObject):
         count = len(values.values)
         # print(f'setting space {count}')
         self._values = np.ndarray((count))
+        self._space_data_type = None
         for i, v in enumerate(values.values):
-            self._values[i] = v.valueFloat
+            if self._space_data_type is None:
+                self._space_data_type = v.nctype
+            elif self._space_data_type != v.nctype:
+                print("ERROR: inconsistent types in parameter space message")
+
+            if values.nctype == VariantType.VARIANT_FLOAT:
+                self._values[i] = v.valueFloat
+            elif values.nctype == VariantType.VARIANT_DOUBLE:
+                self._values[i] = v.valueDouble
+            elif values.nctype == VariantType.VARIANT_INT8:
+                self._values[i] = v.valueInt32
+            elif values.nctype == VariantType.VARIANT_INT16:
+                self._values[i] = v.valueInt32
+            elif values.nctype == VariantType.VARIANT_INT32:
+                self._values[i] = v.valueInt32
+            elif values.nctype == VariantType.VARIANT_INT64:
+                self._values[i] = v.valueInt64
+            elif values.nctype == VariantType.VARIANT_UINT8:
+                self._values[i] = v.valueUint32
+            elif values.nctype == VariantType.VARIANT_UINT16:
+                self._values[i] = v.valueUint32
+            elif values.nctype == VariantType.VARIANT_UINT32:
+                self._values[i] = v.valueUint32
+            elif values.nctype == VariantType.VARIANT_UINT64:
+                self._values[i] = v.valueUint64
+            elif values.nctype == VariantType.VARIANT_STRING:
+                self._values[i] = v.valueString
+            elif values.nctype == VariantType.VARIANT_BOOL:
+                self._values[i] = v.valueBool
+            else:
+                print("ERROR: Unexpected value type in parameter space message")
         return True
     
-    def set_space_type_from_message(self, message):
+    def set_space_representation_type_from_message(self, message):
         value = TincProtocol.ParameteValue()
         message.Unpack(value)
-        self._space_type = value.valueInt32
+        try:
+            self._space_repr_type = parameter_space_representation_types(value.valueInt32)
+        except:
+            print("ERROR setting parameter space type")
+            return False
         return True
 
     def set_min_from_message(self, message):

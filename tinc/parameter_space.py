@@ -6,10 +6,13 @@ Created on Tue Sep  1 17:13:15 2020
 """
 
 from .tinc_object import TincObject
-from .cachemanager import CacheManager
+from .cachemanager import CacheEntry, CacheManager, SourceArgument, SourceInfo, UserInfo, VariantValue, VariantType
+from .parameter import Parameter
 from threading import Lock
 
 import traceback
+import os
+import json
 
 import inspect, dis
 
@@ -59,24 +62,8 @@ class ParameterSpace(TincObject):
         self._cache_manager = None
         
     def clear_cache(self):
-        #FIXME this function needs to be moved to the cache manager
-        indeces = [0]*len(self._parameters)
-        index_max = [len(p.values) for p in self._parameters]
-            
-        done = False 
-        while not done:
-            args = {p.id:p.values[indeces[i]] if len(p.values) > 0 else p.value for i,p in enumerate(self._parameters)}
-            self._cache_manager.remove_cache_file(args)
-            indeces[0] += 1
-            current_p = 0
-            while indeces[current_p] == index_max[current_p]:
-                indeces[current_p] = 0
-                if current_p == len(indeces) - 1:
-                    if indeces == [0]*len(self._parameters):
-                        done = True
-                    break
-                indeces[current_p + 1] += 1
-                current_p += 1
+        if self._cache_manager:
+            self._cache_manager.clear_cache()
     
     def get_parameter(self, param_id, group = None):
         for p in self._parameters:
@@ -87,6 +74,8 @@ class ParameterSpace(TincObject):
     
     def get_parameters(self):
         return self._parameters
+
+        # TODO ML add register and remove parameter
     
     def set_current_path_template(self, path_template):
         if type(path_template) != str:
@@ -167,9 +156,7 @@ class ParameterSpace(TincObject):
             if force_values:
                 for i,p in enumerate(params):
                     p.set_at(indeces[i])
-                
-            args = {p.id:p.values[indeces[i]] for i,p in enumerate(params)}
-            self.run_process(function, args, dependencies)
+            self.run_process(function, params, dependencies)
             indeces[0] += 1
             current_p = 0
             while indeces[current_p] == index_max[current_p]:
@@ -190,43 +177,129 @@ class ParameterSpace(TincObject):
         # TODO add asynchronous mode
         with self._process_lock:
             if args is None:
-                args = {p.id:p.value for p in self._parameters}
-            for p in self._parameters:
-                if(p.id not in args):
-                    args[p.id] = p.value
-            print("running _process()")
+                args = self._parameters
+            else:
+                for p in self._parameters:
+                    if(p.id not in args):
+                        args[p.id] = p.value
+            # print("running _process()")
             return self._process(function, args, dependencies, force_recompute)
             
     def _process(self,function, args, dependencies = [], force_recompute = False):
         
         named_args = inspect.getfullargspec(function)[0]
+        # Only use arguments that can be passed to the function
+        calling_args = {}
         
-        unused_args = [a for a in args.keys() if not a in named_args]
+        if type(args) == dict:
+            for key, value in args.items():
+                if key in named_args:
+                    calling_args[key] = value
+            unused_args = [a for a in args.keys() if not a in named_args]
+        elif type(args) == list:
+            for p in args:
+                if issubclass(type(p),Parameter):
+                    calling_args[p.id] = p.value
+                else:
+                    print("ERROR argument element to _process() is not a Parameter type. Ignoring")
+            
+            unused_args = [p.id for p in args if not p.id in named_args]
+        else:
+            raise ValueError("args argument can take a list of parameter or a dict of values")
+        
         if len(unused_args) > 0:
             print(f'Ignoring parameters: {unused_args}. Not used in function')
-        # Only use arguments that can be passed to the function
-        calling_args = {key:value for key, value in args.items() if key in named_args}
-        
         cache_args = calling_args.copy()
         for dep in dependencies:
             cache_args[dep.id] = dep.value
         
         out = None
-        if self._cache_manager and not force_recompute:
-            out = self._cache_manager.load_cache(cache_args)
-            if out:
-                return out
-            else:
-                print("Cache is empty. Trying to generate cache")
+        if self._cache_manager:
+            # TODO store metadata about function to know if we need to reprocess cache
+            # TODO set working path and hash in src_info
+            
+            args = []
+            for id,value in calling_args.items():
+                nctype = VariantType.VARIANT_DOUBLE
+                if type(value) == int:
+                    nctype = VariantType.VARIANT_INT64
+
+                args.append(SourceArgument(id = id, 
+                                            value = VariantValue(nctype = nctype,
+                                                                value = value)))
+
+             # TODO should we add a way to set file dependencies?  
+            # fdeps = []
+            # for fdep in entry["sourceInfo"]["fileDependencies"]:
+            #     fdeps.append(FileDependency(file = DistributedPath(filename = fdep["file"]["filename"],
+            #                                                         relative_path = fdep["file"]["relativePath"],
+            #                                                         root_path = fdep["file"]["rootPath"]),
+            #                                 modified = fdep["modified"],
+            #                                 size = fdep["size"],
+            #                                 ))
+            # TODO there needs to be a special character to avoid tinc id clashes for these auto generated
+            # tinc ids. e.g. self.id + '@' + function.__name__. The disallow @ in all other tinc id names.
+            # Perhaps use space? That is already disallowed because of OSC address limitations.
+            src_info = SourceInfo(
+                    type = "PythonInMemory",
+                    tinc_id = self.id + "_" + function.__name__,
+                    command_line_arguments = "", # This could be used to store function information
+                    working_path_rel = "",
+                    working_path_root = "",
+                    hash = "",
+                    arguments = args,
+                    dependencies = [],
+                    file_dependencies = [])
+            if not force_recompute:
+                cache_files = self._cache_manager.find_cache(src_info, dependencies)
+                # TODO mark as stale if needed
+                try:
+                    # TODO use pickle instead of json.
+                    for fname in cache_files:
+                        if os.path.exists(self._cache_manager.cache_directory() + "/" + fname):
+                            with open(self._cache_manager.cache_directory() + "/" +fname) as fp:
+                                out = json.load(fp)
+                                
+                                print(f"loaded cache: {self._cache_manager.cache_directory() + '/' + fname}")
+                                return out
+                                # TODO increase cache hits
+                        else:
+                            print(f"ERROR finding cache file: {self._cache_manager.cache_directory() + '/' +fname}")
+                except:
+                    print("Cache is empty. Trying to generate cache")
+                    traceback.print_exc()
         try:
             out = function(**calling_args)
             if self._cache_manager:
-                self._cache_manager.store_cache(out, cache_args)
+                # FIXME write complete metadata 
+                try:
+                    args_text = '_'.join([str(v) for v in calling_args.values()])
+                    filename = self.id + "_" + function.__name__ + "_" + args_text + "_cache.json"
+                    fullpath = self._cache_manager.cache_directory() + "/" + filename
+                    print("storing cache: " + fullpath)
+                    with open(fullpath, "w") as f:
+                        json.dump(out, f) 
+                    entry = CacheEntry(timestamp_start='a',
+                                    timestamp_end='b',
+                                    filenames=[filename],
+                                    user_info=UserInfo(user_name='name',
+                                                        user_hash='hash',
+                                                        ip='ip',
+                                                        port=9001,
+                                                        server=False),
+                                    source_info=src_info,
+                                    cache_hits=0,
+                                    stale=False)
+                    self._cache_manager.append_entry(entry)
+                    self._cache_manager.write_to_disk()
+                except:
+                    print("Error creating cache")
+                    traceback.print_exc()
         except Exception as e:
             print("Function call exception")
             traceback.print_exc()
             
-        print("done _process()")
+        # print("done _process()")
         return out
         
  

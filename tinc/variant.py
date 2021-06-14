@@ -1,0 +1,19 @@
+
+from enum import IntEnum
+
+class VariantType(IntEnum):
+  VARIANT_NONE = 0,
+  VARIANT_INT64 = 10,
+  VARIANT_INT32 = 4,
+  VARIANT_INT16 = 3,
+  VARIANT_INT8 = 1,
+  VARIANT_UINT64 = 11,
+  VARIANT_UINT32 = 9,
+  VARIANT_UINT16 = 8,
+  VARIANT_UINT8 = 7,
+  VARIANT_DOUBLE = 6,
+  VARIANT_FLOAT = 5,
+  VARIANT_STRING = 12,
+  VARIANT_CHAR = 2, # Avoid using VARIANT_CHAR use VARIANT_UINT8
+  VARIANT_MAX_ATOMIC_TYPE = 12,
+  VARIANT_BOOL = 99 # Use with care, not an NC type
