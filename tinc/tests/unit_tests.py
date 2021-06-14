@@ -1,6 +1,7 @@
 import unittest
 
 from parameter_test import *
+from parameter_space_test import *
 from cache_test import *
 from disk_buffer_test import *
 

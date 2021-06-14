@@ -240,32 +240,32 @@ class Parameter(TincObject):
             elif self._space_data_type != v.nctype:
                 print("ERROR: inconsistent types in parameter space message")
 
-            if values.nctype == VariantType.VARIANT_FLOAT:
+            if v.nctype == VariantType.VARIANT_FLOAT:
                 self._values[i] = v.valueFloat
-            elif values.nctype == VariantType.VARIANT_DOUBLE:
+            elif v.nctype == VariantType.VARIANT_DOUBLE:
                 self._values[i] = v.valueDouble
-            elif values.nctype == VariantType.VARIANT_INT8:
+            elif v.nctype == VariantType.VARIANT_INT8:
                 self._values[i] = v.valueInt32
-            elif values.nctype == VariantType.VARIANT_INT16:
+            elif v.nctype == VariantType.VARIANT_INT16:
                 self._values[i] = v.valueInt32
-            elif values.nctype == VariantType.VARIANT_INT32:
+            elif v.nctype == VariantType.VARIANT_INT32:
                 self._values[i] = v.valueInt32
-            elif values.nctype == VariantType.VARIANT_INT64:
+            elif v.nctype == VariantType.VARIANT_INT64:
                 self._values[i] = v.valueInt64
-            elif values.nctype == VariantType.VARIANT_UINT8:
+            elif v.nctype == VariantType.VARIANT_UINT8:
                 self._values[i] = v.valueUint32
-            elif values.nctype == VariantType.VARIANT_UINT16:
+            elif v.nctype == VariantType.VARIANT_UINT16:
                 self._values[i] = v.valueUint32
-            elif values.nctype == VariantType.VARIANT_UINT32:
+            elif v.nctype == VariantType.VARIANT_UINT32:
                 self._values[i] = v.valueUint32
-            elif values.nctype == VariantType.VARIANT_UINT64:
+            elif v.nctype == VariantType.VARIANT_UINT64:
                 self._values[i] = v.valueUint64
-            elif values.nctype == VariantType.VARIANT_STRING:
+            elif v.nctype == VariantType.VARIANT_STRING:
                 self._values[i] = v.valueString
-            elif values.nctype == VariantType.VARIANT_BOOL:
+            elif v.nctype == VariantType.VARIANT_BOOL:
                 self._values[i] = v.valueBool
             else:
-                print("ERROR: Unexpected value type in parameter space message")
+                print("ERROR: Unexpected value type in parameter space message " + str(v.nctype))
         return True
     
     def set_space_representation_type_from_message(self, message):

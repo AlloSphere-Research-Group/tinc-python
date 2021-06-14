@@ -1,6 +1,7 @@
 import threading
 import time
 import socket
+from tinc.variant import VariantType
 from typing import List, Any
 import struct
 from threading import Lock
@@ -578,14 +579,32 @@ class TincClient(object):
                             configured = True
                             break
                 elif ps_command == TincProtocol.ParameterSpaceConfigureType.REMOVE_PARAMETER:
-                    param_id = param_details.configurationValue
+                    param_value = TincProtocol.ParameterValue()
+                    param_details.configurationValue.Unpack(param_value)
+                    param_id = param_value.valueString
                     for p in self.parameters:
                         if p.get_osc_address() == param_id:
                             ps.unregister_parameter(p)
                             configured = True
                             break
+                elif ps_command == TincProtocol.ParameterSpaceConfigureType.CURRENT_TEMPLATE:
+                    template_val = TincProtocol.ParameterValue()
+                    param_details.configurationValue.Unpack(template_val)
+                    if template_val.nctype == VariantType.VARIANT_STRING:
+                        # Use internal member to avoid checks and warnings in the setter function
+                        ps._path_template = template_val.valueString
+                    else:
+                        print("ERROR: Unexpected data type for TincProtocol.ParameterSpaceConfigureType.CURRENT_TEMPLATE")
+                elif ps_command == TincProtocol.ParameterSpaceConfigureType.ROOT_PATH:
+                    root_value = TincProtocol.ParameterValue()
+                    param_details.configurationValue.Unpack(root_value)
+                    if root_value.nctype == VariantType.VARIANT_STRING:
+                        # Use internal member to avoid checks and warnings in the setter function
+                        ps._local_root_path = root_value.valueString
+                    else:
+                        print("ERROR: Unexpected data type for TincProtocol.ParameterSpaceConfigureType.ROOT_PATH")
                 else:
-                    print("Unrecognized ParameterSpace Configure command")
+                    print("Unrecognized ParameterSpace Configure command " + str(ps_command))
                 
         if not configured:
             print("ParameterSpace configuration failed")

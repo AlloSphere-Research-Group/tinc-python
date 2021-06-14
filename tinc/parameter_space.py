@@ -25,8 +25,7 @@ class ParameterSpace(TincObject):
         self._path_template = ""
         self._process_lock = Lock()
         # self._local_current_path
-        # self._local_root_path
-        # self._local_path_template
+        self._local_root_path = ''
         
     def register_parameters(self, params):
         for param in params:
@@ -80,6 +79,8 @@ class ParameterSpace(TincObject):
     def set_current_path_template(self, path_template):
         if type(path_template) != str:
             raise ValueError('Path template must be a string')
+        if self.tinc_client:
+            print("Setting local path template, but it can be overriden by the TINC server.") 
         self._path_template = path_template
         
     def resolve_path(self, path_template, index_map = None):
@@ -123,15 +124,23 @@ class ParameterSpace(TincObject):
         else:
             return self.resolve_path(self._path_template)
         
+    def set_root_path(self, root_path):
+        if type(root_path) != str:
+            raise ValueError('Root path must be a string')
+        if self.tinc_client:
+            print("Setting local root path, but it can be overriden by the TINC server.") 
+        self._local_root_path = root_path
+
     def get_root_path(self):
         if self.tinc_client:
             return self.tinc_client._command_parameter_space_get_root_path(self, self.server_timeout)
+        else:
+            return self._local_root_path
         
     def sweep(self, function, params=None, force_values = False, dependencies = []):
         if params is None or len(params) == 0:
             params = self._parameters
         else:
-            to_remove = []
             for p in params:
                 registered = False
                 for existing_param in self._parameters:    
@@ -149,6 +158,7 @@ class ParameterSpace(TincObject):
         indeces = [0]*len(params)
         index_max = [len(p.values) for p in params]
         
+        # original_values used to restore values if self.force_values
         original_values = {p:p.value for p in params}
     
         done = False 
@@ -156,7 +166,10 @@ class ParameterSpace(TincObject):
             if force_values:
                 for i,p in enumerate(params):
                     p.set_at(indeces[i])
-            self.run_process(function, params, dependencies)
+                self.run_process(function, params, dependencies)
+            else:
+                sweep_values = {p.id:p.values[indeces[i]] for i, p in enumerate(params)}
+                self.run_process(function, sweep_values, dependencies)
             indeces[0] += 1
             current_p = 0
             while indeces[current_p] == index_max[current_p]:
@@ -167,6 +180,7 @@ class ParameterSpace(TincObject):
                     break
                 indeces[current_p + 1] += 1
                 current_p += 1
+
                 
         if force_values:
             for p, orig_val in original_values.items():
@@ -179,9 +193,14 @@ class ParameterSpace(TincObject):
             if args is None:
                 args = self._parameters
             else:
-                for p in self._parameters:
-                    if(p.id not in args):
-                        args[p.id] = p.value
+                if type(args) == list:
+                    for p in self._parameters:
+                        if not p in args:
+                            args.append(p)
+                elif type(args) == dict:
+                    for p in self._parameters:
+                        if p.id not in args.keys():
+                            args[p.id] = p.value
             # print("running _process()")
             return self._process(function, args, dependencies, force_recompute)
             
@@ -195,7 +214,7 @@ class ParameterSpace(TincObject):
             for key, value in args.items():
                 if key in named_args:
                     calling_args[key] = value
-            unused_args = [a for a in args.keys() if not a in named_args]
+            unused_args = [a for a in calling_args.keys() if not a in named_args]
         elif type(args) == list:
             for p in args:
                 if issubclass(type(p),Parameter):
@@ -203,7 +222,7 @@ class ParameterSpace(TincObject):
                 else:
                     print("ERROR argument element to _process() is not a Parameter type. Ignoring")
             
-            unused_args = [p.id for p in args if not p.id in named_args]
+            unused_args = [p for p in calling_args.keys() if not p in named_args]
         else:
             raise ValueError("args argument can take a list of parameter or a dict of values")
         
@@ -269,6 +288,7 @@ class ParameterSpace(TincObject):
                     print("Cache is empty. Trying to generate cache")
                     traceback.print_exc()
         try:
+            #print("Calling function with: " + str(calling_args))
             out = function(**calling_args)
             if self._cache_manager:
                 # FIXME write complete metadata 
