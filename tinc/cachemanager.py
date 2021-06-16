@@ -39,6 +39,7 @@ class DistributedPath(NamedTuple):
     filename: str = ''
     relative_path: str = ''
     root_path: str = ''
+    protocol_id: str = ''
 
 class FileDependency(NamedTuple):
     file: DistributedPath = DistributedPath()
@@ -204,7 +205,8 @@ class CacheManager(object):
                     for fdep in entry["files"]:
                         filenames.append(FileDependency(file = DistributedPath(filename = fdep["file"]["filename"],
                                                                           relative_path = fdep["file"]["relativePath"],
-                                                                          root_path = fdep["file"]["rootPath"]),
+                                                                          root_path = fdep["file"]["rootPath"],
+                                                                          protocol_id = fdep["file"]["protocolId"]),
                                                    modified = fdep["modified"],
                                                    size = fdep["size"],
                                                    hash = fdep["hash"]
@@ -226,7 +228,8 @@ class CacheManager(object):
                     for fdep in entry["sourceInfo"]["fileDependencies"]:
                         fdeps.append(FileDependency(file = DistributedPath(filename = fdep["file"]["filename"],
                                                                           relative_path = fdep["file"]["relativePath"],
-                                                                          root_path = fdep["file"]["rootPath"]),
+                                                                          root_path = fdep["file"]["rootPath"],
+                                                                          protocol_id = fdep["file"]["protocolId"]),
                                                    modified = fdep["modified"],
                                                    size = fdep["size"],
                                                    hash = fdep["hash"]
@@ -274,7 +277,8 @@ class CacheManager(object):
             for fdep in entry.files:
                 f_entry = {"file": {"filename": fdep.file.filename, 
                                 "relativePath": fdep.file.relative_path,
-                                "rootPath": fdep.file.root_path},
+                                "rootPath": fdep.file.root_path,
+                                "protocolId": fdep.file.protocol_id},
                        "modified": fdep.modified,
                        "size" : fdep.size,
                        "hash" : fdep.hash}
@@ -305,7 +309,8 @@ class CacheManager(object):
             for fdep in entry.source_info.file_dependencies:
                 dep = {"file": {"filename": fdep.file.filename, 
                                 "relativePath": fdep.file.relative_path,
-                                "rootPath": fdep.file.root_path},
+                                "rootPath": fdep.file.root_path,
+                                "protocolId": fdep.file.protocol_id},
                        "modified": fdep.modified,
                        "size" : fdep.size,
                        "hash" : fdep.hash}

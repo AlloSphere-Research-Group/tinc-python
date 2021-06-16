@@ -7,7 +7,7 @@ print(setuptools.find_packages())
 
 setuptools.setup(
     name="tinc", 
-    version="0.9.12",
+    version="0.9.13",
     author="Andres Cabrera",
     author_email="acabrera@ucsb.edu",
     description="TINC python module",
