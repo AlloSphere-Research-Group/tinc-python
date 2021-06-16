@@ -34,12 +34,41 @@
             "additionalProperties": false,
             "_comment": "/* ISO 8601 https://stackoverflow.com/questions/10286204/what-is-the-right-json-date-format */"
           },
-          "filenames": {
+          "files": {
             "type": "array",
             "items": {
-              "type": [
-                "string"
-              ]
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "object",
+                  "properties": {
+                    "relativePath": {
+                      "type": "string"
+                    },
+                    "rootPath": {
+                      "type": "string"
+                    },
+                    "filename": {
+                      "type": "string"
+                    },
+                    "protocolId": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "modified": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "size": {
+                  "type": "integer"
+                },
+                "hash": {
+                  "type": "string",
+                  "_comment_hash": "/* Currently storing CRC as string, leaves open to implement other hashing algorithms. */"
+                }
+              },
+              "additionalProperties": false
             }
           },
           "userInfo": {
@@ -86,10 +115,6 @@
                   }
                 },
                 "_comment_type": "path for execution"
-              },
-              "hash": {
-                "type": "string",
-                "_comment_hash": "/* needs richer details for cpp, python and script */"
               },
               "arguments": {
                 "type": "array",
@@ -139,6 +164,9 @@
                         },
                         "filename": {
                           "type": "string"
+                        },
+                        "protocolId": {
+                          "type": "string"
                         }
                       }
                     },
@@ -148,6 +176,10 @@
                     },
                     "size": {
                       "type": "integer"
+                    },
+                    "hash": {
+                      "type": "string",
+                      "_comment_hash": "/* needs richer details for cpp, python and script */"
                     }
                   },
                   "additionalProperties": false

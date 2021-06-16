@@ -6,7 +6,7 @@ Created on Tue Sep  1 17:13:15 2020
 """
 
 from .tinc_object import TincObject
-from .cachemanager import CacheEntry, CacheManager, SourceArgument, SourceInfo, UserInfo, VariantValue, VariantType
+from .cachemanager import CacheEntry, CacheManager, DistributedPath, FileDependency, SourceArgument, SourceInfo, UserInfo, VariantValue, VariantType
 from .parameter import Parameter
 from threading import Lock
 
@@ -218,7 +218,8 @@ class ParameterSpace(TincObject):
         elif type(args) == list:
             for p in args:
                 if issubclass(type(p),Parameter):
-                    calling_args[p.id] = p.value
+                    if p.id in named_args:
+                        calling_args[p.id] = p.value
                 else:
                     print("ERROR argument element to _process() is not a Parameter type. Ignoring")
             
@@ -265,21 +266,21 @@ class ParameterSpace(TincObject):
                     command_line_arguments = "", # This could be used to store function information
                     working_path_rel = "",
                     working_path_root = "",
-                    hash = "",
                     arguments = args,
                     dependencies = [],
                     file_dependencies = [])
             if not force_recompute:
-                cache_files = self._cache_manager.find_cache(src_info, dependencies)
+                cache_filenames = self._cache_manager.find_cache(src_info, dependencies)
                 # TODO mark as stale if needed
                 try:
                     # TODO use pickle instead of json.
-                    for fname in cache_files:
-                        if os.path.exists(self._cache_manager.cache_directory() + "/" + fname):
-                            with open(self._cache_manager.cache_directory() + "/" +fname) as fp:
+                    for fname in cache_filenames:
+                        cache_file_path = self._cache_manager.cache_directory() +"/" + fname
+                        if os.path.exists(cache_file_path):
+                            with open(cache_file_path) as fp:
                                 out = json.load(fp)
                                 
-                                print(f"loaded cache: {self._cache_manager.cache_directory() + '/' + fname}")
+                                print(f"loaded cache: {cache_file_path}")
                                 return out
                                 # TODO increase cache hits
                         else:
@@ -301,7 +302,7 @@ class ParameterSpace(TincObject):
                         json.dump(out, f) 
                     entry = CacheEntry(timestamp_start='a',
                                     timestamp_end='b',
-                                    filenames=[filename],
+                                    files=[FileDependency(DistributedPath(filename))],
                                     user_info=UserInfo(user_name='name',
                                                         user_hash='hash',
                                                         ip='ip',

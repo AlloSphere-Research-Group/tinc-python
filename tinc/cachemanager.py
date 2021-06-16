@@ -8,6 +8,7 @@ Created on Thu Oct 15 14:32:03 2020
 import json
 import os, shutil
 import jsonschema
+import zlib
 
 import traceback
 
@@ -43,6 +44,7 @@ class FileDependency(NamedTuple):
     file: DistributedPath = DistributedPath()
     modified: str = ''
     size: int = 0
+    hash: str = ''
 
 
 def arguments_from_param_list(param_list):
@@ -56,7 +58,6 @@ class SourceInfo(NamedTuple):
     command_line_arguments: str = ''
     working_path_rel: str = ''
     working_path_root: str = ''
-    hash: str = ''
     arguments: List[SourceArgument] = []
     dependencies: List[SourceArgument] = []
     file_dependencies: List[FileDependency] = []
@@ -66,7 +67,7 @@ class SourceInfo(NamedTuple):
 class CacheEntry(NamedTuple):
     timestamp_start: str = ''
     timestamp_end: str = ''
-    filenames: List[str] = []
+    files: List[str] = []
     user_info: UserInfo = UserInfo()
     source_info: SourceInfo = SourceInfo()
     cache_hits: int = 0
@@ -91,6 +92,10 @@ class CacheManager(object):
                 print("Validating json with " + schema_path)
         except:
             print("ERROR loading cache schema. Not validating schema.")
+        if os.path.exists(directory + "/" + self._metadata_file):
+            self.update_from_disk()
+        else:
+            self.write_to_disk() # Generate empty cache file.
 
     def append_entry(self, entry):
         self._lock()
@@ -112,8 +117,8 @@ class CacheManager(object):
             if entry.source_info.command_line_arguments == source_info.command_line_arguments \
                 and entry.source_info.tinc_id == source_info.tinc_id \
                 and entry.source_info.type == source_info.type:
-                    entry_args = entry.source_info.arguments
-                    entry_deps = entry.source_info.dependencies
+                    entry_args = entry.source_info.arguments[:]
+                    entry_deps = entry.source_info.dependencies[:]
                     if len(source_info.arguments) == len(entry_args) \
                         and len(source_info.dependencies) == len(entry_deps):
                             match_count = 0
@@ -137,9 +142,9 @@ class CacheManager(object):
                             if match_count == (len(source_info.arguments) + len(source_info.dependencies)) \
                                 and len(entry_args) == 0 and len(entry_deps) == 0:
                                     self._unlock()
-                                    return entry.filenames
+                                    return [f.file.filename for f in entry.files]
                     else:
-                        print("Warning, cache entry found, but argument size mismatch")
+                        print(f"Warning, cache entry found, but argument size mismatch: {source_info.arguments}  --  {entry_args}")
         
         self._unlock()
         return []
@@ -152,15 +157,15 @@ class CacheManager(object):
             print("Failed to load cache, cached files will not be removed automatically")
         self._lock()
         for entry in self._entries:
-            for f in entry.filenames:
-                full_name = self._cache_dir + "/" + f
+            for f in entry.files:
+                full_name = self._cache_dir + "/" + f.file.filename
                 try:
                     os.remove(full_name)
                 except:
                     print("ERROR removing cache entry: " + full_name)
         
-        self._unlock()
         self._entries = []
+        self._unlock()
         self.write_to_disk()
 
     '''
@@ -196,8 +201,14 @@ class CacheManager(object):
                         return
                 for entry in j["entries"]:
                     filenames = []
-                    for f in entry["filenames"]:
-                        filenames.append(f)
+                    for fdep in entry["files"]:
+                        filenames.append(FileDependency(file = DistributedPath(filename = fdep["file"]["filename"],
+                                                                          relative_path = fdep["file"]["relativePath"],
+                                                                          root_path = fdep["file"]["rootPath"]),
+                                                   modified = fdep["modified"],
+                                                   size = fdep["size"],
+                                                   hash = fdep["hash"]
+                                                   ))
                                    
                     args = []
                     for a in entry["sourceInfo"]["arguments"]:
@@ -218,6 +229,7 @@ class CacheManager(object):
                                                                           root_path = fdep["file"]["rootPath"]),
                                                    modified = fdep["modified"],
                                                    size = fdep["size"],
+                                                   hash = fdep["hash"]
                                                    ))
 
                     user_info = UserInfo(user_name = entry["userInfo"]["userName"],
@@ -231,14 +243,13 @@ class CacheManager(object):
                                              command_line_arguments = entry["sourceInfo"]["commandLineArguments"],
                                              working_path_rel = entry["sourceInfo"]["workingPath"]["relativePath"],
                                              working_path_root = entry["sourceInfo"]["workingPath"]["rootPath"],
-                                             hash = entry["sourceInfo"]["hash"],
                                              arguments = args,
                                              dependencies = deps,
                                              file_dependencies = fdeps)
                     
                     new_entry = CacheEntry(timestamp_start = entry["timestamp"]["start"],
                                            timestamp_end = entry["timestamp"]["end"],
-                                           filenames = filenames,
+                                           files = filenames,
                                            user_info = user_info,
                                            source_info = source_info,
                                            cache_hits = entry["cacheHits"],
@@ -251,13 +262,25 @@ class CacheManager(object):
             # TODO remove existing backup if there
             shutil.copy(self._cache_dir + "/" + self._metadata_file,
                 self._cache_dir + "/" + self._metadata_file + ".bak")
+
+
         j = {}
         j["tincMetaVersionMajor"] = TINC_META_VERSION_MAJOR
         j["tincMetaVersionMinor"] = TINC_META_VERSION_MINOR
         j["entries"] = []
         for entry in self._entries:
             j_entry = {"timestamp":{"start": entry.timestamp_start, "end" :entry.timestamp_end }}
-            j_entry["filenames"] = entry.filenames
+            j_entry["files"] = []
+            for fdep in entry.files:
+                f_entry = {"file": {"filename": fdep.file.filename, 
+                                "relativePath": fdep.file.relative_path,
+                                "rootPath": fdep.file.root_path},
+                       "modified": fdep.modified,
+                       "size" : fdep.size,
+                       "hash" : fdep.hash}
+                j_entry["files"].append(f_entry)
+
+
             j_entry["cacheHits"] = entry.cache_hits
             j_entry["stale"] = entry.stale
             j_entry["userInfo"] = {
@@ -267,6 +290,26 @@ class CacheManager(object):
                 "port": entry.user_info.port,
                 "server": entry.user_info.server
                 }
+                
+            args = []
+            for a in entry.source_info.arguments:
+                args.append({"id" : a.id, 
+                    "nctype" : a.value.nctype, "value" : a.value.value})
+                    
+            deps = []
+            for a in entry.source_info.dependencies:
+                deps.append({"id" : a.id, 
+                    "nctype" : a.value.nctype, "value" : a.value.value})
+                
+            fdeps = []
+            for fdep in entry.source_info.file_dependencies:
+                dep = {"file": {"filename": fdep.file.filename, 
+                                "relativePath": fdep.file.relative_path,
+                                "rootPath": fdep.file.root_path},
+                       "modified": fdep.modified,
+                       "size" : fdep.size,
+                       "hash" : fdep.hash}
+                fdeps.append(dep)
 
             j_entry["sourceInfo"] = {
                 "type": entry.source_info.type,
@@ -274,27 +317,12 @@ class CacheManager(object):
                 "commandLineArguments" : entry.source_info.command_line_arguments,
                 "workingPath" : {"relativePath":entry.source_info.working_path_rel,
                                  "rootPath":entry.source_info.working_path_root},
-                "hash" : entry.source_info.hash,
-                "arguments" : [],
-                "dependencies" : [],
-                "fileDependencies" : []
+                "arguments" : args,
+                "dependencies" : deps,
+                "fileDependencies" : fdeps
                 }
-                
-            for a in entry.source_info.arguments:
-                j_entry["sourceInfo"]["arguments"].append({"id" : a.id, 
-                    "nctype" : a.value.nctype, "value" : a.value.value})
-                    
-            for a in entry.source_info.dependencies:
-                j_entry["sourceInfo"]["dependencies"].append({"id" : a.id, 
-                    "nctype" : a.value.nctype, "value" : a.value.value})
-                
-            for fdep in entry.source_info.file_dependencies:
-                dep = {"file": {"filename": fdep.file.filename, 
-                                "relativePath": fdep.file.relative_path,
-                                "rootPath": fdep.file.root_path},
-                       "modified": fdep.modified,
-                       "size" : fdep.size}
-                j_entry["sourceInfo"]["fileDependencies"].append(dep)
+            # TODO compute CRC
+            #hash = str(zlib.crc32())
 
             j["entries"].append(j_entry)
         

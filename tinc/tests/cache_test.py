@@ -22,7 +22,6 @@ class CacheTest(unittest.TestCase):
             command_line_arguments = 'many args',
             working_path_rel = 'cwd_path/',
             working_path_root = '/root',
-            hash = 'my hash',
             arguments = [SourceArgument(id = 'arg_id', value = VariantValue(nctype = VariantType.VARIANT_FLOAT, 
                                                                             value = 1.3)),
                          SourceArgument(id = 'arg_id2', value = VariantValue(nctype = VariantType.VARIANT_DOUBLE, 
@@ -39,7 +38,7 @@ class CacheTest(unittest.TestCase):
         
         entry = CacheEntry(timestamp_start = 'a',
                            timestamp_end =  'b', 
-                           filenames = ["out1.txt"],
+                           files = [FileDependency(DistributedPath("out1.txt"))],
                            user_info = UserInfo(user_name = 'name',
                                                 user_hash = 'hash',
                                                 ip = 'ip',
@@ -70,7 +69,6 @@ class CacheTest(unittest.TestCase):
             command_line_arguments = 'many args',
             working_path_rel = 'cwd_path/',
             working_path_root = '/root',
-            hash = 'my hash',
             arguments = [SourceArgument(id = 'arg_id', value = VariantValue(nctype = VariantType.VARIANT_FLOAT, 
                                                                             value = 1.3)),
                          SourceArgument(id = 'arg_id2', value = VariantValue(nctype = VariantType.VARIANT_DOUBLE, 
@@ -87,7 +85,7 @@ class CacheTest(unittest.TestCase):
         
         entry = CacheEntry(timestamp_start = 'a',
                            timestamp_end =  'b', 
-                           filenames = ["out1.txt"],
+                           files = [FileDependency(DistributedPath("out1.txt"))],
                            user_info = UserInfo(user_name = 'name',
                                                 user_hash = 'hash',
                                                 ip = 'ip',
@@ -109,7 +107,7 @@ class CacheTest(unittest.TestCase):
         cache.update_from_disk()
         
         files = cache.find_cache(src_info)
-        
+        print(files)
         self.assertEqual(len(files), 1)
         self.assertEqual(files[0], "out1.txt")
         
