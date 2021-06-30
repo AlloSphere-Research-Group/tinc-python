@@ -8,7 +8,7 @@ Created on Thu Oct 15 14:32:03 2020
 import json
 import os, shutil
 import jsonschema
-import zlib
+import threading
 
 import traceback
 
@@ -83,6 +83,7 @@ class CacheManager(object):
         self._metadata_file = metadata_file
         self._validator = None
         self._entries = []
+        self.mutex = threading.Lock()
         try:
             schema_path = os.path.join(
                     os.path.dirname(os.path.abspath(__file__)),
@@ -177,174 +178,188 @@ class CacheManager(object):
 
     def update_from_disk(self):
         self._lock()
-        self._entries = []
-        if os.path.exists(self._cache_dir + "/" + self._metadata_file):
-            with open(self._cache_dir + "/" + self._metadata_file) as f:
-                try:
-                    j = json.load(f)
-                    if j["tincMetaVersionMajor"] != TINC_META_VERSION_MAJOR or \
-                        j["tincMetaVersionMinor"] != TINC_META_VERSION_MINOR:
-                            print("Invalid cache format")
-                            self._unlock()
-                            return
-                except:
-                    traceback.print_exc()
-                    print("Metadata file is not a TINC cache file. Ignoring.")
-                    self._unlock()
-                    return
-                    
-                if self._validator:
+        try:
+            if os.path.exists(self._cache_dir + "/" + self._metadata_file):
+                with open(self._cache_dir + "/" + self._metadata_file) as f:
                     try:
-                        self._validator.validate(j)
+                        j = json.load(f)
+                        if j["tincMetaVersionMajor"] != TINC_META_VERSION_MAJOR or \
+                            j["tincMetaVersionMinor"] != TINC_META_VERSION_MINOR:
+                                print("Invalid cache format")
+                                self._unlock()
+                                return
                     except:
-                        print("Cache metadata not valid according to schema. Ignoring.")
+                        traceback.print_exc()
+                        print("Metadata file is not a TINC cache file. Ignoring.")
                         self._unlock()
                         return
-                for entry in j["entries"]:
-                    filenames = []
-                    for fdep in entry["files"]:
-                        filenames.append(FileDependency(file = DistributedPath(filename = fdep["file"]["filename"],
-                                                                          relative_path = fdep["file"]["relativePath"],
-                                                                          root_path = fdep["file"]["rootPath"],
-                                                                          protocol_id = fdep["file"]["protocolId"]),
-                                                   modified = fdep["modified"],
-                                                   size = fdep["size"],
-                                                   hash = fdep["hash"]
-                                                   ))
-                                   
-                    args = []
-                    for a in entry["sourceInfo"]["arguments"]:
-                        args.append(SourceArgument(id = a["id"], 
-                                                   value = VariantValue(nctype = a["nctype"],
-                                                                        value = a["value"])))
-                        
-                    deps = []
-                    for a in entry["sourceInfo"]["dependencies"]:
-                        deps.append(SourceArgument(id = a["id"], 
-                                                   value = VariantValue(nctype = a["nctype"],
-                                                                        value = a["value"])))
-                        
-                    fdeps = []
-                    for fdep in entry["sourceInfo"]["fileDependencies"]:
-                        fdeps.append(FileDependency(file = DistributedPath(filename = fdep["file"]["filename"],
-                                                                          relative_path = fdep["file"]["relativePath"],
-                                                                          root_path = fdep["file"]["rootPath"],
-                                                                          protocol_id = fdep["file"]["protocolId"]),
-                                                   modified = fdep["modified"],
-                                                   size = fdep["size"],
-                                                   hash = fdep["hash"]
-                                                   ))
+                    
+                    if self._validator:
+                        try:
+                            self._validator.validate(j)
+                        except:
+                            print("Cache metadata not valid according to schema. Ignoring.")
+                            self._unlock()
+                            return
+                            
+                    self._entries = []
+                    for entry in j["entries"]:
+                        filenames = []
+                        for fdep in entry["files"]:
+                            filenames.append(FileDependency(file = DistributedPath(filename = fdep["file"]["filename"],
+                                                                            relative_path = fdep["file"]["relativePath"],
+                                                                            root_path = fdep["file"]["rootPath"],
+                                                                            protocol_id = fdep["file"]["protocolId"]),
+                                                    modified = fdep["modified"],
+                                                    size = fdep["size"],
+                                                    hash = fdep["hash"]
+                                                    ))
+                                    
+                        args = []
+                        for a in entry["sourceInfo"]["arguments"]:
+                            args.append(SourceArgument(id = a["id"], 
+                                                    value = VariantValue(nctype = a["nctype"],
+                                                                            value = a["value"])))
+                            
+                        deps = []
+                        for a in entry["sourceInfo"]["dependencies"]:
+                            deps.append(SourceArgument(id = a["id"], 
+                                                    value = VariantValue(nctype = a["nctype"],
+                                                                            value = a["value"])))
+                            
+                        fdeps = []
+                        for fdep in entry["sourceInfo"]["fileDependencies"]:
+                            fdeps.append(FileDependency(file = DistributedPath(filename = fdep["file"]["filename"],
+                                                                            relative_path = fdep["file"]["relativePath"],
+                                                                            root_path = fdep["file"]["rootPath"],
+                                                                            protocol_id = fdep["file"]["protocolId"]),
+                                                    modified = fdep["modified"],
+                                                    size = fdep["size"],
+                                                    hash = fdep["hash"]
+                                                    ))
 
-                    user_info = UserInfo(user_name = entry["userInfo"]["userName"],
-                                         user_hash = entry["userInfo"]["userHash"],
-                                         ip = entry["userInfo"]["ip"],
-                                         port = entry["userInfo"]["port"],
-                                         server = entry["userInfo"]["server"])
-                    
-                    source_info = SourceInfo(type = entry["sourceInfo"]["type"],
-                                             tinc_id = entry["sourceInfo"]["tincId"],
-                                             command_line_arguments = entry["sourceInfo"]["commandLineArguments"],
-                                             working_path_rel = entry["sourceInfo"]["workingPath"]["relativePath"],
-                                             working_path_root = entry["sourceInfo"]["workingPath"]["rootPath"],
-                                             arguments = args,
-                                             dependencies = deps,
-                                             file_dependencies = fdeps)
-                    
-                    new_entry = CacheEntry(timestamp_start = entry["timestamp"]["start"],
-                                           timestamp_end = entry["timestamp"]["end"],
-                                           files = filenames,
-                                           user_info = user_info,
-                                           source_info = source_info,
-                                           cache_hits = entry["cacheHits"],
-                                           stale = entry["stale"])
-                    self._entries.append(new_entry)
+                        user_info = UserInfo(user_name = entry["userInfo"]["userName"],
+                                            user_hash = entry["userInfo"]["userHash"],
+                                            ip = entry["userInfo"]["ip"],
+                                            port = entry["userInfo"]["port"],
+                                            server = entry["userInfo"]["server"])
+                        
+                        source_info = SourceInfo(type = entry["sourceInfo"]["type"],
+                                                tinc_id = entry["sourceInfo"]["tincId"],
+                                                command_line_arguments = entry["sourceInfo"]["commandLineArguments"],
+                                                working_path_rel = entry["sourceInfo"]["workingPath"]["relativePath"],
+                                                working_path_root = entry["sourceInfo"]["workingPath"]["rootPath"],
+                                                arguments = args,
+                                                dependencies = deps,
+                                                file_dependencies = fdeps)
+                        
+                        new_entry = CacheEntry(timestamp_start = entry["timestamp"]["start"],
+                                            timestamp_end = entry["timestamp"]["end"],
+                                            files = filenames,
+                                            user_info = user_info,
+                                            source_info = source_info,
+                                            cache_hits = entry["cacheHits"],
+                                            stale = entry["stale"])
+                        self._entries.append(new_entry)
+        except:
+            print("Writing entry failed")
+            
+        self._unlock()
                     
     def write_to_disk(self):
         self._lock()
-        if os.path.exists(self._cache_dir + "/" + self._metadata_file):
-            # TODO remove existing backup if there
-            shutil.copy(self._cache_dir + "/" + self._metadata_file,
-                self._cache_dir + "/" + self._metadata_file + ".bak")
+        try:
+            if os.path.exists(self._cache_dir + "/" + self._metadata_file):
+                bak_filename = self._cache_dir + "/" + self._metadata_file + ".bak"
+                if(os.path.exists(bak_filename)):
+                    os.remove(bak_filename) # Is this remove needed?
+ 
+                shutil.copy(self._cache_dir + "/" + self._metadata_file,
+                    bak_filename)
 
 
-        j = {}
-        j["tincMetaVersionMajor"] = TINC_META_VERSION_MAJOR
-        j["tincMetaVersionMinor"] = TINC_META_VERSION_MINOR
-        j["entries"] = []
-        for entry in self._entries:
-            j_entry = {"timestamp":{"start": entry.timestamp_start, "end" :entry.timestamp_end }}
-            j_entry["files"] = []
-            for fdep in entry.files:
-                f_entry = {"file": {"filename": fdep.file.filename, 
-                                "relativePath": fdep.file.relative_path,
-                                "rootPath": fdep.file.root_path,
-                                "protocolId": fdep.file.protocol_id},
-                       "modified": fdep.modified,
-                       "size" : fdep.size,
-                       "hash" : fdep.hash}
-                j_entry["files"].append(f_entry)
+            j = {}
+            j["tincMetaVersionMajor"] = TINC_META_VERSION_MAJOR
+            j["tincMetaVersionMinor"] = TINC_META_VERSION_MINOR
+            j["entries"] = []
+            for entry in self._entries:
+                j_entry = {"timestamp":{"start": entry.timestamp_start, "end" :entry.timestamp_end }}
+                j_entry["files"] = []
+                for fdep in entry.files:
+                    f_entry = {"file": {"filename": fdep.file.filename, 
+                                    "relativePath": fdep.file.relative_path,
+                                    "rootPath": fdep.file.root_path,
+                                    "protocolId": fdep.file.protocol_id},
+                        "modified": fdep.modified,
+                        "size" : fdep.size,
+                        "hash" : fdep.hash}
+                    j_entry["files"].append(f_entry)
 
 
-            j_entry["cacheHits"] = entry.cache_hits
-            j_entry["stale"] = entry.stale
-            j_entry["userInfo"] = {
-                "userName": entry.user_info.user_name,
-                "userHash": entry.user_info.user_hash,
-                "ip": entry.user_info.ip,
-                "port": entry.user_info.port,
-                "server": entry.user_info.server
-                }
-                
-            args = []
-            for a in entry.source_info.arguments:
-                args.append({"id" : a.id, 
-                    "nctype" : a.value.nctype, "value" : a.value.value})
+                j_entry["cacheHits"] = entry.cache_hits
+                j_entry["stale"] = entry.stale
+                j_entry["userInfo"] = {
+                    "userName": entry.user_info.user_name,
+                    "userHash": entry.user_info.user_hash,
+                    "ip": entry.user_info.ip,
+                    "port": entry.user_info.port,
+                    "server": entry.user_info.server
+                    }
                     
-            deps = []
-            for a in entry.source_info.dependencies:
-                deps.append({"id" : a.id, 
-                    "nctype" : a.value.nctype, "value" : a.value.value})
-                
-            fdeps = []
-            for fdep in entry.source_info.file_dependencies:
-                dep = {"file": {"filename": fdep.file.filename, 
-                                "relativePath": fdep.file.relative_path,
-                                "rootPath": fdep.file.root_path,
-                                "protocolId": fdep.file.protocol_id},
-                       "modified": fdep.modified,
-                       "size" : fdep.size,
-                       "hash" : fdep.hash}
-                fdeps.append(dep)
+                args = []
+                for a in entry.source_info.arguments:
+                    args.append({"id" : a.id, 
+                        "nctype" : a.value.nctype, "value" : a.value.value})
+                        
+                deps = []
+                for a in entry.source_info.dependencies:
+                    deps.append({"id" : a.id, 
+                        "nctype" : a.value.nctype, "value" : a.value.value})
+                    
+                fdeps = []
+                for fdep in entry.source_info.file_dependencies:
+                    dep = {"file": {"filename": fdep.file.filename, 
+                                    "relativePath": fdep.file.relative_path,
+                                    "rootPath": fdep.file.root_path,
+                                    "protocolId": fdep.file.protocol_id},
+                        "modified": fdep.modified,
+                        "size" : fdep.size,
+                        "hash" : fdep.hash}
+                    fdeps.append(dep)
 
-            j_entry["sourceInfo"] = {
-                "type": entry.source_info.type,
-                "tincId" : entry.source_info.tinc_id,
-                "commandLineArguments" : entry.source_info.command_line_arguments,
-                "workingPath" : {"relativePath":entry.source_info.working_path_rel,
-                                 "rootPath":entry.source_info.working_path_root},
-                "arguments" : args,
-                "dependencies" : deps,
-                "fileDependencies" : fdeps
-                }
-            # TODO compute CRC
-            #hash = str(zlib.crc32())
+                j_entry["sourceInfo"] = {
+                    "type": entry.source_info.type,
+                    "tincId" : entry.source_info.tinc_id,
+                    "commandLineArguments" : entry.source_info.command_line_arguments,
+                    "workingPath" : {"relativePath":entry.source_info.working_path_rel,
+                                    "rootPath":entry.source_info.working_path_root},
+                    "arguments" : args,
+                    "dependencies" : deps,
+                    "fileDependencies" : fdeps
+                    }
+                # TODO compute CRC
+                #hash = str(zlib.crc32())
 
-            j["entries"].append(j_entry)
-        
-        with open(self._cache_dir + "/" + self._metadata_file, 'w') as f:
-            json.dump(j, f, indent=4)
+                j["entries"].append(j_entry)
+            
+            with open(self._cache_dir + "/" + self._metadata_file, 'w') as f:
+                json.dump(j, f, indent=4)
+        except:
+            print("ERROR writing cache entry metadata")
+            print(j)
+            traceback.print_exc()
         self._unlock()
 
     def dump(self):
         #print json metadata
         pass
 
-    # Implement file and mutex locking
     def _lock(self):
-        pass
+        # FIXME Implement file locking as well to protect cache metadata from multiple user access
+        self.mutex.acquire()
 
     def _unlock(self):
-        pass 
+        self.mutex.release()
 
 
 if __name__ == "__main__":

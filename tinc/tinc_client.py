@@ -231,9 +231,9 @@ class TincClient(object):
             new_param.ids = []
             new_param.values = space
             
-        self._register_parameter_on_server(new_param)
-
-        self.send_parameter_meta(new_param)
+        if self.connected:
+            self._register_parameter_on_server(new_param)
+            self.send_parameter_meta(new_param)
         
         return new_param
     
@@ -254,6 +254,8 @@ class TincClient(object):
         return new_param
     
     def send_parameter_value(self, param):
+        if not self.connected:
+            return
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.CONFIGURE
         msg.objectType = TincProtocol.PARAMETER
@@ -377,6 +379,8 @@ class TincClient(object):
         self._send_message(msg)
         
     def send_parameter_space(self, param):
+        if not self.connected:
+            return
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.CONFIGURE
         msg.objectType = TincProtocol.PARAMETER
@@ -786,6 +790,8 @@ class TincClient(object):
             print("Unexpected payload in Configure Datapool")
             
     def send_disk_buffer_current_filename(self, disk_buffer, filename):
+        if not self.connected:
+            return
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.CONFIGURE
         msg.objectType = TincProtocol.DISK_BUFFER
@@ -1150,6 +1156,9 @@ class TincClient(object):
         self.request_data_pools()
 
     def send_goodbye(self):
+        
+        if not self.connected:
+            return
         tp = TincProtocol.TincMessage()
         tp.messageType  = TincProtocol.GOODBYE
         tp.objectType = TincProtocol.GLOBAL

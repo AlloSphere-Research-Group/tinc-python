@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from sys import platform
 import traceback
 import numpy as np
 
@@ -9,6 +10,17 @@ from .tinc_object import TincObject
 from filelock import FileLock
 
 import netCDF4
+
+try:
+    from ipywidgets import interact, interactive, interact_manual
+    import ipywidgets as widgets
+except:
+    print("Can't import ipywidgets. Notebook widgets not available")
+
+try:
+    import matplotlib.pyplot as plt
+except:
+    print("Matplotlib not available. DiskBufferImage will not work.")
 
 DiskBufferType = {'BINARY':0, 'TEXT': 1, 'NETCDF': 2, 'JSON': 3, 'IMAGE': 4}
 
@@ -19,9 +31,14 @@ class DiskBuffer(TincObject):
         
         self._data = None
         self._base_filename:str = base_filename
+        
+        if not path == '':
+            if path[-1] != '\\' and path[-1] != "/":
+                path += '/'
+            if not os.path.exists(path):
+                os.makedirs(path)
+        
         self._path:str = path
-        if not path == '' and not os.path.exists(path):
-            os.makedirs(path)
         
         self._round_robin_size  = None
         self._round_robin_counter: int = 0
@@ -159,7 +176,7 @@ class DiskBuffer(TincObject):
         print(f" ** DiskBuffer: '{self.id}' type {self.type}")
         print(f'      path: {self._path} basename: {self._base_filename}')
     
-class JsonDiskBuffer(DiskBuffer):
+class DiskBufferJson(DiskBuffer):
     
     def __init__(self, tinc_id, base_filename, path = '', tinc_client = None):
         super().__init__(tinc_id, base_filename, path, tinc_client)
@@ -172,8 +189,6 @@ class JsonDiskBuffer(DiskBuffer):
     @data.setter
     def data(self, data):
         self._data = data
-        
-        # TODO implement file lock
         
         outname = self._make_next_filename()
         
@@ -219,6 +234,14 @@ class DiskBufferBinary(DiskBuffer):
     def data(self, data):
         pass
 
+    def _parse_file(self, filename):
+        with open(self.get_path() + filename) as fp:
+            return fp.read()
+        
+    def _write_from_array(self, array, filename):
+        with open(filename, 'wb') as outfile:
+            outfile.write(array)
+
 class DiskBufferText(DiskBuffer):
     def __init__(self, tinc_id, base_filename, path, tinc_client = None):
         super().__init__(tinc_id, base_filename, path, tinc_client)
@@ -235,13 +258,22 @@ class DiskBufferText(DiskBuffer):
     def _parse_file(self, filename):
         pass
 
+
+#### DiskBufferImage ###
 class DiskBufferImage(DiskBuffer):
     def __init__(self, tinc_id, base_filename, path, tinc_client = None):
         super().__init__(tinc_id, base_filename, path, tinc_client)
         self.type = DiskBufferType['IMAGE']
 
-    def set_image():
+    def write_pixels(self):
+        # TODO implement
         pass
+
+    def set_from_file(self, filename):
+        imagefile = open(filename, 'rb')
+        imagedata =  imagefile.read() # plt.imread(filename)
+        self._data = imagedata
+        return imagedata
 
     @property
     def data(self):
@@ -249,10 +281,49 @@ class DiskBufferImage(DiskBuffer):
 
     @data.setter
     def data(self, data):
-        pass
+        self._data = data
     
+        outname = self._make_next_filename()
+        
+        if self._file_lock:
+            self._lock = FileLock(self._path + outname + ".lock", timeout=1)
+            if self._lock.is_locked:
+                print("Locked " + outname)
+            self._lock.acquire()
+        try:
+            if type(data) == list:
+                self._write_from_array(data, self._path + outname)
+            if type(data) == np.ndarray:
+                self._write_from_array(data, self._path + outname)
+            if self.tinc_client and self.tinc_client.connected:
+                    self.tinc_client.send_disk_buffer_current_filename(self, outname)
+        except:
+            print("ERROR parsing data when writing disk buffer")
+            traceback.print_exc()
+        if self.tinc_client and self.tinc_client.connected:
+            self.tinc_client.send_disk_buffer_current_filename(self, outname)
+    
+        if self._file_lock:
+            self._lock.release()
+
+        if self._interactive_widget:
+            self._interactive_widget.value = data
+
+    def interactive_widget(self):
+        self._interactive_widget = widgets.Image(
+            #     value=image,
+                format='png',
+                width=300,
+                height=400,);
+        return self._interactive_widget
+
     def _parse_file(self, filename):
-        pass
+        with open(self.get_path() + filename) as fp:
+            return plt.imread(self.get_path() + filename)
+        
+    def _write_from_array(self, array, filename):
+        with open(filename, 'wb') as outfile:
+            plt.imwrite(outfile,array)
 
 class DiskBufferNetCDFData(DiskBuffer):
 

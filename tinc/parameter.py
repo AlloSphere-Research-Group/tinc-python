@@ -38,7 +38,6 @@ class parameter_space_representation_types(IntEnum):
     INDEX = 0x01
     ID = 0x02
 
-
 class Parameter(TincObject):
     def __init__(self, tinc_id: str, group = None, minimum: float = -99999.0, maximum: float = 99999.0, default_value: float = 0.0, tinc_client = None):
         # Should not change:tinc_id
@@ -293,7 +292,13 @@ class Parameter(TincObject):
         return True
         
     def set_from_internal_widget(self, value):
-        self._value = value
+        if len(self.values) > 0:
+            value = self._find_nearest(value)
+            if value == self._value:
+                return
+            self._value = value 
+        else:
+            self._value = value
         if self.tinc_client:
             self.tinc_client.send_parameter_value(self)
         self._trigger_callbacks(value)
@@ -324,10 +329,10 @@ class Parameter(TincObject):
         if len(self._values) > 0:
             for i in range(len(self._values) - 1):
                 if value < (self._values[i] + self._values[i + 1]) /2:
-                    return self._values[i]
-            return self._values[-1]
+                    return self._data_type(self._values[i])
+            return self._data_type(self._values[-1])
         else:
-            return value
+            return self._data_type(value)
             
     def interactive_widget(self):
         self._interactive_widget = interactive(self.set_from_internal_widget,

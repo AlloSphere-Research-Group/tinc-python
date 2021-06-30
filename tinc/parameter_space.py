@@ -5,6 +5,7 @@ Created on Tue Sep  1 17:13:15 2020
 @author: Andres
 """
 
+import threading
 from .tinc_object import TincObject
 from .cachemanager import CacheEntry, CacheManager, DistributedPath, FileDependency, SourceArgument, SourceInfo, UserInfo, VariantValue, VariantType
 from .parameter import Parameter
@@ -12,7 +13,7 @@ from threading import Lock
 
 import traceback
 import os
-import json
+import pickle
 
 import inspect, dis
 
@@ -26,6 +27,9 @@ class ParameterSpace(TincObject):
         self._process_lock = Lock()
         # self._local_current_path
         self._local_root_path = ''
+        self.debug = False
+        self.sweep_running = False
+        self.sweep_threads = []
         
     def register_parameters(self, params):
         for param in params:
@@ -136,8 +140,13 @@ class ParameterSpace(TincObject):
             return self.tinc_client._command_parameter_space_get_root_path(self, self.server_timeout)
         else:
             return self._local_root_path
-        
-    def sweep(self, function, params=None, force_values = False, dependencies = []):
+ 
+    def sweep(self, function, params=None, dependencies = [], force_recompute = False, force_values = False):
+        if self.sweep_running:
+            print("Sweep is already running")
+            return
+        self.sweep_running = True
+        print("sweep")
         if params is None or len(params) == 0:
             params = self._parameters
         else:
@@ -151,7 +160,7 @@ class ParameterSpace(TincObject):
                     print(f"Warning: Parameter p.get_osc_address() not registered with ParameterSpace")
 
         # TODO store metadata about function to know if we need to reprocess cache
-        if True:
+        if self.debug:
             print(dis.dis(function))
             print(inspect.getsource(function))
         
@@ -162,14 +171,14 @@ class ParameterSpace(TincObject):
         original_values = {p:p.value for p in params}
     
         done = False 
-        while not done:
+        while not done and self.sweep_running:
             if force_values:
                 for i,p in enumerate(params):
                     p.set_at(indeces[i])
-                self.run_process(function, params, dependencies)
+                self.run_process(function, params, dependencies, force_recompute)
             else:
                 sweep_values = {p.id:p.values[indeces[i]] for i, p in enumerate(params)}
-                self.run_process(function, sweep_values, dependencies)
+                self.run_process(function, sweep_values, dependencies, force_recompute)
             indeces[0] += 1
             current_p = 0
             while indeces[current_p] == index_max[current_p]:
@@ -185,7 +194,23 @@ class ParameterSpace(TincObject):
         if force_values:
             for p, orig_val in original_values.items():
                 p.value = orig_val
+        self.sweep_running = False
                 
+    
+    def sweep_async(self, function, args=None, dependencies = [], force_recompute = False, force_values = False,num_threads = 1):
+        self.sweep_threads.clear()
+        # FIXME self.sweep_running is set at the end of sweep(), so num_threads > 1 will not work correctly
+        # FIXME support num_threads > 1 by slicing parameter space 
+        for i in range(num_threads):
+            self.sweep_threads.append(threading.Thread(target=self.sweep, 
+                args=(function, args, dependencies, force_recompute, force_values)))
+            self.sweep_threads[-1].start()
+
+    def stop_sweep(self):
+        self.sweep_running = False
+        for th in self.sweep_threads:
+            th.join()
+        # TODO wait for sweep threads to end.
     
     def run_process(self, function, args = None, dependencies = [], force_recompute = False):
         # TODO add asynchronous mode
@@ -248,15 +273,19 @@ class ParameterSpace(TincObject):
                                             value = VariantValue(nctype = nctype,
                                                                 value = value)))
 
-             # TODO should we add a way to set file dependencies?  
-            # fdeps = []
-            # for fdep in entry["sourceInfo"]["fileDependencies"]:
-            #     fdeps.append(FileDependency(file = DistributedPath(filename = fdep["file"]["filename"],
-            #                                                         relative_path = fdep["file"]["relativePath"],
-            #                                                         root_path = fdep["file"]["rootPath"]),
-            #                                 modified = fdep["modified"],
-            #                                 size = fdep["size"],
-            #                                 ))
+            fdeps = []
+            if self.debug:
+                print(dis.dis(function))
+                print(inspect.getsource(function))
+            # TODO set filename and root path
+            fdeps.append(FileDependency(file = DistributedPath(filename = "",
+                                                                relative_path = os.getcwd(),
+                                                                root_path = "",
+                                                                protocol_id = "python"),
+                                            modified = "",
+                                            size = 0,
+                                            hash = ""
+                                            ))
             # TODO there needs to be a special character to avoid tinc id clashes for these auto generated
             # tinc ids. e.g. self.id + '@' + function.__name__. The disallow @ in all other tinc id names.
             # Perhaps use space? That is already disallowed because of OSC address limitations.
@@ -268,19 +297,18 @@ class ParameterSpace(TincObject):
                     working_path_root = "",
                     arguments = args,
                     dependencies = [],
-                    file_dependencies = [])
+                    file_dependencies = fdeps)
             if not force_recompute:
                 cache_filenames = self._cache_manager.find_cache(src_info, dependencies)
                 # TODO mark as stale if needed
                 try:
-                    # TODO use pickle instead of json.
                     for fname in cache_filenames:
                         cache_file_path = self._cache_manager.cache_directory() +"/" + fname
                         if os.path.exists(cache_file_path):
-                            with open(cache_file_path) as fp:
-                                out = json.load(fp)
-                                
-                                print(f"loaded cache: {cache_file_path}")
+                            with open(cache_file_path, 'rb') as f:
+                                out = pickle.load(f)
+                                if self.debug:
+                                    print(f"loaded cache: {cache_file_path}")
                                 return out
                                 # TODO increase cache hits
                         else:
@@ -295,11 +323,12 @@ class ParameterSpace(TincObject):
                 # FIXME write complete metadata 
                 try:
                     args_text = '_'.join([str(v) for v in calling_args.values()])
-                    filename = self.id + "_" + function.__name__ + "_" + args_text + "_cache.json"
+                    filename = self.id + "_" + function.__name__ + "_" + args_text + "_cache.pkl"
                     fullpath = self._cache_manager.cache_directory() + "/" + filename
-                    print("storing cache: " + fullpath)
-                    with open(fullpath, "w") as f:
-                        json.dump(out, f) 
+                    if self.debug:
+                        print("storing cache: " + fullpath)
+                    with open(fullpath, "wb") as f:
+                        pickle.dump(out, f)
                     entry = CacheEntry(timestamp_start='a',
                                     timestamp_end='b',
                                     files=[FileDependency(DistributedPath(filename))],
