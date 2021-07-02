@@ -7,7 +7,7 @@ print(setuptools.find_packages())
 
 setuptools.setup(
     name="tinc", 
-    version="0.9.14",
+    version="0.9.15",
     author="Andres Cabrera",
     author_email="acabrera@ucsb.edu",
     description="TINC python module",
@@ -21,7 +21,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     py_modules= ['tinc'],
-    install_requires=['numpy', 'matplotlib', 'filelock', 'netcdf4', "jsonschema", "protobuf"],
+    install_requires=['numpy', 'matplotlib', 'filelock', 'netcdf4', "jsonschema", "protobuf", "Pillow"],
     package_data = {"tinc" : ["tinc_cache_schema.json"]},
     python_requires='>=3.6',
 )

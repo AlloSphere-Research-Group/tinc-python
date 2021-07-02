@@ -10,6 +10,7 @@ from .tinc_object import TincObject
 from filelock import FileLock
 
 import netCDF4
+from PIL import Image
 
 try:
     from ipywidgets import interact, interactive, interact_manual
@@ -49,6 +50,7 @@ class DiskBuffer(TincObject):
         self._filename = ''
         
         self.tinc_client = tinc_client
+        self._interactive_widget = None
         pass
     
     def get_current_filename(self):
@@ -260,20 +262,19 @@ class DiskBufferText(DiskBuffer):
 
 
 #### DiskBufferImage ###
+# Data is a PIL.Image object
 class DiskBufferImage(DiskBuffer):
     def __init__(self, tinc_id, base_filename, path, tinc_client = None):
         super().__init__(tinc_id, base_filename, path, tinc_client)
         self.type = DiskBufferType['IMAGE']
 
-    def write_pixels(self):
-        # TODO implement
-        pass
+    def write_pixels(self, pixels):
+        self.data = pixels
 
     def set_from_file(self, filename):
-        imagefile = open(filename, 'rb')
-        imagedata =  imagefile.read() # plt.imread(filename)
-        self._data = imagedata
-        return imagedata
+        im = Image.open(filename)
+        self._data = im
+        return im
 
     @property
     def data(self):
@@ -281,7 +282,10 @@ class DiskBufferImage(DiskBuffer):
 
     @data.setter
     def data(self, data):
-        self._data = data
+        '''Data can be set as a python list, a numpy ndarray or a PIL.Image.
+        Data is always stored in memory as PIL.Image, which is what is returned
+        by the data property.
+        '''
     
         outname = self._make_next_filename()
         
@@ -292,22 +296,28 @@ class DiskBufferImage(DiskBuffer):
             self._lock.acquire()
         try:
             if type(data) == list:
-                self._write_from_array(data, self._path + outname)
-            if type(data) == np.ndarray:
-                self._write_from_array(data, self._path + outname)
+                nparray = np.asarray(data)
+                im = Image.fromarray(nparray.astype(np.uint8))
+                self._data = im
+                im.save(self._path + outname)
+            elif type(data) == np.ndarray:
+                im = Image.fromarray(data)
+                self._data = im
+                im.save(self._path + outname)
+            elif type(data) == Image:
+                data.save(self._path + outname)
+                self._data = data
+            if self._interactive_widget:
+                self._interactive_widget.value = data
             if self.tinc_client and self.tinc_client.connected:
                     self.tinc_client.send_disk_buffer_current_filename(self, outname)
         except:
             print("ERROR parsing data when writing disk buffer")
             traceback.print_exc()
-        if self.tinc_client and self.tinc_client.connected:
-            self.tinc_client.send_disk_buffer_current_filename(self, outname)
     
         if self._file_lock:
             self._lock.release()
 
-        if self._interactive_widget:
-            self._interactive_widget.value = data
 
     def interactive_widget(self):
         self._interactive_widget = widgets.Image(
@@ -318,12 +328,7 @@ class DiskBufferImage(DiskBuffer):
         return self._interactive_widget
 
     def _parse_file(self, filename):
-        with open(self.get_path() + filename) as fp:
-            return plt.imread(self.get_path() + filename)
-        
-    def _write_from_array(self, array, filename):
-        with open(filename, 'wb') as outfile:
-            plt.imwrite(outfile,array)
+        return Image.open(self.get_path() + filename)
 
 class DiskBufferNetCDFData(DiskBuffer):
 
