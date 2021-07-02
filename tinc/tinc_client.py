@@ -8,7 +8,7 @@ from threading import Lock
 
 # TINC imports
 from .parameter import Parameter, ParameterString, ParameterInt, ParameterChoice, ParameterBool, ParameterColor, Trigger, ParameterVec
-from .processor import CppProcessor, ScriptProcessor, ComputationChain
+from .processor import ProcessorCpp, ProcessorScript, ComputationChain
 from .datapool import DataPool
 from .parameter_space import ParameterSpace
 from .disk_buffer import *
@@ -56,7 +56,7 @@ class TincClient(object):
         self._barrier_queues_lock = Lock()
         self._barrier_requests = []
         self._barrier_unlocks = []
-        self.barrierWaitGranularTimeMs = 20;
+        self.barrier_wait_granular_time_ms = 20
         
         self.server_version = 0
         self.server_revision = 0
@@ -136,8 +136,8 @@ class TincClient(object):
                     self._barrier_queues_lock.release()
                     break
                 self._barrier_queues_lock.release()
-            time.sleep(self.barrierWaitGranularTimeMs* 0.001)
-            timems += self.barrierWaitGranularTimeMs
+            time.sleep(self.barrier_wait_granular_time_ms* 0.001)
+            timems += self.barrier_wait_granular_time_ms
                         
         if timems > (timeout_sec * 1000) and timeout_sec != 0.0:
             # Timeout.
@@ -154,8 +154,8 @@ class TincClient(object):
                 
                 self._barrier_queues_lock.release()
             
-            time.sleep(self.barrierWaitGranularTimeMs* 0.001)
-            timems += self.barrierWaitGranularTimeMs
+            time.sleep(self.barrier_wait_granular_time_ms* 0.001)
+            timems += self.barrier_wait_granular_time_ms
             
         print("Exit client barrier")
         return timems < (timeout_sec * 1000) or timeout_sec == 0
@@ -632,9 +632,9 @@ class TincClient(object):
             # print(running_dir)
             
             if processor_type == TincProtocol.CPP:
-                new_processor = CppProcessor(proc_id, input_dir, input_files, output_dir, output_files, running_dir)
+                new_processor = ProcessorCpp(proc_id, input_dir, input_files, output_dir, output_files, running_dir)
             elif processor_type ==  TincProtocol.DATASCRIPT:
-                new_processor = ScriptProcessor(proc_id, input_dir, input_files, output_dir, output_files, running_dir)
+                new_processor = ProcessorScript(proc_id, input_dir, input_files, output_dir, output_files, running_dir)
             elif processor_type == TincProtocol.CHAIN:
                 new_processor = ComputationChain(proc_id, input_dir, input_files, output_dir, output_files, running_dir)
             else:
@@ -770,6 +770,8 @@ class TincClient(object):
             print("Unexpected payload in Register DiskBuffer")
     
     def configure_disk_buffer(self, details):
+        if self.debug:
+            print("Processing Configure disk buffer")
         if details.Is(TincProtocol.ConfigureDiskBuffer.DESCRIPTOR):
             db_details = TincProtocol.ConfigureDiskBuffer()
             details.Unpack(db_details)
@@ -803,7 +805,7 @@ class TincClient(object):
         value.valueString = filename
         config.configurationValue.Pack(value)
         msg.details.Pack(config)
-        # print("send")
+        print("sent disk buffer filename: " + filename)
         self._send_message(msg)
 
 # ------------------------------------------------------
