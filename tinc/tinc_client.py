@@ -787,8 +787,8 @@ class TincClient(object):
                                 db._data = None
                                 db._filename = ''
                             else:
-                                db._parse_file(value.valueString)
-                                db._filename = value.valueString
+                                db.load_data(value.valueString, False)
+
         else:
             print("Unexpected payload in Configure Datapool")
             

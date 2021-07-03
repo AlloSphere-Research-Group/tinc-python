@@ -48,6 +48,8 @@ class DiskBuffer(TincObject):
         self._lock = None
         
         self._filename = ''
+
+        self.type = None # Set this in all derived classes
         
         self.tinc_client = tinc_client
         self._interactive_widget = None
@@ -56,12 +58,13 @@ class DiskBuffer(TincObject):
     def get_current_filename(self):
         return self._filename
     
-    def load_data(self, filename):
+    def load_data(self, filename, notify = True):
         if filename == '':
             self._data = None
             self._filename = ''
+            return
         self._data = self._parse_file(filename)
-        self.done_writing_file(filename)
+        self.done_writing_file(filename, notify)
         # TODO implement update callbacks
     
     def get_base_filename(self):
@@ -131,13 +134,13 @@ class DiskBuffer(TincObject):
         self.outname = outname
         return self._path + outname
     
-    def done_writing_file(self, filename: str =''):
+    def done_writing_file(self, filename: str ='', notify = True):
         # print(filename)
         if self._path == '' or filename.find(self._path) == 0:
             filename = filename[len(self._path):]
 
         self._filename = filename
-        if self.tinc_client:
+        if notify and self.tinc_client:
             self.tinc_client.send_disk_buffer_current_filename(self, filename)
             
         if self._file_lock:
@@ -271,11 +274,6 @@ class DiskBufferImage(DiskBuffer):
     def write_pixels(self, pixels):
         self.data = pixels
 
-    def set_from_file(self, filename):
-        im = Image.open(filename)
-        self._data = im
-        return im
-
     @property
     def data(self):
         return self._data
@@ -328,6 +326,7 @@ class DiskBufferImage(DiskBuffer):
         return self._interactive_widget
 
     def _parse_file(self, filename):
+        print(f'parsing: {self.get_path() + filename}')
         return Image.open(self.get_path() + filename)
 
 class DiskBufferNetCDFData(DiskBuffer):
@@ -405,7 +404,5 @@ class DiskBufferNetCDFData(DiskBuffer):
         # print(self.get_path())
         # print(filename)
         f = netCDF4.Dataset(self.get_path() +filename, mode='r')
-        self._data = np.array(f.variables["data"][:])
-        f.close()
-        self._filename = filename
+        return np.array(f.variables["data"][:])
     
