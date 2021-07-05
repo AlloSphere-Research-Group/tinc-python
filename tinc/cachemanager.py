@@ -83,6 +83,7 @@ class CacheManager(object):
         self._metadata_file = metadata_file
         self._validator = None
         self._entries = []
+        self.debug = False
         self.mutex = threading.Lock()
         try:
             schema_path = os.path.join(
@@ -189,7 +190,8 @@ class CacheManager(object):
                                 self._unlock()
                                 return
                     except:
-                        traceback.print_exc()
+                        if self.debug:
+                            traceback.print_exc()
                         print("Metadata file is not a TINC cache file. Ignoring.")
                         self._unlock()
                         return
