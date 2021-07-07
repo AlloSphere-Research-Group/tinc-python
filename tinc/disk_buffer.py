@@ -132,7 +132,12 @@ class DiskBuffer(TincObject):
         else:
             outname = self._make_next_filename()
         self.outname = outname
-        return self._path + outname
+        file_path = ' '
+        if self.tinc_client:
+            file_path = self.tinc_client._working_path
+
+        file_path += self._path + outname
+        return file_path
     
     def done_writing_file(self, filename: str ='', notify = True):
         # print(filename)

@@ -8,6 +8,7 @@ Created on Tue Sep  1 15:47:46 2020
 from .tinc_object import TincObject
 
 import netCDF4
+import os
 
 class DataPool(TincObject):
     def __init__(self, tinc_id = "_", parameter_space_id = '', slice_cache_dir = '', tinc_client = None):
@@ -23,7 +24,14 @@ class DataPool(TincObject):
             print("Datapool get_slice not implemented without connection")
             return None
         slice_file = self.tinc_client._command_datapool_slice_file(self.id, field, sliceDimensions, self.server_timeout)
-        nc = netCDF4.Dataset(self.slice_cache_dir + slice_file)
+        if os.path.isabs(self.slice_cache_dir):
+            slice_path = self.slice_cache_dir
+        else:
+            slice_path = self.tinc_client._working_path + self.slice_cache_dir
+
+        if not os.path.exists(slice_path):
+            os.makedirs(slice_path)
+        nc = netCDF4.Dataset(slice_path + slice_file)
         # print(nc.variables.keys())
         return nc.variables['data'][:]
     
