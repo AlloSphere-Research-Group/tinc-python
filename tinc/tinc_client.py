@@ -811,17 +811,21 @@ class TincClient(object):
 # ------------------------------------------------------
     def _process_object_command_reply(self, message):
         command_details = TincProtocol.Command()
+        
         self._log.append("Reply")
         if message.details.Is(TincProtocol.Command.DESCRIPTOR):
             message.details.Unpack(command_details)
             
             message_id = command_details.message_id
             # TODO we should verify the object id somehow
+            if self.debug:
+                print(f"**** Got reply for id {message_id} before lock")
+            
             try:
                 with self.pending_requests_lock:
                     
                     if self.debug:
-                        print(f"**** Got reply for id {message_id}")
+                        print(f"**** Got reply for id {message_id} after lock")
                     self._log.append(f"Got reply for id {message_id}")
                     command_data = self.pending_requests.pop(message_id)
                 with self.pending_lock:
@@ -906,7 +910,14 @@ class TincClient(object):
             status_details = TincProtocol.StatusMessage()
             details.Unpack(status_details)
             self._server_status =  status_details.status
-        pass
+    
+    def _process_working_path(self, message):
+        details = message.details
+        if details.Is(TincProtocol.TincPath.DESCRIPTOR):
+            path_details = TincProtocol.TincPath()
+            details.Unpack(path_details)
+            self._working_path =  path_details.path
+            print("Set working path to " + self._working_path)
         
     # Send request commands
         
@@ -1097,6 +1108,8 @@ class TincClient(object):
         command.details.Pack(slice_details)
         msg.details.Pack(command)
         
+        if self.debug:
+            print(f"command datapools send command {command.message_id}")
         # TODO check possible race condiiton in pending_requests count
         self.pending_requests[command.message_id] = [datapool_id]
 
@@ -1132,12 +1145,14 @@ class TincClient(object):
         msg.details.Pack(command)
         
         # TODO check possible race condiiton in pending_requests count
-        
+        if self.debug:
+            print(f"command datapools send command {command.message_id}")
         self.pending_requests[command.message_id] = [datapool_id]
 
         self._send_message(msg)
             
-        # print(f"Sent command: {request_number}")
+        if self.debug:
+            print(f"Sent datapool get files command: {request_number}")
         try:
             command_details, user_data = self._wait_for_reply(request_number, timeout)
         except TincTimeout as tm:
@@ -1294,6 +1309,8 @@ class TincClient(object):
                             self._process_barrier_unlock(pc_message)
                         elif pc_message.messageType == TincProtocol.STATUS:
                             self._process_status(pc_message)
+                        elif pc_message.messageType == TincProtocol.TINC_WORKING_PATH:
+                            self._process_working_path(pc_message)
                         else:
                             print("Unknown message")
                         al_message = al_message[message_size + 8:]
