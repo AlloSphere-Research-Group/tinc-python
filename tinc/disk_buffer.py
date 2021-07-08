@@ -63,8 +63,13 @@ class DiskBuffer(TincObject):
             self._data = None
             self._filename = ''
             return
-        self._data = self._parse_file(filename)
-        self.done_writing_file(filename, notify)
+            
+        if os.path.isabs(filename):
+            file_path = filename
+        else:
+            file_path = self.get_path() + filename
+        self._data = self._parse_file(file_path)
+        self.done_writing_file(file_path, notify)
         # TODO implement update callbacks
     
     def get_base_filename(self):
@@ -223,8 +228,8 @@ class DiskBufferJson(DiskBuffer):
         if self._file_lock:
             self._lock.release()
             
-    def _parse_file(self, filename):
-        with open(self.get_path() + filename) as fp:
+    def _parse_file(self, file_path):
+        with open(file_path) as fp:
             return json.load(fp)
         
     def _write_from_array(self, array, filename):
@@ -244,8 +249,8 @@ class DiskBufferBinary(DiskBuffer):
     def data(self, data):
         pass
 
-    def _parse_file(self, filename):
-        with open(self.get_path() + filename) as fp:
+    def _parse_file(self, file_path):
+        with open(file_path, 'rb') as fp:
             return fp.read()
         
     def _write_from_array(self, array, filename):
@@ -265,8 +270,9 @@ class DiskBufferText(DiskBuffer):
     def data(self, data):
         pass
 
-    def _parse_file(self, filename):
-        pass
+    def _parse_file(self, file_path):
+        with open(file_path, 'r') as fp:
+            return fp.read()
 
 
 #### DiskBufferImage ###
@@ -330,9 +336,9 @@ class DiskBufferImage(DiskBuffer):
                 height=400,);
         return self._interactive_widget
 
-    def _parse_file(self, filename):
-        print(f'parsing: {self.get_path() + filename}')
-        return Image.open(self.get_path() + filename)
+    def _parse_file(self, file_path):
+        print(f'parsing: {file_path}')
+        return Image.open(file_path)
 
 class DiskBufferNetCDFData(DiskBuffer):
 
@@ -403,11 +409,11 @@ class DiskBufferNetCDFData(DiskBuffer):
             self._lock.release()
 
 
-    def _parse_file(self, filename):
+    def _parse_file(self, file_path):
         # TODO being called twice on startup. investigate
         
         # print(self.get_path())
         # print(filename)
-        f = netCDF4.Dataset(self.get_path() +filename, mode='r')
+        f = netCDF4.Dataset(file_path, mode='r')
         return np.array(f.variables["data"][:])
     
