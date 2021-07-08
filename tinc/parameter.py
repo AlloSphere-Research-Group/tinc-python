@@ -362,11 +362,27 @@ class Parameter(TincObject):
         self._value_callbacks.append(f)
         if not synchronous:
             self._async_callbacks.append(f)
+        else:
+            # TODO ML add all API functions that call into _command functions in the TincClient
+            import dis
+            from tinc import DataPool, ParameterSpace, DiskBuffer
+            bytecode = dis.Bytecode(f)
+            for instr in bytecode:
+                if instr.opname == 'LOAD_METHOD':
+                    if instr.argval == 'get_slice':
+                        print('''WARNING: calling certain Tinc functions inside callbacks can cause deadlocks and Timeout.
+If this is happening use asynchronous callbacks by setting synchrouns to False when registering callback''' )
     
     
     def register_callback_async(self, f):
         self.register_callback(f, False)
-        
+    
+    def remove_callback(self, f):
+        if self._value_callbacks.count(f) > 0:
+            self._value_callbacks.remove(f)
+        if self._async_callbacks.count(f) > 0:
+            self._async_callbacks.remove(f)
+
     def clear_callbacks(self):
         self._value_callbacks = []
         
