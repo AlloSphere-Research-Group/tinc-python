@@ -146,7 +146,6 @@ class ParameterSpace(TincObject):
             print("Sweep is already running")
             return
         self.sweep_running = True
-        print("sweep")
         if params is None or len(params) == 0:
             params = self._parameters
         else:
