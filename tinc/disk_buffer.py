@@ -348,7 +348,9 @@ class DiskBufferNetCDFData(DiskBuffer):
         self.enable_round_robin()
         self._attrs = {}
 
-    def write_from_array(self, array, filename, attributes = {}):
+    def write_from_array(self, array, filename = None, attributes = {}):
+        if not filename:
+            filename = self._make_next_filename()
         # TODO more flexible data types
         datatype = np.float32
         outfile = netCDF4.Dataset(self.get_path() + filename, mode='w', format='NETCDF4')
