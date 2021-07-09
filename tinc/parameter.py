@@ -14,6 +14,7 @@ import numpy as np
 import threading
 import traceback
 from enum import IntEnum
+import re
 
 # used in set_XXX_from_message 
 from . import tinc_protocol_pb2 as TincProtocol
@@ -54,6 +55,7 @@ class Parameter(TincObject):
         self._values = []
         self._space_repr_type = parameter_space_representation_types.VALUE
         self._space_data_type = VariantType.VARIANT_FLOAT
+        self._min_space_diff = 0
         
         # Internal
         self._interactive_widget = None
@@ -146,9 +148,9 @@ class Parameter(TincObject):
             self.tinc_client.send_parameter_space(self)
             
     def set_values(self, values):
-        # TODO sort values before storing
-        self._values = values
         if len(values) > 0:
+            self._values = np.sort(values)
+            self._min_space_diff = np.min(np.diff(values))
             if type(values) == list:
                     if type(values[0]) == int:
                         self._space_data_type = VariantType.VARIANT_INT32
@@ -179,16 +181,21 @@ class Parameter(TincObject):
                     self._space_data_type = VariantType.VARIANT_UINT64
                 else:
                     raise ValueError("Unsupported numpy data type")
+            try:
+                self._minimum = min(self._values)
+                self._maximum = max(self._values)
+                if self.value < self.minimum:
+                    self.value = self.minimum
+                if self.value > self.maximum:
+                    self.value = self.maximum
+            except:
+                print("Error setting min and max from space values")
+        else:
+            self._values = values
+            self._min_space_diff = 0
 
-        try:
-            self._minimum = min(self._values)
-            self._maximum = max(self._values)
-            if self.value < self.minimum:
-                self.value = self.minimum
-            if self.value > self.maximum:
-                self.value = self.maximum
-        except:
-            print("Error setting min and max from space values")
+        if self._interactive_widget:
+            self._configure_widget(self._interactive_widget.children[0])
         if self.tinc_client:
             self.tinc_client.send_parameter_space(self)
             
@@ -200,12 +207,16 @@ class Parameter(TincObject):
             print("Unsupported space type: " + str(space_type))
             
     def set_minimum(self, minimum):
-        self._minimum = minimum   
+        self._minimum = minimum 
+        if self._interactive_widget:
+            self._configure_widget(self._interactive_widget.children[0])  
         if self.tinc_client:
             self.tinc_client.send_parameter_meta(self, fields=("minimum"))
         
     def set_maximum(self, maximum):
         self._maximum = maximum 
+        if self._interactive_widget:
+            self._configure_widget(self._interactive_widget.children[0])
         if self.tinc_client:
             self.tinc_client.send_parameter_meta(self, fields= ("maximum"))  
     
@@ -265,6 +276,11 @@ class Parameter(TincObject):
                 self._values[i] = v.valueBool
             else:
                 print("ERROR: Unexpected value type in parameter space message " + str(v.nctype))
+        
+        self._min_space_diff = np.min(np.diff(self._values))
+        if self._interactive_widget:
+            self._configure_widget(self._interactive_widget)
+        
         return True
     
     def set_space_representation_type_from_message(self, message):
@@ -282,6 +298,8 @@ class Parameter(TincObject):
         message.Unpack(value)
         # print(f"min {value.valueFloat}")
         self._minimum = value.valueFloat
+        if self._interactive_widget:
+            self._configure_widget(self._interactive_widget.children[0])
         return True
         
     def set_max_from_message(self, message):
@@ -289,6 +307,8 @@ class Parameter(TincObject):
         message.Unpack(value)
         # print(f"max {value.valueFloat}")
         self._maximum = value.valueFloat
+        if self._interactive_widget:
+            self._configure_widget(self._interactive_widget.children[0])
         return True
         
     def set_from_internal_widget(self, value):
@@ -299,6 +319,7 @@ class Parameter(TincObject):
             self._value = value 
         else:
             self._value = value
+        self._interactive_widget.children[0].value = self._data_type(value)
         if self.tinc_client:
             self.tinc_client.send_parameter_value(self)
         self._trigger_callbacks(value)
@@ -335,18 +356,19 @@ class Parameter(TincObject):
             return self._data_type(value)
             
     def interactive_widget(self):
-        self._interactive_widget = interactive(self.set_from_internal_widget,
-                value=widgets.FloatSlider(
-                value=self._value,
-                min=self.minimum,
-                max=self.maximum,
-                description=self.id,
-                disabled=False,
-                continuous_update=True,
-                orientation='horizontal',
-                readout=True,
-                readout_format='.3f',
-            ));
+        if self._interactive_widget is None:
+            self._interactive_widget = interactive(self.set_from_internal_widget,
+                    value=widgets.FloatSlider(
+                    value=self._value,
+                    min=self.minimum,
+                    max=self.maximum,
+                    description=self.id,
+                    disabled=False,
+                    continuous_update=True,
+                    orientation='horizontal',
+                    readout=True
+                ));
+            self._configure_widget(self._interactive_widget.children[0])
         return self._interactive_widget
     
     def register_callback(self, f, synchronous = True):
@@ -373,7 +395,18 @@ class Parameter(TincObject):
                         print('''WARNING: calling certain Tinc functions inside callbacks can cause deadlocks and Timeout.
 If this is happening use asynchronous callbacks by setting synchrouns to False when registering callback''' )
     
-    
+    def _configure_widget(self, widget):
+        min_step = self._min_space_diff
+        if min_step == 0:
+            min_step = (self._maximum - self._minimum) /100
+        num_zeros = np.floor(np.abs(np.log10(min_step)))
+        format = f'.{int(num_zeros)}f'
+        
+        widget.min = self._minimum
+        widget.max = self._maximum
+        widget.readout_format = format
+        widget.step = min_step
+
     def register_callback_async(self, f):
         self.register_callback(f, False)
     
@@ -469,6 +502,14 @@ class ParameterString(Parameter):
         # # print(f"max {value.valueFloat}")
         # self.maximum = value.valueString
         return True
+        
+    def set_values(self, values):
+        self._values = values
+        self._space_data_type = VariantType.VARIANT_STRING
+        # TODO validate that space is string
+
+        if self.tinc_client:
+            self.tinc_client.send_parameter_space(self)
     
     def interactive_widget(self):
         self._interactive_widget = interactive(self.set_from_internal_widget,
