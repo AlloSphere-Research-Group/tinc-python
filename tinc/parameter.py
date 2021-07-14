@@ -55,7 +55,6 @@ class Parameter(TincObject):
         self._values = []
         self._space_repr_type = parameter_space_representation_types.VALUE
         self._space_data_type = VariantType.VARIANT_FLOAT
-        self._min_space_diff = 0
         
         # Internal
         self._interactive_widget = None
@@ -150,7 +149,6 @@ class Parameter(TincObject):
     def set_values(self, values):
         if len(values) > 0:
             self._values = np.sort(values)
-            self._min_space_diff = np.min(np.diff(values))
             if type(values) == list:
                     if type(values[0]) == int:
                         self._space_data_type = VariantType.VARIANT_INT32
@@ -192,7 +190,6 @@ class Parameter(TincObject):
                 print("Error setting min and max from space values")
         else:
             self._values = values
-            self._min_space_diff = 0
 
         if self._interactive_widget:
             self._configure_widget(self._interactive_widget.children[0])
@@ -277,7 +274,6 @@ class Parameter(TincObject):
             else:
                 print("ERROR: Unexpected value type in parameter space message " + str(v.nctype))
         
-        self._min_space_diff = np.min(np.diff(self._values))
         if self._interactive_widget:
             self._configure_widget(self._interactive_widget)
         
@@ -396,10 +392,17 @@ class Parameter(TincObject):
 If this is happening use asynchronous callbacks by setting synchrouns to False when registering callback''' )
     
     def _configure_widget(self, widget):
-        min_step = self._min_space_diff
-        if min_step == 0:
+        if len(self._values) > 1:
+            min_step = np.min(np.diff(self._values))
+        else:
             min_step = (self._maximum - self._minimum) /100
         num_zeros = np.floor(np.abs(np.log10(min_step)))
+
+        # Heuristics to determine display presicion
+        temp_val = min_step * 10**(num_zeros + 1)
+        while np.abs(temp_val - int(temp_val)) > 0.000001 and num_zeros < 7:
+            num_zeros += 1
+            temp_val = min_step * 10**(num_zeros + 1)
         format = f'.{int(num_zeros)}f'
         
         widget.min = self._minimum

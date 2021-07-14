@@ -74,7 +74,7 @@ class ProcessorScript(Processor):
             return True
 
         if self.debug:
-            print("Starting ProcessorScript '{self.}'")
+            print("Starting ProcessorScript '{self.id}'")
     
     def print(self):
         print(f"*** ProcessorScript : {self.id}")
