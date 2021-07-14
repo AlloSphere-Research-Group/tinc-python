@@ -399,10 +399,10 @@ If this is happening use asynchronous callbacks by setting synchrouns to False w
         num_zeros = np.floor(np.abs(np.log10(min_step)))
 
         # Heuristics to determine display presicion
-        temp_val = min_step * 10**(num_zeros + 1)
+        temp_val = min_step * 10**(num_zeros)
         while np.abs(temp_val - int(temp_val)) > 0.000001 and num_zeros < 7:
             num_zeros += 1
-            temp_val = min_step * 10**(num_zeros + 1)
+            temp_val = min_step * 10**(num_zeros)
         format = f'.{int(num_zeros)}f'
         
         widget.min = self._minimum
