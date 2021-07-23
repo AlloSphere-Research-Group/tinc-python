@@ -82,7 +82,8 @@ class PresetHandler(object) :
                         elif parts[1] == 'i':
                             p.set_value(int(parts[2]))
                         elif parts[1] == 's':
-                            p.set_value(parts[2])
+                            # FIXME support spaces in string
+                            p.set_value(parts[2][1:-1])
         return True
 
     def rename_preset(self, name, new_name):
@@ -170,8 +171,18 @@ class PresetHandler(object) :
         # TODO check for overwrite
         with open(path, 'w') as f:
             for v in values.items():
+                line = f"{v[0]} "
                 # TODO support parameters with more than one value (e.g. color)
-                f.write(f"{v[0]} f {v[1]}\n")
+                if type(v[1]) == float: 
+                    line += f'f {v[1]}\n'
+                elif type(v[1]) == int: 
+                    line += f'i {v[1]}\n'
+                elif type(v[1]) == str: 
+                    line += f's "{v[1]}"\n'
+                else:
+                    print("Unsupported type for preset")
+                    continue
+                f.write(line)
             f.write("::\n")
         
 

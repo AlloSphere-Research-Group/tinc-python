@@ -577,12 +577,47 @@ class ParameterInt(Parameter):
         self._maximum = value.valueInt32
         return True
     
+    def interactive_widget(self):
+        if self._interactive_widget is None:
+            self._interactive_widget = interactive(self.set_from_internal_widget,
+                    value=widgets.FloatSlider(
+                    value=self._value,
+                    min=self.minimum,
+                    max=self.maximum,
+                    description=self.id,
+                    disabled=False,
+                    continuous_update=True,
+                    orientation='horizontal',
+                    readout=True,
+                    step =1
+                ));
+            self._configure_widget(self._interactive_widget.children[0])
+            
+        return self._interactive_widget
+    
+    def _configure_widget(self, widget):
+        if len(self._values) > 1:
+            min_step = np.min(np.diff(self._values))
+        else:
+            min_step = 1
+        num_zeros = np.floor(np.abs(np.log10(min_step)))
+
+        # Heuristics to determine display precision
+        temp_val = min_step * 10**(num_zeros)
+        while np.abs(temp_val - int(temp_val)) > 0.000001 and num_zeros < 7:
+            num_zeros += 1
+            temp_val = min_step * 10**(num_zeros)
+        format = f'.{int(num_zeros)}f'
+        
+        widget.min = self._minimum
+        widget.max = self._maximum
+        widget.readout_format = format
+        widget.step = min_step
+    
 class ParameterChoice(Parameter):
     def __init__(self, tinc_id: str, group: str = "", minimum: int = 0, maximum: int = 127, default_value: int = 0, tinc_client = None):
         super().__init__(tinc_id, group, minimum = minimum, maximum = maximum, default_value = default_value, tinc_client = tinc_client)
 
-        
-        
     def _init(self, default_value):
         self._data_type = int
         self.default = default_value
@@ -590,6 +625,20 @@ class ParameterChoice(Parameter):
             self.default = 0
         self._value = self.default
         self.elements = []
+        
+    def set_value(self, value):
+        if value < self._minimum:
+            value = self._minimum
+        if value > self._maximum:
+            value = self._maximum
+        value = self._find_nearest(value)
+            
+        self._value = self._data_type(value)
+        if self.tinc_client:
+            self.tinc_client.send_parameter_value(self)
+        if self._interactive_widget:
+            self._interactive_widget.children[0].value = self.elements[value]
+        self._trigger_callbacks(self._value)
         
     def set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
@@ -631,6 +680,8 @@ class ParameterChoice(Parameter):
 
     def set_elements(self, elements):
         self.elements = elements
+        if self._interactive_widget is not None:
+            self._configure_widget(self._interactive_widget.children[0])
         
     def get_current_elements(self):
         b = self._value
@@ -640,6 +691,36 @@ class ParameterChoice(Parameter):
                 current.append(e)
             b = b >> 1
         return current
+    
+    def interactive_widget(self):
+        if self._interactive_widget is None:
+            self._interactive_widget = interactive(self.set_from_internal_widget,
+                    widget_value=widgets.Dropdown(
+                        options = [],
+                        description = self.id,
+                        disabled = False
+                ));
+            self._configure_widget(self._interactive_widget.children[0])
+        return self._interactive_widget
+    
+    def _configure_widget(self, widget):
+        widget.options = self.elements
+            
+    def set_from_internal_widget(self, widget_value):
+        # if len(self.values) > 0:
+        #     value = self._find_nearest(value)
+        #     if value == self._value:
+        #         return
+        #     self._value = value 
+        # else:
+        try:
+            self._value = self.elements.index(widget_value)
+            self._interactive_widget.children[0].value = widget_value
+            if self.tinc_client:
+                self.tinc_client.send_parameter_value(self)
+            self._trigger_callbacks(self._value)
+        except:
+            print(f'Invalid value: {widget_value}')
 
 class ParameterColor(Parameter):
     # TODO merge color with ParameterVec, make ParameterColor sub class of ParameterVec
