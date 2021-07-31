@@ -82,7 +82,7 @@ class PresetHandler(object) :
                         elif parts[1] == 'i':
                             p.set_value(int(parts[2]))
                         elif parts[1] == 's':
-                            # FIXME support spaces in string
+                            # FIXME support whitespace in string
                             p.set_value(parts[2][1:-1])
         return True
 

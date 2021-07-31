@@ -1,6 +1,6 @@
 
 try:
-    from ipywidgets import interact, interactive, interact_manual
+    from ipywidgets import interact, interactive, interact_manual, HBox
     import ipywidgets as widgets
 except:
     print("Can't import ipywidgets. Notebook widgets not available")
@@ -58,6 +58,7 @@ class Parameter(TincObject):
         
         # Internal
         self._interactive_widget = None
+        self._control_widget = None
         self._value_callbacks = []
         self._async_callbacks = []
         self._init(default_value)
@@ -133,8 +134,11 @@ class Parameter(TincObject):
         self._value = self._data_type(value)
         if self.tinc_client:
             self.tinc_client.send_parameter_value(self)
-        if self._interactive_widget:
-            self._interactive_widget.children[0].value = self._data_type(value)
+        if self._interactive_widget is not None:
+            self._interactive_widget.children[0].value = self._value
+            
+        if self._control_widget is not None:
+            self._control_widget.children[1].value = str(self._value)
         self._trigger_callbacks(self._value)
             
     def set_at(self, index):
@@ -191,8 +195,7 @@ class Parameter(TincObject):
         else:
             self._values = values
 
-        if self._interactive_widget:
-            self._configure_widget(self._interactive_widget.children[0])
+        self._configure_widget()
         if self.tinc_client:
             self.tinc_client.send_parameter_space(self)
             
@@ -206,14 +209,14 @@ class Parameter(TincObject):
     def set_minimum(self, minimum):
         self._minimum = minimum 
         if self._interactive_widget:
-            self._configure_widget(self._interactive_widget.children[0])  
+            self._configure_widget()  
         if self.tinc_client:
             self.tinc_client.send_parameter_meta(self, fields=("minimum"))
         
     def set_maximum(self, maximum):
         self._maximum = maximum 
         if self._interactive_widget:
-            self._configure_widget(self._interactive_widget.children[0])
+            self._configure_widget()
         if self.tinc_client:
             self.tinc_client.send_parameter_meta(self, fields= ("maximum"))  
     
@@ -228,8 +231,11 @@ class Parameter(TincObject):
         if not self._value == value.valueFloat:
             self._value = self._data_type(value.valueFloat)
 
-            if self._interactive_widget:
-                self._interactive_widget.children[0].value = self._data_type(value.valueFloat)
+            if self._interactive_widget is not None:
+                self._interactive_widget.children[0].value = self._value
+                
+            if self._control_widget is not None:
+                self._control_widget.children[1].value = str(self._value)
             self._trigger_callbacks(self._value)
         return True
 
@@ -274,8 +280,7 @@ class Parameter(TincObject):
             else:
                 print("ERROR: Unexpected value type in parameter space message " + str(v.nctype))
         
-        if self._interactive_widget:
-            self._configure_widget(self._interactive_widget)
+        self._configure_widget()
         
         return True
     
@@ -295,7 +300,7 @@ class Parameter(TincObject):
         # print(f"min {value.valueFloat}")
         self._minimum = value.valueFloat
         if self._interactive_widget:
-            self._configure_widget(self._interactive_widget.children[0])
+            self._configure_widget()
         return True
         
     def set_max_from_message(self, message):
@@ -304,7 +309,7 @@ class Parameter(TincObject):
         # print(f"max {value.valueFloat}")
         self._maximum = value.valueFloat
         if self._interactive_widget:
-            self._configure_widget(self._interactive_widget.children[0])
+            self._configure_widget()
         return True
         
     def set_from_internal_widget(self, value):
@@ -316,6 +321,9 @@ class Parameter(TincObject):
         else:
             self._value = value
         self._interactive_widget.children[0].value = self._data_type(value)
+        
+        if self._control_widget is not None:
+            self._control_widget.children[1].value = str(self._value)
         if self.tinc_client:
             self.tinc_client.send_parameter_value(self)
         self._trigger_callbacks(value)
@@ -340,17 +348,22 @@ class Parameter(TincObject):
             return self.values.index(self.value)
         elif type(self.values) == np.ndarray:
             return np.where (self.values == self.value)[0][0]
-    
-    def _find_nearest(self, value):
-        # TODO assumes values are sorted ascending. Add checks and support for other models.
-        if len(self._values) > 0:
-            for i in range(len(self._values) - 1):
-                if value < (self._values[i] + self._values[i + 1]) /2:
-                    return self._data_type(self._values[i])
-            return self._data_type(self._values[-1])
-        else:
-            return self._data_type(value)
             
+    def next(self):
+        if len(self._values) <=1:
+            raise RuntimeError("Not enough values in space for next()")
+        next_index = self.get_current_index() + 1
+        if next_index < len(self._values):
+            self.set_value(self._values[next_index])
+            
+    def previous(self):
+        if len(self._values) <=1:
+            raise RuntimeError("Not enough values in space for previous()")
+        next_index = self.get_current_index() - 1
+        if next_index >= 0:
+            self.set_value(self._values[next_index])
+
+
     def interactive_widget(self):
         if self._interactive_widget is None:
             self._interactive_widget = interactive(self.set_from_internal_widget,
@@ -363,9 +376,25 @@ class Parameter(TincObject):
                     continuous_update=True,
                     orientation='horizontal',
                     readout=True
-                ));
-            self._configure_widget(self._interactive_widget.children[0])
+                ))
+            self._configure_widget()
         return self._interactive_widget
+
+    def interactive_control(self):
+        if self._control_widget is None:
+            def next_wrapper(value):
+                self.next()
+            def prev_wrapper(value):
+                self.previous()
+            next_button = widgets.Button(  description=">>" )
+            next_button.on_click(next_wrapper)
+            prev_button = widgets.Button(  description="<<" )
+            prev_button.on_click(prev_wrapper)
+            label = widgets.Label(value=str(self.value))
+
+            self._control_widget = HBox([prev_button, label, next_button])
+            # self._configure_widget()
+        return self._control_widget
     
     def register_callback(self, f, synchronous = True):
         for i,cb in enumerate(self._value_callbacks):
@@ -390,25 +419,41 @@ class Parameter(TincObject):
                     if instr.argval == 'get_slice':
                         print('''WARNING: calling certain Tinc functions inside callbacks can cause deadlocks and Timeout.
 If this is happening use asynchronous callbacks by setting synchrouns to False when registering callback''' )
-    
-    def _configure_widget(self, widget):
-        if len(self._values) > 1:
-            min_step = np.min(np.diff(self._values))
-        else:
-            min_step = (self._maximum - self._minimum) /100
-        num_zeros = np.floor(np.abs(np.log10(min_step)))
-
-        # Heuristics to determine display presicion
-        temp_val = min_step * 10**(num_zeros)
-        while np.abs(temp_val - int(temp_val)) > 0.000001 and num_zeros < 7:
-            num_zeros += 1
-            temp_val = min_step * 10**(num_zeros)
-        format = f'.{int(num_zeros)}f'
         
-        widget.min = self._minimum
-        widget.max = self._maximum
-        widget.readout_format = format
-        widget.step = min_step
+    def _find_nearest(self, value):
+        # TODO assumes values are sorted ascending. Add checks and support for other models.
+        if len(self._values) > 0:
+            for i in range(len(self._values) - 1):
+                if value < (self._values[i] + self._values[i + 1]) /2:
+                    return self._data_type(self._values[i])
+            return self._data_type(self._values[-1])
+        else:
+            return self._data_type(value)
+
+    def _configure_widget(self):
+        if self._interactive_widget is not None:
+            widget = self._interactive_widget.children[0]
+            if len(self._values) > 1:
+                min_step = np.min(np.diff(self._values))
+            else:
+                min_step = (self._maximum - self._minimum) /100
+            num_zeros = np.floor(np.abs(np.log10(min_step)))
+
+            # Heuristics to determine display presicion
+            temp_val = min_step * 10**(num_zeros)
+            while np.abs(temp_val - int(temp_val)) > 0.000001 and num_zeros < 7:
+                num_zeros += 1
+                temp_val = min_step * 10**(num_zeros)
+            format = f'.{int(num_zeros)}f'
+            
+            widget.min = self._minimum
+            widget.max = self._maximum
+            widget.readout_format = format
+            widget.step = min_step
+            
+        if self._control_widget is not None:
+            label = self._control_widget.children[1]
+            label.value = str(self.get_value())
 
     def register_callback_async(self, f):
         self.register_callback(f, False)
@@ -591,28 +636,30 @@ class ParameterInt(Parameter):
                     readout=True,
                     step =1
                 ));
-            self._configure_widget(self._interactive_widget.children[0])
+            self._configure_widget()
             
         return self._interactive_widget
     
-    def _configure_widget(self, widget):
-        if len(self._values) > 1:
-            min_step = np.min(np.diff(self._values))
-        else:
-            min_step = 1
-        num_zeros = np.floor(np.abs(np.log10(min_step)))
+    def _configure_widget(self):
+        if self._interactive_widget is not None:
+            widget = self._interactive_widget.children[0]
+            if len(self._values) > 1:
+                min_step = np.min(np.diff(self._values))
+            else:
+                min_step = 1
+            num_zeros = np.floor(np.abs(np.log10(min_step)))
 
-        # Heuristics to determine display precision
-        temp_val = min_step * 10**(num_zeros)
-        while np.abs(temp_val - int(temp_val)) > 0.000001 and num_zeros < 7:
-            num_zeros += 1
+            # Heuristics to determine display precision
             temp_val = min_step * 10**(num_zeros)
-        format = f'.{int(num_zeros)}f'
-        
-        widget.min = self._minimum
-        widget.max = self._maximum
-        widget.readout_format = format
-        widget.step = min_step
+            while np.abs(temp_val - int(temp_val)) > 0.000001 and num_zeros < 7:
+                num_zeros += 1
+                temp_val = min_step * 10**(num_zeros)
+            format = f'.{int(num_zeros)}f'
+            
+            widget.min = self._minimum
+            widget.max = self._maximum
+            widget.readout_format = format
+            widget.step = min_step
     
 class ParameterChoice(Parameter):
     def __init__(self, tinc_id: str, group: str = "", minimum: int = 0, maximum: int = 127, default_value: int = 0, tinc_client = None):
@@ -681,7 +728,7 @@ class ParameterChoice(Parameter):
     def set_elements(self, elements):
         self.elements = elements
         if self._interactive_widget is not None:
-            self._configure_widget(self._interactive_widget.children[0])
+            self._configure_widget()
         
     def get_current_elements(self):
         b = self._value
@@ -700,11 +747,13 @@ class ParameterChoice(Parameter):
                         description = self.id,
                         disabled = False
                 ));
-            self._configure_widget(self._interactive_widget.children[0])
+            self._configure_widget()
         return self._interactive_widget
     
-    def _configure_widget(self, widget):
-        widget.options = self.elements
+    def _configure_widget(self):
+        if self._interactive_widget is not None:
+            widget = self._interactive_widget.children[0]
+            widget.options = self.elements
             
     def set_from_internal_widget(self, widget_value):
         # if len(self.values) > 0:
