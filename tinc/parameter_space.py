@@ -8,7 +8,7 @@ Created on Tue Sep  1 17:13:15 2020
 import threading
 from .tinc_object import TincObject
 from .cachemanager import CacheEntry, CacheManager, DistributedPath, FileDependency, SourceArgument, SourceInfo, UserInfo, VariantValue, VariantType
-from .parameter import Parameter
+from .parameter import *
 from threading import Lock
 
 import traceback
@@ -59,6 +59,9 @@ class ParameterSpace(TincObject):
                 break
             
     def enable_cache(self, directory = "python_cache"):
+        if self.tinc_client:
+            if directory != "":
+                print("Connected to client. enable_cache() ignoring directory")
         self._cache_manager = CacheManager(directory)
         
     def disable_cache(self):
@@ -253,9 +256,6 @@ class ParameterSpace(TincObject):
         
         if len(unused_args) > 0:
             print(f'Ignoring parameters: {unused_args}. Not used in function')
-        cache_args = calling_args.copy()
-        for dep in dependencies:
-            cache_args[dep.id] = dep.value
         
         out = None
         if self._cache_manager:
@@ -271,6 +271,22 @@ class ParameterSpace(TincObject):
                 args.append(SourceArgument(id = id, 
                                             value = VariantValue(nctype = nctype,
                                                                 value = value)))
+
+            deps = []
+            for dep in dependencies:
+                if type(dep) == Parameter:
+                    nctype = VariantType.VARIANT_FLOAT
+                elif type(dep) == ParameterInt:
+                    nctype = VariantType.VARIANT_INT32
+                elif type(dep) == ParameterString:
+                    nctype = VariantType.VARIANT_STRING
+                else:
+                    # TODO ML add support for all types
+                    print("Warning unsupported type")
+
+                deps.append(SourceArgument(id = dep.id, 
+                                           value = VariantValue(nctype = nctype,
+                                                                value = dep.value)))
 
             fdeps = []
             if self.debug:
@@ -288,6 +304,7 @@ class ParameterSpace(TincObject):
             # TODO there needs to be a special character to avoid tinc id clashes for these auto generated
             # tinc ids. e.g. self.id + '@' + function.__name__. The disallow @ in all other tinc id names.
             # Perhaps use space? That is already disallowed because of OSC address limitations.
+            
             src_info = SourceInfo(
                     type = "PythonInMemory",
                     tinc_id = self.id + "_" + function.__name__,
@@ -295,7 +312,7 @@ class ParameterSpace(TincObject):
                     working_path_rel = "",
                     working_path_root = "",
                     arguments = args,
-                    dependencies = [],
+                    dependencies = deps,
                     file_dependencies = fdeps)
             if not force_recompute:
                 cache_filenames = self._cache_manager.find_cache(src_info, dependencies)

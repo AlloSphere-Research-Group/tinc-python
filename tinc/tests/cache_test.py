@@ -111,7 +111,67 @@ class CacheTest(unittest.TestCase):
         self.assertEqual(len(files), 1)
         self.assertEqual(files[0], "out1.txt")
         
-         
+    def test_cache_param_dependencies(self):
+        # Cache with parameter space
+        p1 = Parameter("param1")
+        p1.set_values([0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+        
+        p2 = ParameterInt("param2")
+        p2.set_values([i for i in range(5)])
+        
+        p3 = Parameter("param3")
+        p3.set_values([i * 0.2 for i in range(2)])
+        
+        ps = ParameterSpace("cache_test")
+        
+        ps.register_parameters([p1, p2, p3])
+        
+        ps.enable_cache("python_ps_cache")
+        ps.clear_cache()
+
+        def func(param1, param2):
+            return param1 * param2, param1* p3.value
+
+        p2.value = 1
+        ps.run_process(func, dependencies=[p3])
+        p1.value = 0.2
+        ps.run_process(func, dependencies=[p3])
+        p1.value = 0.3
+        ps.run_process(func, dependencies=[p3])
+        p1.value = 0.4
+        ps.run_process(func, dependencies=[p3])
+        p1.value = 0.5
+        ps.run_process(func, dependencies=[p3])
+        p2.value = 4
+        ps.run_process(func, dependencies=[p3])
+        
+        p2.value = 1
+        ps.run_process(func, dependencies=[p3])
+        p1.value = 0.2
+        ps.run_process(func, dependencies=[p3])
+        p1.value = 0.3
+        ps.run_process(func, dependencies=[p3])
+        p1.value = 0.4
+        ps.run_process(func, dependencies=[p3])
+        p1.value = 0.5
+        ps.run_process(func, dependencies=[p3])
+        p2.value = 4
+        ps.run_process(func, dependencies=[p3])
+        
+        p3.value = 0.4
+        ps.run_process(func, dependencies=[p3])
+        p1.value = 0.2
+        ps.run_process(func, dependencies=[p3])
+        p1.value = 0.3
+        ps.run_process(func, dependencies=[p3])
+        p1.value = 0.4
+        ps.run_process(func, dependencies=[p3])
+        p1.value = 0.5
+        ps.run_process(func, dependencies=[p3])
+        p2.value = 4
+        ps.run_process(func, dependencies=[p3])
+
+
     def test_parameter_space_proc(self):
         # Cache with parameter space
         p1 = Parameter("param1")
@@ -135,6 +195,7 @@ class CacheTest(unittest.TestCase):
 
         p2.value = 1
         ps.run_process(func)
+        ps._cache_manager
         p1.value = 0.2
         ps.run_process(func)
         p1.value = 0.3
@@ -158,11 +219,6 @@ class CacheTest(unittest.TestCase):
         ps.run_process(func)
         p2.value = 4
         ps.run_process(func)
-
-
-
-
-
 
 
 if __name__ == '__main__': 

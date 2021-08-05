@@ -79,8 +79,13 @@ class CacheManager(object):
     def __init__(self, directory = "python_cache", metadata_file = "tinc_cache.json"):
         if not os.path.exists(directory):
             os.makedirs(directory)
+        self._cache_root = ''
         self._cache_dir = directory
         self._metadata_file = metadata_file
+        if len(self._cache_root) > 0 and not self._cache_root[-1] == "/":
+            self._cache_root += '/'
+        if len(self._cache_dir) > 0 and not self._cache_dir[-1] == "/":
+            self._cache_dir += '/'
         self._validator = None
         self._entries = []
         self.debug = False
@@ -95,7 +100,7 @@ class CacheManager(object):
                 print("Validating json with " + schema_path)
         except:
             print("ERROR loading cache schema. Not validating schema.")
-        if os.path.exists(directory + "/" + self._metadata_file):
+        if os.path.exists(self.cache_directory() + self._metadata_file):
             self.update_from_disk()
         else:
             self.write_to_disk() # Generate empty cache file.
@@ -161,7 +166,7 @@ class CacheManager(object):
         self._lock()
         for entry in self._entries:
             for f in entry.files:
-                full_name = self._cache_dir + "/" + f.file.filename
+                full_name = self.cache_directory() + f.file.filename
                 try:
                     os.remove(full_name)
                 except:
@@ -171,17 +176,11 @@ class CacheManager(object):
         self._unlock()
         self.write_to_disk()
 
-    '''
-    Get full cache path
-    '''
-    def cache_directory(self):
-        return self._cache_dir
-
     def update_from_disk(self):
         self._lock()
         try:
-            if os.path.exists(self._cache_dir + "/" + self._metadata_file):
-                with open(self._cache_dir + "/" + self._metadata_file) as f:
+            if os.path.exists(self.cache_directory() + self._metadata_file):
+                with open(self.cache_directory() + self._metadata_file) as f:
                     try:
                         j = json.load(f)
                         if j["tincMetaVersionMajor"] != TINC_META_VERSION_MAJOR or \
@@ -267,16 +266,22 @@ class CacheManager(object):
             print("Writing entry failed")
             
         self._unlock()
+
+    '''
+    Get full cache path
+    '''
+    def cache_directory(self):
+        return self._cache_root + self._cache_dir
                     
     def write_to_disk(self):
         self._lock()
         try:
-            if os.path.exists(self._cache_dir + "/" + self._metadata_file):
-                bak_filename = self._cache_dir + "/" + self._metadata_file + ".bak"
+            if os.path.exists(self.cache_directory() + self._metadata_file):
+                bak_filename = self.cache_directory() + self._metadata_file + ".bak"
                 if(os.path.exists(bak_filename)):
                     os.remove(bak_filename) # Is this remove needed?
  
-                shutil.copy(self._cache_dir + "/" + self._metadata_file,
+                shutil.copy(self.cache_directory() + self._metadata_file,
                     bak_filename)
 
 
@@ -344,7 +349,7 @@ class CacheManager(object):
 
                 j["entries"].append(j_entry)
             
-            with open(self._cache_dir + "/" + self._metadata_file, 'w') as f:
+            with open(self.cache_directory() + self._metadata_file, 'w') as f:
                 json.dump(j, f, indent=4)
         except:
             print("ERROR writing cache entry metadata")

@@ -12,6 +12,7 @@ from .processor import ProcessorCpp, ProcessorScript, ComputationChain
 from .datapool import DataPool
 from .parameter_space import ParameterSpace
 from .disk_buffer import *
+from .cachemanager import *
 from .message import Message
 from . import tinc_protocol_pb2 as TincProtocol
 #from google.protobuf import any_pb2 #, message
@@ -607,6 +608,21 @@ class TincClient(object):
                         ps._local_root_path = root_value.valueString
                     else:
                         print("ERROR: Unexpected data type for TincProtocol.ParameterSpaceConfigureType.ROOT_PATH")
+                elif ps_command == TincProtocol.ParameterSpaceConfigureType.CACHE_PATH:
+                    dist_path = TincProtocol.DistributedPath()
+                    param_details.configurationValue.Unpack(dist_path)
+                    if ps._cache_manager is None:
+                        self._cache_manager = CacheManager(dist_path.relativePath)
+                        if dist_path.filename != ps._cache_manager._metadata_file:
+                            print(f"Unexpected cache filename: {dist_path.filename}. Expected: {ps._cache_manager._metadata_file}")
+                            
+                        ps._cache_manager._cache_root = dist_path.rootPath
+                        ps._cache_manager._cache_dir = dist_path.relativePath
+                        ps._cache_manager._metadata_file = dist_path.filename
+                    else:
+                        ps._cache_manager._cache_root = dist_path.rootPath
+                        ps._cache_manager._cache_dir = dist_path.relativePath
+                        ps._cache_manager._metadata_file = dist_path.filename
                 else:
                     print("Unrecognized ParameterSpace Configure command " + str(ps_command))
                 
