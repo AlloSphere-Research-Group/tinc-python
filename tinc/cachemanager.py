@@ -15,6 +15,9 @@ import traceback
 from typing import NamedTuple, List
 
 from .variant import VariantType
+# Causes cyclic import issue...
+#from .parameter import to_variant
+from .distributed_path import DistributedPath
 
 TINC_META_VERSION_MAJOR = 1
 TINC_META_VERSION_MINOR = 0
@@ -34,12 +37,6 @@ class VariantValue(NamedTuple):
 class SourceArgument(NamedTuple):
     id: str = ''
     value: VariantValue = VariantValue()
-
-class DistributedPath(NamedTuple):
-    filename: str = ''
-    relative_path: str = ''
-    root_path: str = ''
-    protocol_id: str = ''
 
 class FileDependency(NamedTuple):
     file: DistributedPath = DistributedPath()

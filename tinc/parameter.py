@@ -5,7 +5,7 @@ try:
 except:
     print("Can't import ipywidgets. Notebook widgets not available")
 
-from tinc.cachemanager import VariantValue, VariantType
+from .cachemanager import VariantValue, VariantType
 from .tinc_object import TincObject
 from .variant import VariantType
 

@@ -267,6 +267,16 @@ class ParameterSpace(TincObject):
                 nctype = VariantType.VARIANT_DOUBLE
                 if type(value) == int:
                     nctype = VariantType.VARIANT_INT64
+                elif type(value) == float:
+                    nctype = VariantType.VARIANT_DOUBLE
+                elif type(value) == np.int32:
+                    nctype = VariantType.VARIANT_INT32
+                    value = int(value) # json can't handle int32
+                elif type(value) == np.float64:
+                    nctype = VariantType.VARIANT_DOUBLE
+                    # value = value
+                else:
+                    print(f"Unsupported type for arg: {id} - {type(value)}")
 
                 args.append(SourceArgument(id = id, 
                                             value = VariantValue(nctype = nctype,
@@ -293,14 +303,16 @@ class ParameterSpace(TincObject):
                 print(dis.dis(function))
                 print(inspect.getsource(function))
             # TODO set filename and root path
-            fdeps.append(FileDependency(file = DistributedPath(filename = "",
-                                                                relative_path = os.getcwd(),
-                                                                root_path = "",
-                                                                protocol_id = "python"),
-                                            modified = "",
-                                            size = 0,
-                                            hash = ""
-                                            ))
+            dist_path =  DistributedPath()
+            dist_path.filename = ""
+            dist_path.relative_path = os.getcwd()
+            dist_path.root_path = ""
+            dist_path.protocol_id = "python"
+            fdeps.append(FileDependency(file = dist_path,
+                                        modified = "",
+                                        size = 0,
+                                        hash = ""
+                                        ))
             # TODO there needs to be a special character to avoid tinc id clashes for these auto generated
             # tinc ids. e.g. self.id + '@' + function.__name__. The disallow @ in all other tinc id names.
             # Perhaps use space? That is already disallowed because of OSC address limitations.
@@ -345,9 +357,11 @@ class ParameterSpace(TincObject):
                         print("storing cache: " + fullpath)
                     with open(fullpath, "wb") as f:
                         pickle.dump(out, f)
+                    dist_path = DistributedPath()
+                    dist_path.filename = filename
                     entry = CacheEntry(timestamp_start='a',
                                     timestamp_end='b',
-                                    files=[FileDependency(DistributedPath(filename))],
+                                    files=[FileDependency(file = dist_path)],
                                     user_info=UserInfo(user_name='name',
                                                         user_hash='hash',
                                                         ip='ip',

@@ -612,7 +612,7 @@ class TincClient(object):
                     dist_path = TincProtocol.DistributedPath()
                     param_details.configurationValue.Unpack(dist_path)
                     if ps._cache_manager is None:
-                        self._cache_manager = CacheManager(dist_path.relativePath)
+                        ps._cache_manager = CacheManager(dist_path.relativePath)
                         if dist_path.filename != ps._cache_manager._metadata_file:
                             print(f"Unexpected cache filename: {dist_path.filename}. Expected: {ps._cache_manager._metadata_file}")
                             
@@ -758,25 +758,26 @@ class TincClient(object):
         
             if not found:
                 new_db = None
+                distributed_path = db_details.path
                 if db_details.type == TincProtocol.JSON:
                     new_db = DiskBufferJson(disk_buffer_id,
-                                        db_details.baseFilename, db_details.path,
+                                        distributed_path.filename, distributed_path.relativePath, distributed_path.rootPath,
                                         tinc_client= self)
                 elif db_details.type == TincProtocol.NETCDF:
                     new_db = DiskBufferNetCDFData(disk_buffer_id,
-                                        db_details.baseFilename, db_details.path,
+                                        distributed_path.filename, distributed_path.relativePath, distributed_path.rootPath,
                                         tinc_client= self)
                 elif db_details.type == TincProtocol.IMAGE:
                     new_db = DiskBufferImage(disk_buffer_id,
-                                        db_details.baseFilename, db_details.path,
+                                        distributed_path.filename, distributed_path.relativePath, distributed_path.rootPath,
                                         tinc_client= self)
                 elif db_details.type == TincProtocol.BINARY:
                     new_db = DiskBufferBinary(disk_buffer_id,
-                                        db_details.baseFilename, db_details.path,
+                                        distributed_path.filename, distributed_path.relativePath, distributed_path.rootPath,
                                         tinc_client= self)
                 elif db_details.type == TincProtocol.TEXT:
                     new_db = DiskBufferText(disk_buffer_id,
-                                        db_details.baseFilename, db_details.path,
+                                        distributed_path.filename, distributed_path.relativePath, distributed_path.rootPath,
                                         tinc_client= self)
                 if new_db is not None:
                     self.disk_buffers.append(new_db)
