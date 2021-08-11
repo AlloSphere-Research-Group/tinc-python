@@ -697,7 +697,7 @@ class TincClient(object):
                 proc.configuration[config_key] = config_value
                 print(f"Config [{config_key}] = {config_value}")
                 
-    def register_datapool(self, details):
+    def _register_datapool_from_message(self, details):
         if details.Is(TincProtocol.RegisterDataPool.DESCRIPTOR):
             
             dp_details = TincProtocol.RegisterDataPool()
@@ -737,7 +737,14 @@ class TincClient(object):
             print("Unexpected payload in Configure Datapool")
         
     # Disk buffer messages ------------------
-    def register_disk_buffer(self, details):
+    def register_disk_buffer(self, db):
+        # TODO is this enough checking, or should we check for ids as well?
+        if db in self.disk_buffers:
+            return db
+        self.disk_buffers.append(db)
+        self._register_disk_buffer_on_server(db)
+
+    def _register_disk_buffer_from_message(self, details):
         
         if details.Is(TincProtocol.RegisterDiskBuffer.DESCRIPTOR):
             
@@ -786,6 +793,36 @@ class TincClient(object):
         else:
             print("Unexpected payload in Register DiskBuffer")
     
+    def _register_disk_buffer_on_server(self, db):
+        details = TincProtocol.RegisterDiskBuffer()
+        details.id = db.id
+        
+        if type(db) == DiskBufferImage:
+            details.type = TincProtocol.IMAGE
+        elif type(db) == DiskBufferJson:
+            details.type = TincProtocol.JSON
+        elif type(db) == DiskBufferNetCDFData:
+            details.type = TincProtocol.NETCDF
+        elif type(db) == DiskBufferText:
+            details.type = TincProtocol.TEXT
+        elif type(db) == DiskBufferBinary:
+            details.type = TincProtocol.BINARY
+        else:
+            print("Unsupported Diskbuffer type. Not registered on server.")
+            return
+            
+        details.path.filename = db.get_base_filename()
+        details.path.relativePath = db.get_relative_path()
+        details.path.rootPath = db.get_root_path()
+
+        msg = TincProtocol.TincMessage()
+        msg.messageType = TincProtocol.MessageType.REGISTER
+        msg.objectType = TincProtocol.ObjectType.DISK_BUFFER
+        msg.details.Pack(details)
+        
+        self._send_message(msg)
+
+
     def configure_disk_buffer(self, details):
         if self.debug:
             print("Processing Configure disk buffer")
@@ -862,9 +899,9 @@ class TincClient(object):
         elif message.objectType == TincProtocol.ObjectType.PROCESSOR:
             self.register_processor(message.details)
         elif message.objectType == TincProtocol.ObjectType.DISK_BUFFER:
-            self.register_disk_buffer(message.details)
+            self._register_disk_buffer_from_message(message.details)
         elif message.objectType == TincProtocol.ObjectType.DATA_POOL:
-            self.register_datapool(message.details)
+            self._register_datapool_from_message(message.details)
         elif message.objectType == TincProtocol.ObjectType.PARAMETER_SPACE:
             self._register_parameter_space_from_message(message.details)
         else:
