@@ -26,9 +26,13 @@ class DistributedPath(object):
     
     def set_paths(self, rel_path, root_path):
         if rel_path != '':
+            if rel_path[-1] != '/' and rel_path[-1] != '\\':
+                rel_path += '/'
             self.relative_path = rel_path
             #TODO create path if not present
             if root_path != '':
+                if root_path[-1] != '/' and root_path[-1] != '\\':
+                    root_path += '/'
                 self.root_path = root_path
             else:
                 if os.path.isabs(self.relative_path):
@@ -38,6 +42,8 @@ class DistributedPath(object):
         else:
             self.relative_path = ''
             if root_path != '':
+                if root_path[-1] != '/' and root_path[-1] != '\\':
+                    root_path += '/'
                 self.root_path = root_path
             else:
                 self.root_path = os.getcwd()

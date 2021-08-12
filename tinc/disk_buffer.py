@@ -38,7 +38,6 @@ class DiskBuffer(TincObject):
         self.path.filename = base_filename
         self.path.set_paths(rel_path, root_path)
 
-        
         self._round_robin_size  = None
         self._round_robin_counter: int = 0
         
@@ -102,7 +101,7 @@ class DiskBuffer(TincObject):
             if not os.path.exists(root_path):
                 os.makedirs(root_path)
         
-        self.path.root_path:str = root_path
+        self.path.root_path = root_path
                  
     def cleanup_round_robin_files(self):
         prefix, suffix = self._get_file_components()
@@ -155,9 +154,9 @@ class DiskBuffer(TincObject):
         else:
             outname = self._make_next_filename()
         self._filename = outname
-        file_path = ' '
-        if self.tinc_client:
-            file_path = self.tinc_client._working_path
+        file_path = ''
+        #if self.tinc_client:
+        #    file_path = self.tinc_client._working_path
 
         file_path += self.path.get_full_path() + outname
         return file_path
@@ -223,25 +222,24 @@ class DiskBufferJson(DiskBuffer):
     def data(self, data):
         self._data = data
         
-        outname = self._make_next_filename()
+        outname = self.get_filename_for_writing()
         
         if self._file_lock:
-            self._lock = FileLock(self.path.get_full_path() + outname + ".lock", timeout=1)
+            self._lock = FileLock(outname + ".lock", timeout=1)
             if self._lock.is_locked:
                 print("Locked " + outname)
             self._lock.acquire()
         try:
             if type(data) == list:
-                self._write_from_array(data, self.path.get_full_path() + outname)
-            if type(data) == np.ndarray:
-                self._write_from_array(data, self.path.get_full_path() + outname)
-            if self.tinc_client:
-                    self.tinc_client.send_disk_buffer_current_filename(self, outname)
+                self._write_from_array(data, outname)
+            elif type(data) == np.ndarray:
+                self._write_from_array(data, outname)
+            else:
+                raise ValueError("Unsupported data type")
+            self.done_writing_file(outname)
         except:
             print("ERROR parsing data when writing disk buffer")
             traceback.print_exc()
-        if self.tinc_client:
-            self.tinc_client.send_disk_buffer_current_filename(self, outname)
     
         if self._file_lock:
             self._lock.release()
