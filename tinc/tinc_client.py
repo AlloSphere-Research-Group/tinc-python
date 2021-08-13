@@ -4,6 +4,7 @@ import socket
 from tinc.variant import VariantType
 from typing import List, Any
 import struct
+import socket # For gethostname()
 from threading import Lock
 
 # TINC imports
@@ -69,7 +70,6 @@ class TincClient(object):
         self._server_status = TincProtocol.StatusTypes.UNKNOWN
         
         self.start(server_addr, server_port)
-        
         
     def __del__(self):
         self.stop()
@@ -821,6 +821,7 @@ class TincClient(object):
         msg.details.Pack(details)
         
         self._send_message(msg)
+        db.tinc_client = self
 
 
     def configure_disk_buffer(self, details):
@@ -1226,9 +1227,9 @@ class TincClient(object):
         self.request_processors()
         self.request_disk_buffers()
         self.request_data_pools()
+        self.send_metadata()
 
     def send_goodbye(self):
-        
         if not self.connected:
             return
         tp = TincProtocol.TincMessage()
@@ -1376,6 +1377,17 @@ class TincClient(object):
 
                         
         print("Closed TINC client")                
+
+    def send_metadata(self): 
+        msg = TincProtocol.TincMessage()
+        msg.messageType  = TincProtocol.TINC_CLIENT_METADATA
+        msg.objectType = TincProtocol.GLOBAL
+        metadata = TincProtocol.ClientMetaData()
+        metadata.clientHost = socket.gethostname()
+        
+        msg.details.Pack(metadata)
+
+        self._send_message(msg)
 
     def print(self): 
         # print("Print")
