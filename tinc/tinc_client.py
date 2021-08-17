@@ -212,7 +212,7 @@ class TincClient(object):
             
     # Network message handling
     
-    def create_parameter(self, parameter_type, param_id, group = None, min_value = None, max_value = None, space = None, default_value= None, space_type = None):
+    def create_parameter(self, parameter_type, param_id, group = None, min_value = None, max_value = None, space = None, default_value= None, space_representation_type = None):
         new_param = parameter_type(param_id, group, default_value = default_value, tinc_client = self)
 
         new_param = self.register_parameter(new_param)
@@ -223,8 +223,8 @@ class TincClient(object):
         if not max_value is  None:
             # avoid callbacks
             new_param._maximum = max_value
-        if not space_type is None:
-            new_param.space_type = space_type
+        if not space_representation_type is None:
+            new_param.space_representation_type = space_representation_type
         if type(space) == dict:
             new_param.ids = space.values()
             new_param.values = space.keys()
@@ -297,7 +297,7 @@ class TincClient(object):
         
     def send_parameter_meta(self, param, fields = None):
         if fields is None:
-            fields = ("minimum", "maximum", "space", "space_type")
+            fields = ("minimum", "maximum", "space", "space_representation_type")
         # Minimum
         if "minimum" in fields:
             msg = TincProtocol.TincMessage()
@@ -361,7 +361,7 @@ class TincClient(object):
             elif type(param) == ParameterBool or type(param) == Trigger:
                 pass
         
-        if "space_type" in fields:
+        if "space_representation_type" in fields:
             self.send_parameter_space_type(param)
         if "space" in fields:
             self.send_parameter_space(param)
@@ -374,7 +374,7 @@ class TincClient(object):
         config.id = param.get_osc_address()
         config.configurationKey = TincProtocol.ParameterConfigureType.SPACE_TYPE
         type_value = TincProtocol.ParameterValue()
-        type_value.valueInt32 = int(param.space_type)
+        type_value.valueInt32 = int(param.space_representation_type)
         config.configurationValue.Pack(type_value)
         msg.details.Pack(config)
         self._send_message(msg)

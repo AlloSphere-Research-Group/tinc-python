@@ -1,22 +1,29 @@
 from .tinc_object import TincObject
+from .parameter import *
 
-class Processor(TincObject):
-    def __init__(self, tinc_id = "_", input_dir = "", input_files = [],
+import re
+
+class Processor(TincObject):    
+    # These properties are meant to be set directly by the user
+    input_dir = ''
+    input_files = ''
+    output_dir = ''
+    output_files = ''
+    running_dir = ''
+    debug = False
+    ignore_fail = False
+    prepare_function = None
+    enabled = True
+    configuration = {}
+
+    def __init__(self, tinc_id, input_dir = "", input_files = [],
                  output_dir = "", output_files = [], running_dir = ""):
         super().__init__(tinc_id)
-
-        # These properties are meant to be set directly by the user
         self.input_dir = input_dir
         self.input_files = input_files
         self.output_dir = output_dir
         self.output_files = output_files
         self.running_dir = running_dir
-        self.debug = False
-        self.ignore_fail = False
-        self.prepare_function = None
-        self.enabled = True
-        self.configuration = {}
-
         # Internal data
         self._start_callback = None
         self._done_callback = None
@@ -49,8 +56,12 @@ class Processor(TincObject):
     def register_done_callback(self,cb):
         self._done_callback = cb
 
-    def register_dimension(self, dim):
+    def register_parameter(self, dim):
         self._dimensions.append(dim)
+        dim.register_callback(self._dimension_changed)
+
+    def _dimension_changed(self, value):
+        self.process()
 
 class ComputationChain(Processor):
     def __init__(self, tinc_id = "_", input_dir = "", input_files = [],
@@ -64,17 +75,55 @@ class ComputationChain(Processor):
         
 
 class ProcessorScript(Processor):
+    command:str = ''
+    script_name:str = ''
+
+    command_line_flag_template =''
     def __init__(self, tinc_id = "_", input_dir = "", input_files = [],
                  output_dir = "", output_files = [], running_dir = ""):
-        super().__init__(tinc_id, input_dir, input_files,
-                                               output_dir, output_files, running_dir)
-    
+        super().__init__(tinc_id, input_dir, input_files, output_dir, output_files, running_dir)
+        self._arg_template = ''
+        self._capture_output = False
+
+    def set_argument_template(self, template):
+        self._arg_template = template
+        
+    def capture_output(self, capture = True):
+        self._capture_output = True
+
     def process(self, force_recompute = False):
         if not self.enabled:
             return True
-
+        
         if self.debug:
             print("Starting ProcessorScript '{self.id}'")
+        import subprocess
+        cmd = [self.command, self.script_name, self._get_arguments()]
+        out = subprocess.check_output(cmd)
+
+        if self._capture_output:
+            with open(self.output_files[0], 'wb') as f:
+                f.write(out)
+
+    def _get_arguments(self):
+        if self._arg_template == '':
+            return ''
+        args = self._arg_template
+
+        for p in self._dimensions:
+            if p.space_representation_type == parameter_space_representation_types.VALUE:
+                args = args.replace(f'%%{p.id}%%', str(p.value) if type(p) != ParameterString else p.value)
+            elif p.space_representation_type == parameter_space_representation_types.ID:
+                args = args.replace(f'%%{p.id}%%', p.get_current_id())
+            elif p.space_representation_type == parameter_space_representation_types.INDEX:
+                args = args.replace(f'%%{p.id}%%', str(p.get_current_index()))
+            re.sub(f'%%{p.id}:VALUE%%', str(p.value) if type(p) != ParameterString else p.value, args)
+            if len(p.values) > 0:
+                re.sub(f'%%{p.id}:INDEX%%', str(p.get_current_index()), args)
+                re.sub(f'%%{p.id}:ID%%', p.get_current_id(), args)
+
+        return args
+
     
     def print(self):
         print(f"*** ProcessorScript : {self.id}")
