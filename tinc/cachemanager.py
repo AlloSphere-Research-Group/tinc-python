@@ -216,13 +216,13 @@ class CacheManager(object):
                         args = []
                         for a in entry["sourceInfo"]["arguments"]:
                             args.append(SourceArgument(id = a["id"], 
-                                                    value = VariantValue(nctype = a["nctype"],
+                                                    value = VariantValue(nctype = VariantType(a["nctype"]),
                                                                             value = a["value"])))
                             
                         deps = []
                         for a in entry["sourceInfo"]["dependencies"]:
                             deps.append(SourceArgument(id = a["id"], 
-                                                    value = VariantValue(nctype = a["nctype"],
+                                                    value = VariantValue(nctype = VariantType(a["nctype"]),
                                                                             value = a["value"])))
                             
                         fdeps = []
@@ -313,12 +313,12 @@ class CacheManager(object):
                 args = []
                 for a in entry.source_info.arguments:
                     args.append({"id" : a.id, 
-                        "nctype" : a.value.nctype, "value" : a.value.value})
+                        "nctype" : int(a.value.nctype), "value" : a.value.value})
                         
                 deps = []
                 for a in entry.source_info.dependencies:
                     deps.append({"id" : a.id, 
-                        "nctype" : a.value.nctype, "value" : a.value.value})
+                        "nctype" : int(a.value.nctype), "value" : a.value.value})
                     
                 fdeps = []
                 for fdep in entry.source_info.file_dependencies:

@@ -20,6 +20,14 @@ class DistributedPath(object):
         self.relative_path = relative_path
         self.root_path = root_path
         self.protocol_id = protocol_id
+
+    def __eq__(self, other):
+        if isinstance(other, DistributedPath):
+            return self.filename == other.filename and \
+                self.relative_path == other.relative_path and \
+                self.root_path == other.root_path and \
+                self.protocol_id == other.protocol_id
+        return False
     
     def get_full_path(self):
         return self.root_path + self.relative_path
