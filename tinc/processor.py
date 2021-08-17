@@ -16,6 +16,10 @@ class Processor(TincObject):
     enabled = True
     configuration = {}
 
+    # You can provide here a function that takes the current Processor object that is called before processing
+    # This function must return True otherwise the process() function is aborted
+    prepare = None 
+
     def __init__(self, tinc_id, input_dir = "", input_files = [],
                  output_dir = "", output_files = [], running_dir = ""):
         super().__init__(tinc_id)
@@ -56,9 +60,11 @@ class Processor(TincObject):
     def register_done_callback(self,cb):
         self._done_callback = cb
 
-    def register_parameter(self, dim):
+    def register_parameter(self, dim, triggers_processor = True):
+        # TODO ML check if parameter is already registered, to avoid double registration
         self._dimensions.append(dim)
-        dim.register_callback(self._dimension_changed)
+        if (triggers_processor):
+            dim.register_callback(self._dimension_changed)
 
     def _dimension_changed(self, value):
         self.process()
@@ -97,6 +103,10 @@ class ProcessorScript(Processor):
         
         if self.debug:
             print("Starting ProcessorScript '{self.id}'")
+
+        if self.prepare is not None:
+            if not self.prepare(self):
+                return False
         import subprocess
         cmd = [self.command, self.script_name, self._get_arguments()]
         out = subprocess.check_output(cmd)
