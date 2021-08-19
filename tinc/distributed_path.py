@@ -46,7 +46,9 @@ class DistributedPath(object):
                 if os.path.isabs(self.relative_path):
                     self.root_path = ''
                 else:
-                    self.root_path = os.getcwd()
+                    self.root_path = os.getcwd() + '/'
+            if not os.path.exists(self.get_full_path()):
+                os.makedirs(self.get_full_path())
         else:
             self.relative_path = ''
             if root_path != '':
@@ -54,4 +56,7 @@ class DistributedPath(object):
                     root_path += '/'
                 self.root_path = root_path
             else:
-                self.root_path = os.getcwd()
+                self.root_path = os.getcwd() + '/'
+            
+            if not os.path.exists(self.get_full_path()):
+                os.makedirs(self.get_full_path())
