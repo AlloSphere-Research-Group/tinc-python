@@ -299,7 +299,7 @@ class DiskBufferBinary(DiskBuffer):
 
 class DiskBufferText(DiskBuffer):
     def __init__(self, tinc_id, base_filename, rel_path = '', root_path = '', tinc_client = None):
-        super().__init__(tinc_id, base_filename, rel_path, tinc_client)
+        super().__init__(tinc_id, base_filename, rel_path, root_path, tinc_client)
         self.type = DiskBufferType['TEXT']
 
     @property
