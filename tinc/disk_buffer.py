@@ -204,12 +204,23 @@ class DiskBuffer(TincObject):
             suffix = ''
         return [prefix, suffix]
     
+    def lock(self, outname):
+        if self._file_lock:
+            # TODO support locking multiple files individually
+            self._lock = FileLock(outname + ".lock", timeout=1)
+            if self._lock.is_locked:
+                print("Locked " + outname)
+            self._lock.acquire()
+
+    def unlock(self,outname):
+        if self._file_lock:
+            self._lock.release()
+    
     def print(self):
         print(f" ** DiskBuffer: '{self.id}' type {self.type}")
         print(f'      path: {self.path.get_full_path()} basename: {self.path.filename}')
     
 class DiskBufferJson(DiskBuffer):
-    
     def __init__(self, tinc_id, base_filename, rel_path = '', root_path = '', tinc_client = None):
         super().__init__(tinc_id, base_filename, rel_path, root_path, tinc_client)
         self.type = DiskBufferType['JSON']
@@ -224,11 +235,7 @@ class DiskBufferJson(DiskBuffer):
         
         outname = self.get_filename_for_writing()
         
-        if self._file_lock:
-            self._lock = FileLock(outname + ".lock", timeout=1)
-            if self._lock.is_locked:
-                print("Locked " + outname)
-            self._lock.acquire()
+        self.lock(outname)
         try:
             if type(data) == list:
                 self._write_from_array(data, outname)
@@ -240,9 +247,8 @@ class DiskBufferJson(DiskBuffer):
         except:
             print("ERROR parsing data when writing disk buffer")
             traceback.print_exc()
-    
-        if self._file_lock:
-            self._lock.release()
+
+        self.unlock(outname)
             
     def _parse_file(self, file_path):
         with open(file_path) as fp:
@@ -265,13 +271,31 @@ class DiskBufferBinary(DiskBuffer):
     def data(self, data):
         pass
 
-    def _parse_file(self, file_path):
-        with open(file_path, 'rb') as fp:
-            return fp.read()
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, data):
+        # TODO validata that data is binary
+        self._data = data
         
-    def _write_from_array(self, array, filename):
-        with open(filename, 'wb') as outfile:
-            outfile.write(array)
+        outname = self.get_filename_for_writing()
+        
+        self.lock(outname)
+        try:
+            with open(outname, 'wb') as fp:
+                fp.write(self._data)
+                self.done_writing_file(outname)
+        except:
+            print("ERROR parsing data when writing disk buffer")
+            traceback.print_exc()
+
+        self.unlock(outname)
+
+    def _parse_file(self, file_path):
+        with open(file_path, 'r') as fp:
+            return fp.read()
 
 class DiskBufferText(DiskBuffer):
     def __init__(self, tinc_id, base_filename, rel_path = '', root_path = '', tinc_client = None):
@@ -284,12 +308,25 @@ class DiskBufferText(DiskBuffer):
 
     @data.setter
     def data(self, data):
-        pass
+        # TODO validata that data can convert to str
+        self._data = data
+        
+        outname = self.get_filename_for_writing()
+        
+        self.lock(outname)
+        try:
+            with open(outname, 'w') as fp:
+                fp.write(self._data)
+                self.done_writing_file(outname)
+        except:
+            print("ERROR parsing data when writing disk buffer")
+            traceback.print_exc()
+
+        self.unlock(outname)
 
     def _parse_file(self, file_path):
         with open(file_path, 'r') as fp:
             return fp.read()
-
 
 #### DiskBufferImage ###
 # Data is a PIL.Image object
