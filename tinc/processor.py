@@ -1,3 +1,4 @@
+from .disk_buffer import DiskBuffer
 from .tinc_object import TincObject
 from .parameter import *
 
@@ -12,13 +13,17 @@ class Processor(TincObject):
     running_dir = ''
     debug = False
     ignore_fail = False
-    prepare_function = None
     enabled = True
     configuration = {}
+    
+    # Callbacks
 
     # You can provide here a function that takes the current Processor object that is called before processing
     # This function must return True otherwise the process() function is aborted
-    prepare = None 
+    prepare = None  # cb(self)
+    start_callback = None # cb(self)
+    done_callback = None # cb(self, ok)
+
 
     def __init__(self, tinc_id, input_dir = "", input_files = [],
                  output_dir = "", output_files = [], running_dir = ""):
@@ -29,8 +34,6 @@ class Processor(TincObject):
         self.output_files = output_files
         self.running_dir = running_dir
         # Internal data
-        self._start_callback = None
-        self._done_callback = None
         self._dimensions =[]
         self._parent = None
         # FIXME we need to support TincServer and local usage
@@ -53,12 +56,6 @@ class Processor(TincObject):
 
     def process(self, force_recompute = False):
         raise NotImplementedError("You need to use classes that derive from Processor, but not Processor directly")
-
-    def register_start_callback(self,cb):
-        self._start_callback = cb
-
-    def register_done_callback(self,cb):
-        self._done_callback = cb
 
     def register_parameter(self, dim, triggers_processor = True):
         # TODO ML check if parameter is already registered, to avoid double registration
@@ -90,6 +87,7 @@ class ProcessorScript(Processor):
         super().__init__(tinc_id, input_dir, input_files, output_dir, output_files, running_dir)
         self._arg_template = ''
         self._capture_output = False
+        self._buffer_filename = ''
 
     def set_argument_template(self, template):
         self._arg_template = template
@@ -98,6 +96,9 @@ class ProcessorScript(Processor):
         self._capture_output = True
 
     def process(self, force_recompute = False):
+        if self.start_callback is not None:
+            self.start_callback(self)
+
         if not self.enabled:
             return True
         
@@ -108,12 +109,49 @@ class ProcessorScript(Processor):
             if not self.prepare(self):
                 return False
         import subprocess
-        cmd = [self.command, self.script_name, self._get_arguments()]
-        out = subprocess.check_output(cmd)
+        wd = None
+        if self.running_dir != '':
+            wd = self.running_dir
+        cmd = self.command + " "
+        if len(self.script_name) > 0:
+            cmd += self.script_name + " "
+        cmd += self._get_arguments()
+        try:
+            out = subprocess.check_output(cmd, cwd=wd)
+        except subprocess.CalledProcessError as e:
+            print(repr(e))
+            out = e.output
+            if self._capture_output:
+                with open(self.output_files[0], 'wb') as f:
+                    f.write(out)
+                    
+                if self.done_callback is not None:
+                    self.done_callback(self, False)
+                return False 
+
+        if len(self._buffer_filename) > 0:
+            if isinstance(self.output_files[0],DiskBuffer):
+                self.output_files[0].done_writing_file(self._buffer_filename)
+            self._buffer_filename = ''
 
         if self._capture_output:
-            with open(self.output_files[0], 'wb') as f:
+            
+            if isinstance(self.output_files[0],DiskBuffer):
+                fname = self.output_files[0].get_filename_for_writing()
+            elif type(self.output_files[0]) == str:
+                fname = self.output_files[0]
+            else:
+                print(self.output_files[0])
+            
+            with open(fname, 'wb') as f:
                 f.write(out)
+                
+            if isinstance(self.output_files[0],DiskBuffer):
+                fname = self.output_files[0].done_writing_file(fname)
+                
+        if self.done_callback is not None:
+            self.done_callback(self, True)
+        return True
 
     def _get_arguments(self):
         if self._arg_template == '':
@@ -121,6 +159,17 @@ class ProcessorScript(Processor):
         args = self._arg_template
 
         for p in self._dimensions:
+
+            if len(self.output_files) > 0 and not self._capture_output:
+                if type(self.output_files[0]) == str: 
+                    # TODO support multiple output files
+                    args = args.replace(f'%%:OUTFILE:0%%',self.output_files[0]) 
+                    
+                if isinstance(self.output_files[0],DiskBuffer):
+                    fname = self.output_files[0].get_filename_for_writing()
+                    # FIXME the buffer file will remain locked by the disk buffer if there is an exception in this function
+                    args = args.replace(f'%%:OUTFILE:0%%',fname) 
+
             if p.space_representation_type == parameter_space_representation_types.VALUE:
                 args = args.replace(f'%%{p.id}%%', str(p.value) if type(p) != ParameterString else p.value)
             elif p.space_representation_type == parameter_space_representation_types.ID:
