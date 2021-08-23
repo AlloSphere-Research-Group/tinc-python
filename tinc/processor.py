@@ -3,6 +3,7 @@ from .tinc_object import TincObject
 from .parameter import *
 
 import re
+import shlex
 
 class Processor(TincObject):    
     # These properties are meant to be set directly by the user
@@ -103,7 +104,7 @@ class ProcessorScript(Processor):
             return True
         
         if self.debug:
-            print("Starting ProcessorScript '{self.id}'")
+            print(f"Starting ProcessorScript '{self.id}'")
 
         if self.prepare is not None:
             if not self.prepare(self):
@@ -117,40 +118,49 @@ class ProcessorScript(Processor):
             cmd += self.script_name + " "
         cmd += self._get_arguments()
         try:
-            out = subprocess.check_output(cmd, cwd=wd)
+            if self.debug:
+                print(f'Processor Running command: {cmd}')
+            out = subprocess.check_output(shlex.split(cmd), cwd=wd)
         except subprocess.CalledProcessError as e:
+            print(e.output)
             print(repr(e))
-            out = e.output
-            if self._capture_output:
-                with open(self.output_files[0], 'wb') as f:
-                    f.write(out)
-                    
-                if self.done_callback is not None:
-                    self.done_callback(self, False)
-                return False 
+            # if self._capture_output:
+            #     with open(self.output_files[0], 'wb') as f:
+            #         f.write(out)
+            if self.done_callback is not None:
+                self.done_callback(self, False)
+            return False 
 
         if len(self._buffer_filename) > 0:
             if isinstance(self.output_files[0],DiskBuffer):
                 self.output_files[0].done_writing_file(self._buffer_filename)
+            if self.debug:
+                print(f"Output is disk buffer: {self._buffer_filename}")
             self._buffer_filename = ''
 
         if self._capture_output:
-            
             if isinstance(self.output_files[0],DiskBuffer):
                 fname = self.output_files[0].get_filename_for_writing()
             elif type(self.output_files[0]) == str:
                 fname = self.output_files[0]
             else:
-                print(self.output_files[0])
+                raise ValueError(f'Invalid type for output: {self.output_files[0]}')
             
             with open(fname, 'wb') as f:
                 f.write(out)
+            if self.debug:
+                print(f"Output captured to: {out}")
                 
             if isinstance(self.output_files[0],DiskBuffer):
+                if self.debug:
+                    print(f"Wrote stdout to disk buffer: {self.output_files[0].id}")
                 fname = self.output_files[0].done_writing_file(fname)
                 
         if self.done_callback is not None:
             self.done_callback(self, True)
+            
+        if self.debug:
+            print(f"Finished ProcessorScript '{self.id}'")
         return True
 
     def _get_arguments(self):

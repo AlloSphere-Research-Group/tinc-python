@@ -398,7 +398,9 @@ class Parameter(TincObject):
     
     def register_callback(self, f, synchronous = True):
         for i,cb in enumerate(self._value_callbacks):
-            if f.__name__ == cb.__name__:
+            if f.__name__ == cb.__name__ \
+                and (cb.__qualname__.count('.') == 0 and f != cb):
+                # cb.__qualname__.count('.') == 0 - a way to tell if function is part of a class.
                 if self._async_callbacks.count(self._value_callbacks[i]) > 0:
                     self._async_callbacks.remove(self._value_callbacks[i])
                 self._value_callbacks[i] = f
@@ -459,6 +461,7 @@ If this is happening use asynchronous callbacks by setting synchrouns to False w
         self.register_callback(f, False)
     
     def remove_callback(self, f):
+        # FIXME remove by name rather than by object
         if self._value_callbacks.count(f) > 0:
             self._value_callbacks.remove(f)
         if self._async_callbacks.count(f) > 0:
