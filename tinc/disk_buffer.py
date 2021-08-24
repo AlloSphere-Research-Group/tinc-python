@@ -31,7 +31,12 @@ DiskBufferType = {'BINARY':0, 'TEXT': 1, 'NETCDF': 2, 'JSON': 3, 'IMAGE': 4}
 class DiskBuffer(TincObject):
     def __init__(self, tinc_id, base_filename, rel_path = '', root_path = '', tinc_client = None):
         super().__init__(tinc_id)
-        
+
+        self.type = None # Set this in all derived classes
+        self.tinc_client = tinc_client
+        self.debug = False
+
+         # Internal data
         self._data = None
         
         self.path = DistributedPath()
@@ -45,12 +50,10 @@ class DiskBuffer(TincObject):
         self._lock = None
         
         self._filename = ''
-
-        self.type = None # Set this in all derived classes
         
-        self.tinc_client = tinc_client
         self._interactive_widget = None
-        pass
+
+        self._update_callbacks = []
     
     def get_current_filename(self):
         return self._filename
@@ -67,7 +70,8 @@ class DiskBuffer(TincObject):
             file_path = self.get_full_path() + filename
         self._data = self._parse_file(file_path)
         self.done_writing_file(file_path, notify)
-        # TODO implement update callbacks
+        for cb in self._update_callbacks:
+            cb(self)
     
     def get_base_filename(self):
         return self.path.filename
@@ -119,6 +123,7 @@ class DiskBuffer(TincObject):
             self.use_file_lock(self._file_lock, clear_locks)
     
     def use_file_lock(self, use:bool = True, clear_locks: bool = True):
+        # TODO clear locks
         self._file_lock = use
         try:
             if self._round_robin_size == None:
@@ -173,6 +178,16 @@ class DiskBuffer(TincObject):
         if self._file_lock:
             self._lock.release()
             self._lock = None
+
+    def register_update_callback(self, f):
+        for i,cb in enumerate(self._update_callbacks):
+            if f.__name__ == cb.__name__ \
+                and (cb.__qualname__.count('.') == 0 and f != cb):
+                self._update_callbacks[i] = f
+                if self.debug:
+                    print("Replacing callback")
+                return
+        self._update_callbacks.append(f)
    
     def _parse_file(self, filename):
         # Reimplement in sub classes
