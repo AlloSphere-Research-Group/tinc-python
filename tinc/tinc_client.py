@@ -1222,12 +1222,13 @@ class TincClient(object):
             return None
         
     def synchronize(self):
+        self.send_metadata()
+        
         self.request_parameters()
         self.request_parameter_spaces()
         self.request_processors()
         self.request_disk_buffers()
         self.request_data_pools()
-        self.send_metadata()
 
     def send_goodbye(self):
         if not self.connected:
@@ -1246,9 +1247,21 @@ class TincClient(object):
     def _send_message(self, msg):
         size = msg.ByteSize()
         ser_size = struct.pack('N', size)
-        num_bytes = self.socket.send(ser_size + msg.SerializeToString())
-        if self.debug:
-            print(f'message sent {num_bytes} bytes')
+        try:
+            num_bytes = self.socket.send(ser_size + msg.SerializeToString())
+            if self.debug:
+                print(f'message sent {num_bytes} bytes')
+        except BrokenPipeError as e:
+            # Disconnect
+            self.running = False
+            self.connected = False
+            self.x.join()
+            self.socket.close()
+            self.socket = None
+            print("Broken pipe to server. Client is disconnected")
+            if self.debug:
+                print(e.strerror)
+
         
     # Server ---------------
     def _server_thread_function(self, ip: str, port: int):
