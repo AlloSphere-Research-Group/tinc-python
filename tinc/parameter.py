@@ -317,9 +317,9 @@ class Parameter(TincObject):
             value = self._find_nearest(value)
             if value == self._value:
                 return
-            self._value = value 
+            self._value = self._data_type(value)
         else:
-            self._value = value
+            self._value = self._data_type(value)
         self._interactive_widget.children[0].value = self._data_type(value)
         
         if self._control_widget is not None:
