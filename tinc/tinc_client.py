@@ -1,3 +1,4 @@
+from enum import auto
 import threading
 import time
 import socket
@@ -38,7 +39,7 @@ class TincTimeout(ValueError):
 
 class TincClient(object):
     def __init__(self, server_addr: str = "localhost",
-                 server_port: int = 34450):
+                 server_port: int = 34450, auto_connect = True):
         
         self.connected = False
         self.parameters = []
@@ -69,7 +70,8 @@ class TincClient(object):
         
         self._server_status = TincProtocol.StatusTypes.UNKNOWN
         
-        self.start(server_addr, server_port)
+        if auto_connect:
+            self.start(server_addr, server_port)
         
     def __del__(self):
         self.stop()
