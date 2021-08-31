@@ -22,14 +22,14 @@ class TincServer(TincClient):
         if not tinc_bin:
             raise RuntimeError('TINC_BIN_DIR not set and tinc_server not found in path')
 
+        with open('tinc_server_config.json', 'w') as f:
+            json.dump({"rootPathMap" :self._server_root_path_map}, f)
+
         self._server_process = Popen(tinc_bin, stdin=PIPE)
         # TODO handle configuration if another server already exists on this node
         
         # FIXME instead of waiting check to see when server is available
         time.sleep(1)
-
-        with open('tinc_server_config.json', 'w') as f:
-            json.dump({"rootPathMap" :self._server_root_path_map}, f)
         super().start()
 
     def set_root_map_entry(self, server_path, client_path, host = ''):
