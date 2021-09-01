@@ -490,11 +490,56 @@ class TincClient(object):
             elif param_type == TincProtocol.PARAMETER_POSED :
                 new_param = None
                 pass
+            elif param_type == TincProtocol.PARAMETER_MENU :
+                #new_param = ParameterM(name, group, default_value = details_unpacked.defaultValue.valueUint64, tinc_client =self)
+                
+                new_param = None
+                pass
             elif param_type == TincProtocol.PARAMETER_CHOICE :
                 new_param = ParameterChoice(name, group, default_value = details_unpacked.defaultValue.valueUint64, tinc_client =self)
                 pass
             elif param_type == TincProtocol.PARAMETER_TRIGGER :
                 new_param = Trigger(name, group)
+                pass
+            elif param_type == TincProtocol.PARAMETER_INT64 :
+                #new_param = ParameterM(name, group, default_value = details_unpacked.defaultValue.valueUint64, tinc_client =self)
+                
+                new_param = None
+                pass
+            elif param_type == TincProtocol.PARAMETER_INT16 :
+                #new_param = ParameterM(name, group, default_value = details_unpacked.defaultValue.valueUint64, tinc_client =self)
+                
+                new_param = None
+                pass
+            elif param_type == TincProtocol.PARAMETER_INT8 :
+                #new_param = ParameterM(name, group, default_value = details_unpacked.defaultValue.valueUint64, tinc_client =self)
+                
+                new_param = None
+                pass
+            elif param_type == TincProtocol.PARAMETER_UINT64 :
+                #new_param = ParameterM(name, group, default_value = details_unpacked.defaultValue.valueUint64, tinc_client =self)
+                
+                new_param = None
+                pass
+            elif param_type == TincProtocol.PARAMETER_UINT32 :
+                #new_param = ParameterM(name, group, default_value = details_unpacked.defaultValue.valueUint64, tinc_client =self)
+                
+                new_param = None
+                pass
+            elif param_type == TincProtocol.PARAMETER_UINT16 :
+                #new_param = ParameterM(name, group, default_value = details_unpacked.defaultValue.valueUint64, tinc_client =self)
+                
+                new_param = None
+                pass
+            elif param_type == TincProtocol.PARAMETER_UINT8 :
+                #new_param = ParameterM(name, group, default_value = details_unpacked.defaultValue.valueUint64, tinc_client =self)
+                
+                new_param = None
+                pass
+            elif param_type == TincProtocol.PARAMETER_DOUBLE :
+                #new_param = ParameterM(name, group, default_value = details_unpacked.defaultValue.valueUint64, tinc_client =self)
+                
+                new_param = None
                 pass
             else:
                 new_param = None
