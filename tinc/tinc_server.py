@@ -25,12 +25,21 @@ class TincServer(TincClient):
         with open('tinc_server_config.json', 'w') as f:
             json.dump({"rootPathMap" :self._server_root_path_map}, f)
 
+        if self.debug:
+            print(f"Wrote config file in {os.getcwd()}")
+
         self._server_process = Popen(tinc_bin, stdin=PIPE)
         # TODO handle configuration if another server already exists on this node
         
+        if self.debug:
+            print(f"Started tinc_server process: {tinc_bin} with pid: {self._server_process.pid}")
+
         # FIXME instead of waiting check to see when server is available
         time.sleep(1)
         super().start()
+        
+        if self.debug:
+            print(f"Internal TincClient started")
 
     def set_root_map_entry(self, server_path, client_path, host = ''):
         if not 'host' in self._server_root_path_map:
@@ -44,4 +53,10 @@ class TincServer(TincClient):
             # self._server_process.communicate(input=b"\n")
             # TODO ensure server has quit
             self._server_process = None
-
+            
+            if self.debug:
+                print(f"Tinc Server process stopped")
+        else:
+            if self.debug:
+                print(f"stop() called but no server process running")
+        super().stop()
