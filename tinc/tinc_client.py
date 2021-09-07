@@ -1294,6 +1294,10 @@ class TincClient(object):
     def _send_message(self, msg):
         size = msg.ByteSize()
         ser_size = struct.pack('N', size)
+        if not self.socket:
+            if self.debug:
+                print("No server connected. Message not sent")
+            return
         try:
             num_bytes = self.socket.send(ser_size + msg.SerializeToString())
             if self.debug:
