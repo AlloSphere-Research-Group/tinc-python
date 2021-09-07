@@ -120,9 +120,9 @@ class ProcessorScript(Processor):
         try:
             if self.debug:
                 print(f'Processor Running command: {cmd}')
-            out = subprocess.check_output(shlex.split(cmd), cwd=wd)
+            out = subprocess.check_output(shlex.split(cmd), cwd=wd, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
-            print(e.output)
+            print(e.output.decode('ascii'))
             print(repr(e))
             # if self._capture_output:
             #     with open(self.output_files[0], 'wb') as f:
