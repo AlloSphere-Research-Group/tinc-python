@@ -256,6 +256,8 @@ class DiskBufferJson(DiskBuffer):
                 self._write_from_array(data, outname)
             elif type(data) == np.ndarray:
                 self._write_from_array(data, outname)
+            elif type(data) == dict:
+                self._write_from_dict(data, outname)
             else:
                 raise ValueError("Unsupported data type")
             self.done_writing_file(outname)
@@ -272,6 +274,10 @@ class DiskBufferJson(DiskBuffer):
     def _write_from_array(self, array, filename):
         with open(filename, 'w') as outfile:
             json.dump(array, outfile)
+    
+    def _write_from_dict(self, data, filename):
+        with open(filename, 'w') as outfile:
+            json.dump(data, outfile)
 
 class DiskBufferBinary(DiskBuffer):
     def __init__(self, tinc_id, base_filename, rel_path = '', root_path = '', tinc_client = None):
