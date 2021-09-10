@@ -453,9 +453,9 @@ If this is happening use asynchronous callbacks by setting synchrouns to False w
             widget.readout_format = format
             widget.step = min_step
             
-        if self._control_widget is not None:
-            label = self._control_widget.children[1]
-            label.value = str(self.get_value())
+        # if self._control_widget is not None:
+        #     label = self._control_widget.children[1]
+            #label.value = str(self.get_value())
 
     def register_callback_async(self, f):
         self.register_callback(f, False)
@@ -563,8 +563,7 @@ class ParameterString(Parameter):
             self.tinc_client.send_parameter_space(self)
     
     def interactive_widget(self):
-        self._interactive_widget = interactive(self.set_from_internal_widget,
-                value=widgets.Textarea(
+        text_field = widgets.Textarea(
                 value=self._value,
                 description=self.id,
                 disabled=False,
@@ -572,7 +571,15 @@ class ParameterString(Parameter):
 #                 orientation='horizontal',
                 readout=True,
 #                 readout_format='.3f',
-            ));
+            )
+        button = widgets.Button(  description="Apply" )
+
+        def cb(button):
+            self.set_from_internal_widget(text_field.value)
+        
+        button.on_click(cb)
+
+        self._interactive_widget = HBox((text_field, button))
         return self._interactive_widget
     
 
