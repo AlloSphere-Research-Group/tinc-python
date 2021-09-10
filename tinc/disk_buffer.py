@@ -163,7 +163,9 @@ class DiskBuffer(TincObject):
         #if self.tinc_client:
         #    file_path = self.tinc_client._working_path
 
-        file_path += self.path.get_full_path() + outname
+        file_path += os.path.normpath(self.path.get_full_path() + outname)
+        if self.debug:
+            print(f'DiskBuffer file for writing: {file_path}')
         return file_path
     
     def done_writing_file(self, filename: str ='', notify = True):

@@ -12,11 +12,18 @@ from tinc import *
 
 import unittest
 import random
+import shutil
+
+python_name = 'python'
+if not shutil.which(python_name):
+    python_name = 'python3'
+    if not shutil.which(python_name):
+        raise RuntimeError('Python not found')
 
 class ProcessorTest(unittest.TestCase):
     def test_processor_script_template_basic(self):
         proc = ProcessorScript("proc")
-        proc.command = "python"
+        proc.command = python_name
         proc.script_name = "processor_test_data.py"
         proc.set_argument_template("-p %%p1%% -a %%p2%%")
 
@@ -31,7 +38,7 @@ class ProcessorTest(unittest.TestCase):
         
     def test_processor_script_template(self):
         proc = ProcessorScript("proc")
-        proc.command = "python"
+        proc.command = python_name
         proc.script_name = "processor_test_data.py"
         proc.set_argument_template("-p %%p1%%")
 
@@ -46,7 +53,7 @@ class ProcessorTest(unittest.TestCase):
         
     def test_processor_script_capture_output(self):
         proc = ProcessorScript("proc")
-        proc.command = "python"
+        proc.command = python_name
         proc.script_name = "processor_test_data.py"
         proc.output_files = ['out.txt']
 
@@ -67,7 +74,7 @@ class ProcessorTest(unittest.TestCase):
     def test_processor_script_output_db(self):
 
         proc = ProcessorScript("proc")
-        proc.command = "python"
+        proc.command = python_name
         proc.script_name = "processor_test_data.py"
 
         db = DiskBufferJson("json_buffer", "out.json", "proc_output/")
@@ -79,7 +86,7 @@ class ProcessorTest(unittest.TestCase):
         p1.value = random.randint(0, 100) + 0.14
         
         proc.register_parameter(p1)
-        
+        proc.debug = True
         proc.process()
         with open(db.get_full_path() +db.get_current_filename()) as f:
             out = json.load(f)
@@ -88,7 +95,7 @@ class ProcessorTest(unittest.TestCase):
         
     def test_processor_script_capture_output_db(self):
         proc = ProcessorScript("proc")
-        proc.command = "python"
+        proc.command = python_name
         proc.script_name = "processor_test_data.py"
 
         db = DiskBufferJson("json_buffer", "out.json", "proc_output/")
@@ -102,11 +109,26 @@ class ProcessorTest(unittest.TestCase):
         proc.register_parameter(p1)
         proc.capture_output()
         
+        print(proc.output_files)
         proc.process()
         with open(db.get_full_path() + db.get_current_filename()) as f:
             out = f.read()
             
         self.assertEqual(p1.value, float(out))
+
+    
+    def test_processor_script_docker(self):
+        proc = ProcessorScriptDocker("proc")
+        proc.command = python_name
+        proc.script_name = "processor_test_data.py"
+        proc.container_id = 'cont_id'
+        proc.set_path_map(os.getcwd() + '/proc_output/', '/remote')
+
+        db = DiskBufferJson("json_buffer", "out.json", "proc_output/")
+        proc.output_files = [db]
+
+        print(proc._get_output_filename_write())
+        print(proc._get_output_filename_read())
 
 if __name__ == '__main__': 
     unittest.main()

@@ -1,8 +1,10 @@
+from tinc import processor
 from .disk_buffer import DiskBuffer
 from .tinc_object import TincObject
 from .parameter import *
 
 import re
+import os
 import shlex
 
 class Processor(TincObject):    
@@ -83,6 +85,7 @@ class ProcessorScript(Processor):
     script_name:str = ''
 
     command_line_flag_template =''
+
     def __init__(self, tinc_id = "_", input_dir = "", input_files = [],
                  output_dir = "", output_files = [], running_dir = ""):
         super().__init__(tinc_id, input_dir, input_files, output_dir, output_files, running_dir)
@@ -113,10 +116,7 @@ class ProcessorScript(Processor):
         wd = None
         if self.running_dir != '':
             wd = self.running_dir
-        cmd = self.command + " "
-        if len(self.script_name) > 0:
-            cmd += self.script_name + " "
-        cmd += self._get_arguments()
+        cmd = self._make_command_line()
         try:
             if self.debug:
                 print(f'Processor Running command: {cmd}')
@@ -131,30 +131,17 @@ class ProcessorScript(Processor):
                 self.done_callback(self, False)
             return False 
 
-        if len(self._buffer_filename) > 0:
-            if isinstance(self.output_files[0],DiskBuffer):
-                self.output_files[0].done_writing_file(self._buffer_filename)
-            if self.debug:
-                print(f"Output is disk buffer: {self._buffer_filename}")
-            self._buffer_filename = ''
-
+        fname = self._get_output_filename_read()
         if self._capture_output:
-            if isinstance(self.output_files[0],DiskBuffer):
-                fname = self.output_files[0].get_filename_for_writing()
-            elif type(self.output_files[0]) == str:
-                fname = self.output_files[0]
-            else:
-                raise ValueError(f'Invalid type for output: {self.output_files[0]}')
-            
             with open(fname, 'wb') as f:
                 f.write(out)
             if self.debug:
                 print(f"Output captured to: {out}")
-                
-            if isinstance(self.output_files[0],DiskBuffer):
-                if self.debug:
-                    print(f"Wrote stdout to disk buffer: {self.output_files[0].id}")
-                fname = self.output_files[0].done_writing_file(fname)
+
+        if len(self.output_files) > 0 and isinstance(self.output_files[0],DiskBuffer):
+            self.output_files[0].done_writing_file(fname)
+            if self.debug:
+                print(f"Output is disk buffer {self.output_files[0].id}: {fname}")
                 
         if self.done_callback is not None:
             self.done_callback(self, True)
@@ -162,6 +149,13 @@ class ProcessorScript(Processor):
         if self.debug:
             print(f"Finished ProcessorScript '{self.id}'")
         return True
+
+    def _make_command_line(self):
+        cmd = self.command + " "
+        if len(self.script_name) > 0:
+            cmd += self.script_name + " "
+        cmd += self._get_arguments()
+        return cmd
 
     def _get_arguments(self):
         if self._arg_template == '':
@@ -171,13 +165,9 @@ class ProcessorScript(Processor):
         for p in self._dimensions:
 
             if len(self.output_files) > 0 and not self._capture_output:
-                if type(self.output_files[0]) == str: 
-                    # TODO support multiple output files
-                    args = args.replace(f'%%:OUTFILE:0%%',self.output_files[0]) 
-                    
-                if isinstance(self.output_files[0],DiskBuffer):
-                    fname = self.output_files[0].get_filename_for_writing()
-                    # FIXME the buffer file will remain locked by the disk buffer if there is an exception in this function
+                fname = self._get_output_filename_write()
+                # FIXME the buffer file will remain locked by the disk buffer if there is an exception in this function
+                if fname is not None:
                     args = args.replace(f'%%:OUTFILE:0%%',fname) 
 
             if p.space_representation_type == parameter_space_representation_types.VALUE:
@@ -193,11 +183,95 @@ class ProcessorScript(Processor):
 
         return args
 
-    
+    def _get_output_filename_write(self):
+        # TODO support multiple output files
+        if len(self.output_files) == 0:
+            return None
+        if type(self.output_files[0]) == str: 
+            fname = os.path.normpath(self.output_files[0])
+        elif isinstance(self.output_files[0],DiskBuffer):
+            fname = self.output_files[0].get_filename_for_writing()
+        else:
+            raise ValueError(f'Invalid type for output: {self.output_files[0]}')
+        
+        return fname
+
+    def _get_output_filename_read(self):
+        # TODO support multiple output files
+        if type(self.output_files[0]) == str: 
+            fname = os.path.normpath(self.output_files[0])
+        elif isinstance(self.output_files[0],DiskBuffer):
+            fname = self.output_files[0].get_filename_for_writing()
+        
+        return fname
+
     def print(self):
         print(f"*** ProcessorScript : {self.id}")
         Processor.print(self)
         
+
+class ProcessorScriptDocker(ProcessorScript):
+    container_id = ''
+    path_map = {}
+    
+    def set_container_id(self, container_id):
+        if container_id is None or not type(container_id) == str:
+            raise ValueError("Container id invalid")
+        self.container_id = container_id
+        
+    def find_container_id(self, name):
+        from subprocess import check_output
+        docker_list = check_output(["docker", "ps", '--format', '{{.ID}}\t{{.Image}}\t{{.Names}}']).decode('ascii').splitlines()
+        container_name = None
+        for c in docker_list:
+            if c.split('\t')[1] == name:
+                container_name = c.split('\t')[2]
+        return container_name
+
+    def set_path_map(self, local_path, container_path):
+        self.path_map[local_path] = container_path
+
+    def _make_command_line(self):
+        cmd = "docker exec " + self.container_id +" " + self.command + " "
+        if len(self.script_name) > 0:
+            cmd += self.script_name + " "
+        cmd += self._get_arguments()
+        return cmd
+
+    def _get_output_filename_write(self):
+        # TODO support multiple output files
+        if len(self.output_files) == 0:
+            return None
+        if type(self.output_files[0]) == str: 
+            fname = os.path.normpath(self.output_files[0])
+        elif isinstance(self.output_files[0],DiskBuffer):
+            fname = self.output_files[0].get_filename_for_writing()
+        else:
+            raise ValueError(f'Invalid type for output: {self.output_files[0]}')
+        for local,remote in self.path_map.items():
+            print(os.path.normpath(local), os.path.normpath(fname))
+            if fname.find(local) == 0:
+                fname = fname.replace(local, remote)
+                break
+            elif fname.find(os.path.normpath(local)) == 0:
+                fname = fname.replace(os.path.normpath(local), remote)
+                break
+            elif os.path.normpath(fname).find(os.path.normpath(local)) == 0:
+                fname = os.path.normpath(fname).replace(os.path.normpath(local), remote)
+                break
+        fname = fname.replace('\\', '/') # remote assumed to be Linux
+        return fname
+
+    def _get_output_filename_read(self):
+        if len(self.output_files) == 0:
+            return None
+        # TODO support multiple output files
+        if type(self.output_files[0]) == str: 
+            fname = os.path.normpath(self.output_files[0])
+        elif isinstance(self.output_files[0],DiskBuffer):
+            fname = self.output_files[0].get_filename_for_writing()
+        
+        return fname
 
 class ProcessorCpp(Processor):
     def __init__(self, name = "_", input_dir = "", input_files = [],
