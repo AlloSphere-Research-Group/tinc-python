@@ -124,9 +124,7 @@ class ProcessorScript(Processor):
         except subprocess.CalledProcessError as e:
             print(e.output.decode('ascii'))
             print(repr(e))
-            # if self._capture_output:
-            #     with open(self.output_files[0], 'wb') as f:
-            #         f.write(out)
+            
             if self.done_callback is not None:
                 self.done_callback(self, False)
             return False 
@@ -168,7 +166,7 @@ class ProcessorScript(Processor):
                 fname = self._get_output_filename_write()
                 # FIXME the buffer file will remain locked by the disk buffer if there is an exception in this function
                 if fname is not None:
-                    args = args.replace(f'%%:OUTFILE:0%%',fname) 
+                    args = args.replace(f'%%:OUTFILE:0%%','"' + fname + '"') 
 
             if p.space_representation_type == parameter_space_representation_types.VALUE:
                 args = args.replace(f'%%{p.id}%%', str(p.value) if type(p) != ParameterString else p.value)

@@ -169,10 +169,8 @@ class DiskBuffer(TincObject):
         return file_path
     
     def done_writing_file(self, filename: str ='', notify = True):
-        # print(filename)
-        if self.get_full_path() == '' or filename.find(self.path.get_full_path()) == 0:
-            filename = filename[len(self.path.get_full_path()):]
-
+        if self.get_full_path() == '' or os.path.normpath(filename).find(os.path.normpath(self.path.get_full_path())) == 0:
+            filename = os.path.normpath(filename)[len(os.path.normpath(self.path.get_full_path())) + 1:]
         self._filename = filename
         if notify and self.tinc_client:
             self.tinc_client.send_disk_buffer_current_filename(self, filename)
@@ -471,10 +469,10 @@ class DiskBufferNetCDFData(DiskBuffer):
                 print("Locked " + outname)
             self._lock.acquire()
         try:
-            if outname.find(self.path.get_full_path()) == 0:
-                fname = outname
-            else:
-                fname = self.path.get_full_path() + outname
+            #if outname.find(self.path.get_full_path()) == 0:
+            #    fname = outname
+            #else:
+            #    fname = self.path.get_full_path() + outname
             if type(data) == list:
                 self.write_from_array(data, outname, self._attrs)
             elif type(data) == np.ndarray:
