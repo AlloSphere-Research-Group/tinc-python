@@ -68,8 +68,12 @@ class DiskBuffer(TincObject):
             file_path = filename
         else:
             file_path = self.get_full_path() + filename
+        
         self._data = self._parse_file(file_path)
         self.done_writing_file(file_path, notify)
+        
+        if self._interactive_widget:
+            self._interactive_widget.value = self._data
         for cb in self._update_callbacks:
             cb(self)
     
@@ -169,6 +173,7 @@ class DiskBuffer(TincObject):
         return file_path
     
     def done_writing_file(self, filename: str ='', notify = True):
+        
         if self.get_full_path() == '' or os.path.normpath(filename).find(os.path.normpath(self.path.get_full_path())) == 0:
             filename = os.path.normpath(filename)[len(os.path.normpath(self.path.get_full_path())) + 1:]
         self._filename = filename
@@ -343,11 +348,20 @@ class DiskBufferText(DiskBuffer):
             print("ERROR parsing data when writing disk buffer")
             traceback.print_exc()
 
+        if self._interactive_widget:
+            self._interactive_widget.value = data
         self.unlock(outname)
 
     def _parse_file(self, file_path):
         with open(file_path, 'r') as fp:
             return fp.read()
+
+    def interactive_widget(self):
+        self._interactive_widget = widgets.HTML(
+                 value=self.data,
+            # disabled=False
+            )
+        return self._interactive_widget
 
 #### DiskBufferImage ###
 # Data is a PIL.Image object

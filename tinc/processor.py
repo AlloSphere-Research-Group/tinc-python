@@ -134,13 +134,13 @@ class ProcessorScript(Processor):
             with open(fname, 'wb') as f:
                 f.write(out)
             if self.debug:
-                print(f"Output captured to: {out}")
+                print(f"Output captured to: {fname}")
 
         if len(self.output_files) > 0 and isinstance(self.output_files[0],DiskBuffer):
-            self.output_files[0].done_writing_file(fname)
+            self.output_files[0].load_data(fname)
             if self.debug:
                 print(f"Output is disk buffer {self.output_files[0].id}: {fname}")
-                
+
         if self.done_callback is not None:
             self.done_callback(self, True)
             

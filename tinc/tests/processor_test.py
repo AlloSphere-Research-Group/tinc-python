@@ -88,7 +88,8 @@ class ProcessorTest(unittest.TestCase):
         proc.register_parameter(p1)
         proc.debug = True
         proc.process()
-        with open(db.get_full_path() +db.get_current_filename()) as f:
+        print(db.get_full_path() + db.get_current_filename())
+        with open(db.get_full_path() + db.get_current_filename()) as f:
             out = json.load(f)
             
         self.assertEqual(out, [p1.value, 450])
