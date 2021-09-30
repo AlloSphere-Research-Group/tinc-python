@@ -336,6 +336,22 @@ class Parameter(TincObject):
         addr += self.id    
         return addr
     
+    def get_space_stride(self):
+        if len(self.values) < 2:
+            return 1
+        s = 1
+        curIndex = 0
+        val = self.values[0]
+        next_val = self.values[1]
+        while next_val == val:
+            s += 1
+            if (curIndex + s) >= len(self.values):
+                # we are at the last index
+                return s
+            next_val = self.values[curIndex + s]
+
+        return s
+
     def get_current_id(self):
         if type(self.values) == np.ndarray or type(self.values) == list:
             index = self.get_current_index()

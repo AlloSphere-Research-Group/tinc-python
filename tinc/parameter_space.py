@@ -31,11 +31,18 @@ class ParameterSpace(TincObject):
         self.sweep_running = False
         self.sweep_threads = []
         
-    def register_parameters(self, params):
+    def get_dimension(self, param_id, group = None):
+        for p in self._parameters:
+            if p.id == param_id:
+                if group is None or group == p.group:
+                    return p
+        return None
+
+    def register_dimensions(self, params):
         for param in params:
             self.register_parameter(param)
         
-    def register_parameter(self, param):
+    def register_dimension(self, param):
         param_registered = False
         for p in self._parameters:
             if p.id == param.id and p.group == param.group:
@@ -52,7 +59,7 @@ class ParameterSpace(TincObject):
             self._parameters.append(param)
         return param
             
-    def unregister_parameter(self, param):
+    def remove_dimension(self, param):
         for p in self._parameters:
             if p.id == param.id and p.group == param.group:
                 self._parameters.remove(p)
@@ -70,19 +77,27 @@ class ParameterSpace(TincObject):
     def clear_cache(self):
         if self._cache_manager:
             self._cache_manager.clear_cache()
-    
-    def get_parameter(self, param_id, group = None):
-        for p in self._parameters:
-            if p.id == param_id:
-                if group is None or group == p.group:
-                    return p
-        return None
-    
-    def get_parameters(self):
+
+    def get_dimensions(self):
         return self._parameters
 
-        # TODO ML add register and remove parameter
+# Provide aliases using 'parameter' instead of 'dimension'
+    def get_parameter(self, param_id, group = None):
+        return self.get_dimension(param_id, group)
     
+    def get_parameters(self):
+        return self.get_dimensions()
+        
+    def register_parameters(self, params):
+        self.register_dimensions(params)
+        
+    def register_parameter(self, param):
+        return self.register_dimension(param)
+            
+    def remove_parameter(self, param):
+        return self.remove_dimension(param)
+        
+# Path
     def set_current_path_template(self, path_template):
         if type(path_template) != str:
             raise ValueError('Path template must be a string')
@@ -90,8 +105,10 @@ class ParameterSpace(TincObject):
             print("Setting local path template, but it can be overriden by the TINC server.") 
         self._path_template = path_template
         
-    def resolve_path(self, path_template, index_map = None):
+    def resolve_template(self, path_template, index_map = None):
         resolved_template = ''
+        if path_template.count("%%") == 0:
+            return path_template
         end = 0
         if index_map is None:
             index_map = {}
@@ -123,14 +140,30 @@ class ParameterSpace(TincObject):
             else:
                 print(f"Warning: could not resolve token {token} in template")
         return resolved_template
-            
 
     def get_current_relative_path(self):
         if self.tinc_client:
             return self.tinc_client._command_parameter_space_get_current_relative_path(self, self.server_timeout)
         else:
-            return self.resolve_path(self._path_template)
+            return self.resolve_template(self._path_template)
         
+    def is_filesystem_dimension(self, dimension_name):
+        dim = self.get_parameter(dimension_name)
+        if dim is not None and len(dim.values) > 1:
+            index_map = {}
+            for p in self._parameters:
+                if len(p.values) > 0:
+                    index_map[p.id] = p.get_current_index()
+                else:
+                    index_map[p.id] = -1
+            index_map[dimension_name] = [0]
+            path0 = self.resolve_template(self._path_template, index_map)
+            index_map[dimension_name] = [dim.get_space_stride()]
+            path1 = self.resolve_template(self._path_template, index_map)
+            if path0 != path1:
+                return True
+        return False
+
     def set_root_path(self, root_path):
         if type(root_path) != str:
             raise ValueError('Root path must be a string')
