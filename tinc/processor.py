@@ -57,6 +57,16 @@ class Processor(TincObject):
         for key, value in self.configuration.items():
             print(f"['{key}'] = {value}")
 
+    def set_output_files(self, outfiles):
+        if not type(outfiles) == list:
+            raise ValueError("Must pass a list of files")
+        self.output_files = outfiles
+        
+    def set_input_files(self, infiles):
+        if not type(infiles) == list:
+            raise ValueError("Must pass a list of files")
+        self.input_files = infiles
+
     def process(self, force_recompute = False):
         raise NotImplementedError("You need to use classes that derive from Processor, but not Processor directly")
 
@@ -93,11 +103,25 @@ class ProcessorScript(Processor):
         self._capture_output = False
         self._buffer_filename = ''
 
+    def set_command_line(self, cmd_line):
+        i = cmd_line.find(' ')
+        if i >= 0:
+            self.command = cmd_line[0:i]
+            self.set_argument_template(cmd_line[i+1:])
+        else:
+            self.command = cmd_line
+
     def set_argument_template(self, template):
         self._arg_template = template
         
-    def capture_output(self, capture = True):
-        self._capture_output = True
+    def capture_output(self, capture):
+        if type(capture) == str:
+            self.set_output_files([capture])
+            self._capture_output = True
+        elif type(capture) == bool:
+           self._capture_output = capture
+        else:
+            raise ValueError("Must pass a boolean or a filename to capture to")
 
     def process(self, force_recompute = False):
         if self.start_callback is not None:
