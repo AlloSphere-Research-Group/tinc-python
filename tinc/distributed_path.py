@@ -5,8 +5,6 @@ Created on Mon Aug  9 15:47:18 2021
 @author: Andres
 """
 
-
-from typing import NamedTuple
 import os
 
 class DistributedPath(object):

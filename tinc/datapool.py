@@ -67,12 +67,22 @@ class DataPool(TincObject):
         # TODO check if file exists and is the correct slice to use cache instead.
         # TODO for this we need to add metadata to the file indicating where the
         # slice came from. This is part of the bigger TINC metadata idea
-
+        slice_values = []
         for dim_name in slice_dimensions:
             dim = self._parameter_space.get_dimension(dim_name)
             if dim in filesystem_dims:
                 #FIXME complete slicing
-
+                this_dim_count = len(dim.values)
+                for i, val in enumerate(dim.values):
+                    index_map = {dim.id: i}
+                    path = self._parameter_space.get_root_path() + "/" \
+                        + self._parameter_space.resolve_template( \
+                                self._parameter_space._path_template, index_map) + '/'
+                    for data_filename, dim_in_file  in self._data_file_names.items():
+                        temp_slice_values = self.get_field_from_file(field, path + data_filename)
+                        index = self._parameter_space.get_dimension(dim_in_file).get_current_index()
+                        slice_values.append(temp_slice_values[index])
+                    
                 pass
             else:
                 path = self._parameter_space.get_root_path() + "/" \
@@ -88,8 +98,17 @@ class DataPool(TincObject):
             filename += dim.id + "_" + str(dim.value) + "_"
 
         # FIXME sanitize filename ProcessorScript::sanitizeName
+        # TODO Windows paths cant end with dot or space
         filename = filename.replace('(', '_')
         filename = filename.replace(')', '_')
+        filename = filename.replace('<', '_')
+        filename = filename.replace('>', '_')
+        filename = filename.replace('*', '_')
+        filename = filename.replace('"', '_')
+        filename = filename.replace('[', '_')
+        filename = filename.replace(']', '_')
+        filename = filename.replace('|', '_')
+        filename = filename.replace(':', '_')
         filename += ".nc"
         # Now write slice
         if os.path.isabs(self.slice_cache_dir) or self.tinc_client is None:
@@ -139,13 +158,15 @@ class DataPool(TincObject):
         if self.debug:
             print(f'DataPool reading slice: {slice_file} in {slice_path}')
         # print(nc.variables.keys())
-        return nc.variables['data'][:]
+        slice_data = nc.variables['data'][:]
+        nc.close()
+
+        return slice_data
+
     
     def get_slice_file(self, field, slice_dimensions):
         if not self.tinc_client:
-            # TODO implement slicing for local data
-            print("Datapool get_slice_file not implemented without connection")
-            return None
+            return self.create_data_slice(field, slice_dimensions)
         return self.tinc_client._command_datapool_slice_file(self.id, field, slice_dimensions, self.server_timeout)
         
     def get_current_files(self):
@@ -164,7 +185,14 @@ class DataPool(TincObject):
             return files
         else:
             return self.tinc_client._command_datapool_get_files(self.id, self.server_timeout)
-        
+    
+    def list_fields(self, verify_consistency = False):
+        # TODO verify consistency
+        current_file = self.get_current_files()[0]
+
+        return self.list_fields_in_file(current_file)
+
+
     def print(self):
         print(f" ** DataPool: {self.id}")
         print(f"      ParameterSpace id: {self._parameter_space.id}")
@@ -174,6 +202,24 @@ class DataPoolJson(DataPool):
     def __init__(self, tinc_id = "_", parameter_space = None, slice_cache_dir = '', tinc_client = None):
         super().__init__(tinc_id, parameter_space, slice_cache_dir, tinc_client)
     
+    def list_fields_in_file(self, full_path):
+        import json
+        with open(full_path) as f:
+            j = json.load(f)
+
+        return list(j.keys())
+
     def get_field_from_file(self, field, full_path):
-        print("DataPoolJson not implemented")
-        return []
+        import json
+        with open(full_path) as f:
+            j = json.load(f)
+
+        field_data = j[field]
+        if type(field_data) == list:
+            return field_data
+
+
+if __name__ == "__main__":
+    # To test, run from one directory up: python -m tinc.datapool 
+    ps = ParameterSpace("ps")
+    dp = DataPoolJson("dp", ps)

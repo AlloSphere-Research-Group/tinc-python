@@ -202,10 +202,11 @@ class Parameter(TincObject):
     def set_space_representation_type(self, space_representation_type):
         try:
             self._space_repr_type = parameter_space_representation_types(space_representation_type)
-            self.tinc_client.send_parameter_space_representation_types(self)
         except:
             print("Unsupported space type: " + str(space_representation_type))
-            
+        if self.tinc_client:
+            self.tinc_client.send_parameter_space_representation_types(self)
+
     def set_minimum(self, minimum):
         self._minimum = minimum 
         if self._interactive_widget:

@@ -5,15 +5,15 @@ Created on Tue Sep  1 17:13:15 2020
 @author: Andres
 """
 
-import threading
 from .tinc_object import TincObject
 from .cachemanager import CacheEntry, CacheManager, DistributedPath, FileDependency, SourceArgument, SourceInfo, UserInfo, VariantValue, VariantType
 from .parameter import *
-from threading import Lock
 
 import traceback
 import os
 import pickle
+import threading
+from threading import Lock
 
 import inspect, dis
 
@@ -112,7 +112,8 @@ class ParameterSpace(TincObject):
         end = 0
         if index_map is None:
             index_map = {}
-            for p in self._parameters:
+        for p in self._parameters:
+            if not p.id in index_map:
                 if len(p.values) > 0:
                     index_map[p.id] = p.get_current_index()
                 else:
@@ -132,14 +133,31 @@ class ParameterSpace(TincObject):
             index = index_map[token]
             if param:
                 if representation == 'VALUE':
-                    resolved_template += str(param.value)
+                    resolved_template += str(param.values[index])
                 elif representation == 'ID':
+                    if index > len(param.ids):
+                        raise ValueError(f"Insufficient ids in parameter '{param.id}' for substitution")
                     resolved_template += str(param.ids[index])
                 elif representation == 'INDEX':
                     resolved_template += str(index)
             else:
                 print(f"Warning: could not resolve token {token} in template")
         return resolved_template
+
+    def _substitute_values(self, path_template, replacement_map):
+        resolved_template = ''
+        while path_template.count("%%", end)> 0:
+            start = path_template.index("%%", end)
+            resolved_template += path_template[end: start]
+            end = path_template.index("%%", start + 2)
+            token = path_template[start + 2: end]
+            end += 2
+            # TODO support different representations
+            if token.count(':') > 0:
+                sep_index = token. index(':')
+                token = token[:sep_index]
+            resolved_template += replacement_map(token)
+
 
     def get_current_relative_path(self):
         if self.tinc_client:
@@ -156,9 +174,9 @@ class ParameterSpace(TincObject):
                     index_map[p.id] = p.get_current_index()
                 else:
                     index_map[p.id] = -1
-            index_map[dimension_name] = [0]
+            index_map[dimension_name] = 0
             path0 = self.resolve_template(self._path_template, index_map)
-            index_map[dimension_name] = [dim.get_space_stride()]
+            index_map[dimension_name] = 1
             path1 = self.resolve_template(self._path_template, index_map)
             if path0 != path1:
                 return True
@@ -177,6 +195,40 @@ class ParameterSpace(TincObject):
         else:
             return self._local_root_path
  
+    def running_paths(self, fixed_dimensions = []):
+        paths = []
+        params = []
+        fixed_params = {}
+        for dim in self._parameters:
+            if dim.id != fixed_dimensions:
+                params.append(dim)
+            else:
+                # TODO support other paramter representations. This hard codes VALUE
+                fixed_params[dim.id] = str(dim.value)
+
+        indeces = [0]*len(params)
+        index_max = [len(p.values) for p in params]
+
+        done = False 
+        while not done and self.sweep_running:
+            sweep_values = {p.id:str(p.values[indeces[i]]) for i, p in enumerate(params)}
+            sweep_values.update(fixed_params)
+
+            paths.append(self._substitute_values(self._path_template, sweep_values))
+
+            indeces[0] += 1
+            current_p = 0
+            while indeces[current_p] == index_max[current_p]:
+                indeces[current_p] = 0
+                if current_p == len(indeces) - 1:
+                    if indeces == [0]*len(params):
+                        done = True
+                    break
+                indeces[current_p + 1] += 1
+                current_p += 1
+
+        return paths
+    
     def sweep(self, function, params=None, dependencies = [], force_recompute = False, force_values = False):
         if self.sweep_running:
             print("Sweep is already running")
