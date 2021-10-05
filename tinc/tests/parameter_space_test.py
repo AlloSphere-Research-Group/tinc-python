@@ -60,6 +60,26 @@ class ParameterSpaceTest(unittest.TestCase):
             return param1 * param2
         
         ps.sweep(func)
+
+    def test_data_directories(self):
+        dim1 = Parameter("dim1")
+        dim1.values = [0.1,0.2,0.3,0.4, 0.5]
+        dim2 = Parameter("dim2")
+        dim2.set_space_representation_type(parameter_space_representation_types.INDEX)
+        dim2.values = [0.1,0.2,0.3,0.4, 0.5]
+        dim3 = Parameter("dim3")
+        dim3.set_space_representation_type(parameter_space_representation_types.ID)
+        dim2.values = [0.1,0.2,0.3,0.4, 0.5]
+
+        ps = ParameterSpace("ps")
+        ps.register_parameters([dim1, dim2, dim3])
+        ps.set_current_path_template("file_%%dim1%%_%%dim2:INDEX%%")
+
+        dim1.value=0.2
+        dim2.value=0.2
+        self.assertEqual(ps.get_current_relative_path(), 'file_0.2_1')
+
+        # TODO ML complete tests see C++ tests for parameter space
         
         
 if __name__ == '__main__': 
