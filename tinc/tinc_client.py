@@ -636,7 +636,7 @@ class TincClient(object):
                     param_id = param_value.valueString
                     for p in self.parameters:
                         if p.get_osc_address() == param_id:
-                            ps.unregister_parameter(p)
+                            ps.remove_parameter(p)
                             configured = True
                             break
                 elif ps_command == TincProtocol.ParameterSpaceConfigureType.CURRENT_TEMPLATE:
@@ -763,7 +763,8 @@ class TincClient(object):
                     break
             
             if not found:
-                new_datapool = DataPool(dp_id, ps_id, slice_cache_dir, tinc_client=self)
+                ps = self.get_parameter_space(ps_id)
+                new_datapool = DataPool(dp_id, ps, slice_cache_dir, tinc_client=self)
                 self.datapools.append(new_datapool)
         else:
             print("Unexpected payload in Register Datapool")
