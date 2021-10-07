@@ -68,15 +68,20 @@ class DataPool(TincObject):
         # TODO for this we need to add metadata to the file indicating where the
         # slice came from. This is part of the bigger TINC metadata idea
         slice_values = []
+        index_map = {}
+        for dim in self._parameter_space.get_dimensions():
+            index_map = {dim.id: dim.get_current_index()}
         for dim_name in slice_dimensions:
             dim = self._parameter_space.get_dimension(dim_name)
             if dim in filesystem_dims:
                 #FIXME complete slicing
-                this_dim_count = len(dim.values)
+                this_dim_count = (len(dim.values)/dim.get_space_stride() )
                 for i, val in enumerate(dim.values):
                     index_map = {dim.id: i}
-                    path = self._parameter_space.get_root_path() + "/" \
-                        + self._parameter_space.resolve_template( \
+                    path = self._parameter_space.get_root_path()
+                    if len(path) > 0:
+                        path += '/'
+                    path += self._parameter_space.resolve_template( \
                                 self._parameter_space._path_template, index_map) + '/'
                     for data_filename, dim_in_file  in self._data_file_names.items():
                         temp_slice_values = self.get_field_from_file(field, path + data_filename)
@@ -85,8 +90,10 @@ class DataPool(TincObject):
                     
                 pass
             else:
-                path = self._parameter_space.get_root_path() + "/" \
-                    + self._parameter_space.get_current_relative_path() + "/"
+                path = self._parameter_space.get_root_path()
+                if len(path) > 0:
+                    path += "/" 
+                path += self._parameter_space.get_current_relative_path() + "/"
                 for data_filename, dim_in_file  in self._data_file_names.items():
                     # TODO support more than one file
                     slice_values = self.get_field_from_file(field, path + data_filename)
@@ -172,12 +179,14 @@ class DataPool(TincObject):
     def get_current_files(self):
         if not self.tinc_client:
             files = []
-            path = self._parameter_space.get_root_path() \
-                + '/' + self._parameter_space.get_current_relative_path() + '/'
+            path = self._parameter_space.get_root_path()
+            if len(path) > 0:
+                path += '/'
+            path += self._parameter_space.get_current_relative_path() + '/'
             
             for fname in self._data_file_names.keys():
                 fullPath = path + fname
-                if os.path.isabs(fullPath):
+                if not os.path.isabs(fullPath):
                     fullPath = os.path.abspath(fullPath)
 
                 files.append(fullPath)

@@ -96,8 +96,23 @@ class ParameterSpace(TincObject):
             
     def remove_parameter(self, param):
         return self.remove_dimension(param)
-        
-# Path
+      
+    '''
+    You can use %% to delimit dimension names, e.g. "value_%%ParameterValue%%"
+    where %%ParameterValue%% will be replaced by the current value (in the
+    correct representation as ID, VALUE or INDEX) of the dimension whose id is
+    "ParameterValue". You can specify a different representation than the one
+    set for the ParameterSpaceDimension by adding it following a ':'. For
+    example:
+    "value_%%ParameterValue:INDEX%%" will replace "%%ParameterValue:INDEX%%"
+    with the current index for ParameterValue.
+    For parameters that have mutiple ids for the same value, you can specify
+    any muber of parameters separated by commas. the function get_common_id()
+    will be called. For example, for %%param1,param2%% the common id for the
+    their current values will be inserted. Any representation type (ID, VALUE,
+    INDEX) is ignored, as only ids are used. Using this method can be useful as
+    it can avoid having to define a custom generateRelativeRunPath() function
+    '''
     def set_current_path_template(self, path_template):
         if type(path_template) != str:
             raise ValueError('Path template must be a string')
@@ -125,24 +140,51 @@ class ParameterSpace(TincObject):
             token = path_template[start + 2: end]
             end += 2
             representation = 'VALUE'
-            if token.count(':') > 0:
-                sep_index = token. index(':')
-                representation = token[sep_index+1:]
-                token = token[:sep_index]
-            param = self.get_parameter(token)
-            index = index_map[token]
-            if param:
-                if representation == 'VALUE':
-                    resolved_template += str(param.values[index])
-                elif representation == 'ID':
-                    if index > len(param.ids):
-                        raise ValueError(f"Insufficient ids in parameter '{param.id}' for substitution")
-                    resolved_template += str(param.ids[index])
-                elif representation == 'INDEX':
-                    resolved_template += str(index)
+
+            if token.count(',') > 0:
+                tokens = token.split(',')
+                dims = []
+                for t in tokens:
+                    dims.append(self.get_parameter(t))
+                resolved_template += self.get_common_id(dims)
             else:
-                print(f"Warning: could not resolve token {token} in template")
+                if token.count(':') > 0:
+                    sep_index = token. index(':')
+                    representation = token[sep_index+1:]
+                    token = token[:sep_index]
+                param = self.get_parameter(token)
+                index = index_map[token]
+                if param:
+                    if representation == 'VALUE':
+                        resolved_template += str(param.values[index])
+                    elif representation == 'ID':
+                        if index > len(param.ids):
+                            raise ValueError(f"Insufficient ids in parameter '{param.id}' for substitution")
+                        resolved_template += str(param.ids[index])
+                    elif representation == 'INDEX':
+                        resolved_template += str(index)
+                else:
+                    print(f"Warning: could not resolve token {token} in template")
         return resolved_template
+
+    def get_common_id(self, dimensions):
+        # validate dims size > 1
+        ids = dimensions[0].get_current_ids()
+        for dim in dimensions[1:]:
+            next_ids = dim.get_current_ids()
+            ids_to_remove =[]
+            for id in ids:
+                if not id in next_ids:
+                    ids_to_remove.append(id)
+            for id_to_remove in ids_to_remove:
+                while id_to_remove in ids:
+                    ids.remove(id_to_remove)
+        
+        if len(ids) == 1:
+            return ids[0]
+        else:
+            print("No common id")
+            return ""
 
     def _substitute_values(self, path_template, replacement_map):
         resolved_template = ''
@@ -176,7 +218,7 @@ class ParameterSpace(TincObject):
                     index_map[p.id] = -1
             index_map[dimension_name] = 0
             path0 = self.resolve_template(self._path_template, index_map)
-            index_map[dimension_name] = 1
+            index_map[dimension_name] = len(dim.values) - 1
             path1 = self.resolve_template(self._path_template, index_map)
             if path0 != path1:
                 return True

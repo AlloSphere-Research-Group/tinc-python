@@ -100,7 +100,11 @@ class DiskBuffer(TincObject):
         return self.path.root_path
 
     def get_full_path(self):
-        return self.get_root_path() + self.get_relative_path()
+        path = self._parameter_space.get_root_path()
+        if len(path) > 0:
+            path += "/" 
+        path += self.get_relative_path()
+        return path
 
     def set_root_path(self, root_path):
         if not root_path == '':

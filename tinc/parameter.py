@@ -149,10 +149,10 @@ class Parameter(TincObject):
         self._ids = [str(id) for id in ids]
         if self.tinc_client:
             self.tinc_client.send_parameter_space(self)
-            
+    
     def set_values(self, values):
         if len(values) > 0:
-            self._values = np.sort(values)
+            self._values = values
             if type(values) == list:
                     if type(values[0]) == int:
                         self._space_data_type = VariantType.VARIANT_INT32
@@ -199,6 +199,14 @@ class Parameter(TincObject):
         if self.tinc_client:
             self.tinc_client.send_parameter_space(self)
             
+    def sort(self):
+        if len(self._values) > 0 and len(self._values) == len(self._ids):
+            zipped = zip(self._values, self._ids)
+            sorted_pairs = sorted(zipped)
+            tuples = zip(*sorted_pairs)
+            # This will update remotes.
+            self.values, self.ids = [ list(tuple) for tuple in  tuples]  
+        
     def set_space_representation_type(self, space_representation_type):
         try:
             self._space_repr_type = parameter_space_representation_types(space_representation_type)
@@ -350,7 +358,6 @@ class Parameter(TincObject):
                 # we are at the last index
                 return s
             next_val = self.values[curIndex + s]
-
         return s
 
     def get_current_id(self):
@@ -360,6 +367,18 @@ class Parameter(TincObject):
             raise ValueError("Unsupported list type for values")
         return self.ids[index]
     
+    '''
+    Get all ids for current value, when value is repeated with different ids
+    '''
+    def get_current_ids(self):
+        ids = []
+        if len(self.ids) > 0:
+            cur_val = self.value
+            for i,val in enumerate(self.values):
+                if val == cur_val:
+                    ids.append(self.ids[i])
+        return ids
+
     def get_current_index(self):
         if type(self.values) ==list:
             return self.values.index(self.value)
