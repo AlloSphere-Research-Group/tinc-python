@@ -114,7 +114,7 @@ class ProcessorScript(Processor):
     def set_argument_template(self, template):
         self._arg_template = template
         
-    def capture_output(self, capture):
+    def capture_output(self, capture = True):
         if type(capture) == str:
             self.set_output_files([capture])
             self._capture_output = True

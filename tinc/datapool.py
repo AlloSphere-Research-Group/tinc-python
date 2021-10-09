@@ -25,6 +25,11 @@ class DataPool(TincObject):
         self._data_file_names = {}
         self.debug = False
 
+    def __str__(self):
+        out = f" ** DataPool: {self.id}\n"
+        out += f"      ParameterSpace id: {self._parameter_space.id}\n"
+        return out
+
     def register_data_file(self, filename, dimension_in_file):
         if filename in self._data_file_names:
             print(f"DataPool: Overiwriting dimension in file {filename}")
@@ -71,24 +76,37 @@ class DataPool(TincObject):
         index_map = {}
         for dim in self._parameter_space.get_dimensions():
             index_map = {dim.id: dim.get_current_index()}
+        
         for dim_name in slice_dimensions:
             dim = self._parameter_space.get_dimension(dim_name)
-            if dim in filesystem_dims:
-                #FIXME complete slicing
-                this_dim_count = (len(dim.values)/dim.get_space_stride() )
-                for i, val in enumerate(dim.values):
-                    index_map = {dim.id: i}
+
+            this_dim_count = (len(dim.values)/dim.get_space_stride() )
+            if self._parameter_space.is_filesystem_dimension(dim.id):
+                for i in range(int(this_dim_count)):
+                    index_map = {dim.id: i * dim.get_space_stride()}
+                    if dim.get_space_stride() > 1:
+                        ids = {j:dim.ids[i * dim.get_space_stride() + j] for j in range(dim.get_space_stride())}
+                        for fs_dim in filesystem_dims:
+                            if fs_dim.id != dim_name:
+                                new_ids = fs_dim.get_current_ids()
+                                to_remove = []
+                                for id in ids.values():
+                                    if not id in new_ids:
+                                        to_remove.append(list(ids.keys())[list(ids.values()).index(id)])
+                                for r in to_remove:
+                                    ids.pop(r)
+                        if len(ids) == 1:
+                            index_map[dim.id] += list(ids.keys())[0]
                     path = self._parameter_space.get_root_path()
                     if len(path) > 0:
                         path += '/'
                     path += self._parameter_space.resolve_template( \
                                 self._parameter_space._path_template, index_map) + '/'
+                    #TODO support multiple files. This only works for one file. 
                     for data_filename, dim_in_file  in self._data_file_names.items():
                         temp_slice_values = self.get_field_from_file(field, path + data_filename)
                         index = self._parameter_space.get_dimension(dim_in_file).get_current_index()
                         slice_values.append(temp_slice_values[index])
-                    
-                pass
             else:
                 path = self._parameter_space.get_root_path()
                 if len(path) > 0:
@@ -201,10 +219,8 @@ class DataPool(TincObject):
 
         return self.list_fields_in_file(current_file)
 
-
     def print(self):
-        print(f" ** DataPool: {self.id}")
-        print(f"      ParameterSpace id: {self._parameter_space.id}")
+        print(str(self))
 
 
 class DataPoolJson(DataPool):

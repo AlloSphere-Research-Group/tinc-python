@@ -80,6 +80,35 @@ class ParameterSpaceTest(unittest.TestCase):
         self.assertEqual(ps.get_current_relative_path(), 'file_0.2_1')
 
         # TODO ML complete tests see C++ tests for parameter space
+
+        
+    def test_common_id(self):
+        dim1 = Parameter("dim1")
+        dim1.values = [0.1, 0.1, 0.2, 0.2, 0.3, 0.3]
+        dim1.ids = ["0.1_1" ,"0.1_2","0.2_1" ,"0.2_2", "0.3_1" ,"0.3_2"]
+
+        dim2 = Parameter("dim2")
+        dim2.set_space_representation_type(parameter_space_representation_types.INDEX)
+        dim2.values = [1,1,1,2,2,2]
+        dim2.ids = ["0.1_1", "0.2_1", "0.3_1", "0.1_2", "0.2_2", "0.3_2"]
+
+        ps = ParameterSpace("ps")
+        ps.register_parameters([dim1, dim2])
+        dim1.value = 0.1
+        dim2.value = 1
+        self.assertEqual(ps.get_common_id([dim1, dim2]), "0.1_1")
+        dim1.value = 0.2
+        dim2.value = 1
+        self.assertEqual(ps.get_common_id([dim1, dim2]), "0.2_1")
+        dim1.value = 0.1
+        dim2.value = 2
+        self.assertEqual(ps.get_common_id([dim1, dim2]), "0.1_2")
+        dim1.value = 0.2
+        dim2.value = 2
+        self.assertEqual(ps.get_common_id([dim1, dim2]), "0.2_2")
+        dim1.value = 0.3
+        dim2.value = 2
+        self.assertEqual(ps.get_common_id([dim1, dim2]), "0.3_2")
         
         
 if __name__ == '__main__': 

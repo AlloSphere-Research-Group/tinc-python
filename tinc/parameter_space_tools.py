@@ -29,7 +29,15 @@ def extract_parameter_space_data(data_dir, config_file,
             _tinc_extract_parameters(sub_dir + '/' + config_file, parameter_start_key, parameter_end_key, parameter_increment_key))
     return _tinc_merge_spaces(all_spaces)
 
-def create_datapool_from_output(data_root, output_file, read_file_func, ignore_params = [], dp_name = "dp", ps_name = "ps"):
+'''
+Use output files in subdirectories to create ParameterSpace and DataPool
+
+
+'''
+def create_datapool_from_output(data_root, output_file, read_file_func = None, \
+                    ignore_params = [], dp_name = "dp", ps_name = "ps"):
+    if read_file_func is None:
+        read_file_func = _tinc_default_read_function_for_create_datapool
     ps = extract_parameter_space_from_output(data_root, output_file, read_file_func, ignore_params, ps_name)
     ps.set_root_path('') # Full path is currently used as id. 
     # TODO determine file type
@@ -48,9 +56,7 @@ def create_datapool_from_output(data_root, output_file, read_file_func, ignore_p
         print("Can't identify a parameter in output files.")
     else:
         dp.register_data_file(output_file, fs_param)
-    return dp
-
-
+    return dp,ps
 
 # read_file_func shoud return a dictionary in this form:
 # {"param_name": [val1, val2, val3 .... valn]}
@@ -104,6 +110,11 @@ def make_parameter_space_from_dict(merged_space, data_dir = None, ps_name = None
 
 #######################################################
 # internal functions
+def _tinc_default_read_function_for_create_datapool(path):
+    import json
+    with open(path) as f:
+        j = json.load(f)
+    return j
 
 def _tinc_get_params_in_files(data_root, output_file, read_file_func):
     all_files = glob.glob(data_root + '/**/' + output_file, recursive=True)

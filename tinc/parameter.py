@@ -5,6 +5,7 @@ try:
 except:
     print("Can't import ipywidgets. Notebook widgets not available")
 
+import unittest
 from .cachemanager import VariantValue, VariantType
 from .tinc_object import TincObject
 from .variant import VariantType
@@ -13,7 +14,7 @@ import struct
 import numpy as np
 import threading
 import traceback
-from enum import IntEnum
+from enum import IntEnum, unique
 import re
 
 # used in set_XXX_from_message 
@@ -63,6 +64,13 @@ class Parameter(TincObject):
         self._async_callbacks = []
         self._init(default_value)
         
+    def __str__(self):
+        details = f" ** Parameter {self.id} group: {self.group} ({type(self.value)})\n"
+        details += f"    Default: {self.default}\n"
+        details += f"    Min: {self.minimum}\n"
+        details += f"    Max: {self.maximum}\n"
+        return details
+
     def _init(self, default_value):
         self._data_type = float
         self.default = default_value
@@ -119,10 +127,7 @@ class Parameter(TincObject):
         self.set_maximum(maximum)
         
     def print(self):
-        print(f" ** Parameter {self.id} group: {self.group} ({type(self.value)})")
-        print(f"    Default: {self.default}")
-        print(f"    Min: {self.minimum}")
-        print(f"    Max: {self.maximum}")
+        print(str(self))
             
     def set_value(self, value):
         if value < self._minimum:
@@ -198,7 +203,18 @@ class Parameter(TincObject):
         self._configure_widget()
         if self.tinc_client:
             self.tinc_client.send_parameter_space(self)
-            
+
+    def get_values(self, remove_duplicates = True):
+        if remove_duplicates:
+            unique_vals = []
+            for v in self.values:
+                if not v in unique_vals:
+                    unique_vals.append(v)
+            return unique_vals
+        else:
+            return self.values
+
+
     def sort(self):
         if len(self._values) > 0 and len(self._values) == len(self._ids):
             zipped = zip(self._values, self._ids)
@@ -378,6 +394,15 @@ class Parameter(TincObject):
                 if val == cur_val:
                     ids.append(self.ids[i])
         return ids
+    
+    def get_ids_for_value(self, value):
+        ids = []
+        if len(self.ids) > 0:
+            cur_val = value
+            for i,val in enumerate(self.values):
+                if val == cur_val:
+                    ids.append(self.ids[i])
+        return ids
 
     def get_current_index(self):
         if type(self.values) ==list:
@@ -531,6 +556,10 @@ class ParameterString(Parameter):
     def __init__(self, tinc_id: str, group: str = "", default_value: str = "", tinc_client= None):
         super().__init__(tinc_id, group, default_value=default_value, tinc_client=tinc_client)
         
+    def __str__(self):
+        details = f" ** Parameter {self.id} group: {self.group} ({type(self.value)})\n"
+        details += f"    Default: {self.default}\n"
+        return details
 
     def _init(self, default_value):
         self._data_type = str
@@ -538,12 +567,7 @@ class ParameterString(Parameter):
         if default_value is None:
             self.default = ""
         self._value = self.default
-        
-    def print(self):
-        print(f" ** Parameter {self.id} group: {self.group} ({type(self.value)})")
-        print(f"    Default: {self.default}")
-    # def get_value_serialized(self):
-    #     return struct.pack('f', self._value)
+
     def set_value(self, value):
         self._value = self._data_type(value)
         if self.tinc_client:

@@ -30,6 +30,16 @@ class ParameterSpace(TincObject):
         self.debug = False
         self.sweep_running = False
         self.sweep_threads = []
+    
+    def __str__(self):
+        details = f" ** ParameterSpace '{self.id}'\n"
+        for p in self._parameters:
+            if type(p) == Parameter or type(p) == ParameterInt:
+                details += f"   -- Parameter {p.id}{':' + p.group if p.group else ''} {p.minimum} ... {p.maximum}\n"
+            else:
+                details += f"   -- Parameter {p.id}{':' + p.group if p.group else ''}\n"
+        details += "\n"
+        return details
         
     def get_dimension(self, param_id, group = None):
         for p in self._parameters:
@@ -146,7 +156,7 @@ class ParameterSpace(TincObject):
                 dims = []
                 for t in tokens:
                     dims.append(self.get_parameter(t))
-                resolved_template += self.get_common_id(dims)
+                resolved_template += self.get_common_id(dims, index_map)
             else:
                 if token.count(':') > 0:
                     sep_index = token. index(':')
@@ -167,11 +177,16 @@ class ParameterSpace(TincObject):
                     print(f"Warning: could not resolve token {token} in template")
         return resolved_template
 
-    def get_common_id(self, dimensions):
+    def get_common_id(self, dimensions, indeces = None):
         # validate dims size > 1
-        ids = dimensions[0].get_current_ids()
+        if indeces is None:
+            indeces = {}
+            for dim in dimensions:
+                indeces[dim.id] = dim.get_current_index()
+
+        ids = dimensions[0].get_ids_for_value(dimensions[0].values[indeces[dimensions[0].id]])
         for dim in dimensions[1:]:
-            next_ids = dim.get_current_ids()
+            next_ids = dim.get_ids_for_value(dim.values[indeces[dim.id]])
             ids_to_remove =[]
             for id in ids:
                 if not id in next_ids:
@@ -208,6 +223,8 @@ class ParameterSpace(TincObject):
             return self.resolve_template(self._path_template)
         
     def is_filesystem_dimension(self, dimension_name):
+        if isinstance(dimension_name, Parameter):
+            dimension_name = dimension_name.id
         dim = self.get_parameter(dimension_name)
         if dim is not None and len(dim.values) > 1:
             index_map = {}
@@ -508,9 +525,6 @@ class ParameterSpace(TincObject):
             
         # print("done _process()")
         return out
-        
- 
+
     def print(self):
-        print(f" ** ParameterSpace {self.id}: {self}")
-        for p in self._parameters:
-            print(f"   -- Parameter {p.id}{':' + p.group if p.group else ''} {p.get_osc_address()}")
+        print(str(self))
