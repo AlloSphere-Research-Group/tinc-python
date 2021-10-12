@@ -8,6 +8,7 @@ Created on Mon Oct  4 17:13:15 2021
 import os
 import numpy as np
 import glob
+import itertools
 
 from .parameter import *
 from .parameter_space import *
@@ -35,10 +36,11 @@ Use output files in subdirectories to create ParameterSpace and DataPool
 
 '''
 def create_datapool_from_output(data_root, output_file, read_file_func = None, \
-                    ignore_params = [], dp_name = "dp", ps_name = "ps"):
+                    ignore_params = [], depth = 3, dp_name = "dp", ps_name = "ps"):
     if read_file_func is None:
         read_file_func = _tinc_default_read_function_for_create_datapool
-    ps = extract_parameter_space_from_output(data_root, output_file, read_file_func, ignore_params, ps_name)
+    ps = extract_parameter_space_from_output(data_root, output_file, read_file_func, \
+            ignore_params, depth, ps_name)
     ps.set_root_path('') # Full path is currently used as id. 
     # TODO determine file type
     if output_file[-5:] == '.json':
@@ -60,8 +62,8 @@ def create_datapool_from_output(data_root, output_file, read_file_func = None, \
 
 # read_file_func shoud return a dictionary in this form:
 # {"param_name": [val1, val2, val3 .... valn]}
-def extract_parameter_space_from_output(data_root, output_file, read_file_func, ignore_params = [], ps_name = "ps"):
-    all_params = _tinc_get_params_in_files(data_root, output_file, read_file_func)
+def extract_parameter_space_from_output(data_root, output_file, read_file_func, ignore_params = [], depth = 3, ps_name = "ps"):
+    all_params = _tinc_get_params_in_files(data_root, output_file, read_file_func, depth)
     consistent_params_data = _tinc_extract_consistent_params(all_params, ignore_params)
     ps = make_parameter_space_from_dict(consistent_params_data, data_root, ps_name)
     template = ''
@@ -116,8 +118,12 @@ def _tinc_default_read_function_for_create_datapool(path):
         j = json.load(f)
     return j
 
-def _tinc_get_params_in_files(data_root, output_file, read_file_func):
-    all_files = glob.glob(data_root + '/**/' + output_file, recursive=True)
+def _tinc_get_params_in_files(data_root, output_file, read_file_func, depth = 3):
+    glob_expr = data_root + '/'
+    all_files = []
+    for i in range(depth):
+        all_files.extend(glob.glob(glob_expr + output_file, recursive=True))
+        glob_expr += "*/"
     all_params = {}
     for f in all_files:
         new_params = read_file_func(f)
