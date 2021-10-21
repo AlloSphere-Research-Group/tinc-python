@@ -239,7 +239,10 @@ class DataPoolJson(DataPool):
         with open(full_path) as f:
             j = json.load(f)
 
-        field_data = j[field]
+        try:
+            field_data = j[field]
+        except ValueError as e:
+            raise ValueError(f"Field '{field}' not found in file: {f}")
         if type(field_data) == list:
             return field_data
 
