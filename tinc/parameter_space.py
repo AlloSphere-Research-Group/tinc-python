@@ -67,8 +67,16 @@ class ParameterSpace(TincObject):
         if not param_registered:
             # print(f'register {param.id} for {self}')
             self._parameters.append(param)
+        if self.tinc_client:
+            pass
+            #FIXME notify TINC server 
         return param
-            
+
+    def create_dimension(self, name, values = None):
+        p = Parameter(name)
+        p.values = values
+        self.register_dimension(p)
+
     def remove_dimension(self, param):
         for p in self._parameters:
             if p.id == param.id and p.group == param.group:
@@ -389,6 +397,9 @@ class ParameterSpace(TincObject):
         elif type(args) == list:
             for p in args:
                 if issubclass(type(p),Parameter):
+                    if p.id in named_args:
+                        calling_args[p.id] = p.value
+                elif issubclass(type(p),ParameterString):
                     if p.id in named_args:
                         calling_args[p.id] = p.value
                 else:

@@ -7,6 +7,7 @@ Created on Tue Sep  1 15:47:46 2020
 
 from .tinc_object import TincObject
 from .parameter_space import ParameterSpace
+from .processor import ProcessorScript
 
 import netCDF4
 import numpy as np
@@ -44,9 +45,27 @@ class DataPool(TincObject):
     def get_parameter_space(self):
         return self._parameter_space
     
+    def create_data_slice_internal(self, field, internal_dim, space):
+        # Internal dimension
+        
+        if self._parameter_space.is_filesystem_dimension(\
+                self.get_parameter_space().get_dimension(internal_dim)):
+            raise ValueError(f'Dimension "{internal_dim}" is not an internal dimension')
+        else:
+            path = self._parameter_space.get_root_path()
+            if len(path) > 0:
+                path += "/" 
+            path += self._parameter_space.get_current_relative_path() + "/"
+            for data_filename, dim_in_file  in self._data_file_names.items():
+                # TODO support more than one file
+                slice_values = self.get_field_from_file(field, path + data_filename)
+                break           
+    
     def create_data_slice(self, field, slice_dimensions):
-        if type(slice_dimensions) != list:
+        if type(slice_dimensions) == str:
             slice_dimensions = [slice_dimensions]
+        elif type(slice_dimensions) != list:
+            raise ValueError("slice_dimensions must be string or list.")
         filesystem_dims = []
         fixed_dims = []
         slice_values = None
@@ -55,12 +74,14 @@ class DataPool(TincObject):
                 filesystem_dims.append(dim)
             if not dim.id in slice_dimensions:
                 fixed_dims.append(dim)
-
+        if len(filesystem_dims) > 0:
+            raise ValueError("Only one filesystem dimension supported")
+        
         filename = "_slice_" + field + "_"
-        # FIXME implement sliceing aloneg more than opne direction
+        # FIXME implement slicing aloneg more than one direction
         field_size = 1 # FIXME get actual field size
         dim_count = field_size
-        # This function is not thread safe. THere can be race conditions if the parameter
+        # This function is not thread safe. There can be race conditions if the parameter
         # is changed while running this. Should we protect?
         for dim_name in slice_dimensions:
             dim = self._parameter_space.get_dimension(dim_name)
@@ -77,7 +98,7 @@ class DataPool(TincObject):
         for dim in self._parameter_space.get_dimensions():
             index_map = {dim.id: dim.get_current_index()}
         
-        for dim_name in slice_dimensions:
+        for dim_name in fixed_dims:
             dim = self._parameter_space.get_dimension(dim_name)
 
             this_dim_count = (len(dim.values)/dim.get_space_stride() )
@@ -124,16 +145,7 @@ class DataPool(TincObject):
 
         # FIXME sanitize filename ProcessorScript::sanitizeName
         # TODO Windows paths cant end with dot or space
-        filename = filename.replace('(', '_')
-        filename = filename.replace(')', '_')
-        filename = filename.replace('<', '_')
-        filename = filename.replace('>', '_')
-        filename = filename.replace('*', '_')
-        filename = filename.replace('"', '_')
-        filename = filename.replace('[', '_')
-        filename = filename.replace(']', '_')
-        filename = filename.replace('|', '_')
-        filename = filename.replace(':', '_')
+        filename = ProcessorScript.sanitize_name(filename)
         filename += ".nc"
         # Now write slice
         if os.path.isabs(self.slice_cache_dir) or self.tinc_client is None:

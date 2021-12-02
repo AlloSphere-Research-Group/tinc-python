@@ -172,6 +172,19 @@ class ProcessorScript(Processor):
             print(f"Finished ProcessorScript '{self.id}'")
         return True
 
+    def sanitize_name(filename):
+        filename = filename.replace('(', '_')
+        filename = filename.replace(')', '_')
+        filename = filename.replace('<', '_')
+        filename = filename.replace('>', '_')
+        filename = filename.replace('*', '_')
+        filename = filename.replace('"', '_')
+        filename = filename.replace('[', '_')
+        filename = filename.replace(']', '_')
+        filename = filename.replace('|', '_')
+        filename = filename.replace(':', '_')
+        return filename
+
     def _make_command_line(self):
         cmd = self.command + " "
         if len(self.script_name) > 0:

@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import io # to convert PIL image to bytes
 from sys import platform
 import traceback
 import numpy as np
@@ -72,11 +73,14 @@ class DiskBuffer(TincObject):
         self._data = self._parse_file(file_path)
         self.done_writing_file(file_path, notify)
         
-        if self._interactive_widget:
-            self._interactive_widget.value = self._data
+        self._update_widget()
         for cb in self._update_callbacks:
             cb(self)
     
+    def _update_widget(self):
+        if self._interactive_widget:
+            self._interactive_widget.value = self._data
+
     def get_base_filename(self):
         return self.path.filename
     
@@ -181,6 +185,7 @@ class DiskBuffer(TincObject):
         if self.get_full_path() == '' or os.path.normpath(filename).find(os.path.normpath(self.path.get_full_path())) == 0:
             filename = os.path.normpath(filename)[len(os.path.normpath(self.path.get_full_path())) + 1:]
         self._filename = filename
+
         if notify and self.tinc_client:
             self.tinc_client.send_disk_buffer_current_filename(self, filename)
             
@@ -419,13 +424,18 @@ class DiskBufferImage(DiskBuffer):
         if self._file_lock:
             self._lock.release()
 
+    def _update_widget(self):
+        if self._interactive_widget:
+            imgByteArr = io.BytesIO()
+            self._data.save(imgByteArr, format=self._data.format)
+            self._interactive_widget.value = imgByteArr.getvalue()
 
     def interactive_widget(self):
         self._interactive_widget = widgets.Image(
             #     value=image,
                 format='png',
                 width=300,
-                height=400,);
+                height=400,)
         return self._interactive_widget
 
     def _parse_file(self, file_path):

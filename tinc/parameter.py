@@ -405,8 +405,11 @@ class Parameter(TincObject):
         return ids
 
     def get_current_index(self):
-        if type(self.values) ==list:
-            return self.values.index(self.value)
+        if type(self.values) == list:
+            try:
+                return self.values.index(self.value)
+            except:
+                return 0
         elif type(self.values) == np.ndarray:
             return np.where (self.values == self.value)[0][0]
             
@@ -574,8 +577,10 @@ class ParameterString(Parameter):
             self.tinc_client.send_parameter_value(self)
         if self._interactive_widget:
             self._interactive_widget.children[0].value = self._data_type(value)
+        if self._control_widget is not None:
+            self._control_widget.children[1].value = str(self._value)
         self._trigger_callbacks(self._value)
-    
+
     def set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
@@ -615,7 +620,11 @@ class ParameterString(Parameter):
         return True
         
     def set_values(self, values):
+        for v in values:
+            if type(v) != str:
+                raise ValueError("All values must be str for ParameterString")
         self._values = values
+        self._value = values[self.get_current_index()]
         self._space_data_type = VariantType.VARIANT_STRING
         # TODO validate that space is string
 
@@ -641,7 +650,6 @@ class ParameterString(Parameter):
 
         self._interactive_widget = HBox((text_field, button))
         return self._interactive_widget
-    
 
 class ParameterInt(Parameter):
     def __init__(self, tinc_id: str, group: str = "", minimum: int = 0, maximum: int = 127, default_value: int = 0, tinc_client = None):

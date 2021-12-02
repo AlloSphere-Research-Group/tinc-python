@@ -35,7 +35,7 @@ class DataPoolTest(unittest.TestCase):
         ps = ParameterSpace("ps_id")
         ps.set_root_path('data')
         dp = DataPoolJson("dp_id", ps, 'cache_dir')
-        dp.register_data_file("results.json", "internal");
+        dp.register_data_file("results.json", "internal")
 
         internalDim = Parameter("internal")
         ps.register_dimension(internalDim)
@@ -87,7 +87,11 @@ class DataPoolTest(unittest.TestCase):
         slice = dp.get_slice('field3', 'internal')
         self.assertListEqual(list(slice), [1,3,5,7,9,0,2,4])
 
+    def test_multidim_slices(self):
+        ps = ParameterSpace("ps_id")
+        ps.set_root_path('data')
+        dp = DataPoolJson("dp_id", ps, 'cache_dir')
+        dp.register_data_file("results.json", "internal")
 
 if __name__ == '__main__':
-    
     unittest.main()
