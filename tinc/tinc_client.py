@@ -670,7 +670,7 @@ class TincClient(object):
                         ps._cache_manager._cache_root = dist_path.rootPath
                         ps._cache_manager._cache_dir = dist_path.relativePath
                         ps._cache_manager._metadata_file = dist_path.filename
-                elif ps_command == TincProtocol.ParameterSpaceConfigureType.DOCUMENTATION:
+                elif ps_command == TincProtocol.ParameterSpaceConfigureType.PS_DOCUMENTATION:
                     ps.documentation = str(param_details.configurationValue)
                 else:
                     print("Unrecognized ParameterSpace Configure command " + str(ps_command))
@@ -785,7 +785,7 @@ class TincClient(object):
                             value = TincProtocol.ParameterValue()
                             dp_details.configurationValue.Unpack(value)
                             dp.slice_cache_dir = value.valueString
-                    elif dp_details.configurationKey == TincProtocol.DataPoolConfigureType.DOCUMENTATION:
+                    elif dp_details.configurationKey == TincProtocol.DataPoolConfigureType.DP_DOCUMENTATION:
                         # FIXME ensure value is string
                         dp.documentation = dp_details.configurationValue
         else:
@@ -900,6 +900,8 @@ class TincClient(object):
                             else:
                                 db.load_data(value.valueString, False)
 
+                    elif db_details.configurationKey == TincProtocol.DiskBufferConfigureType.DB_DOCUMENTATION:
+                        db.documentation = db_details.configurationValue
         else:
             print("Unexpected payload in Configure Datapool")
             
