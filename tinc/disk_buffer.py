@@ -439,7 +439,8 @@ class DiskBufferImage(DiskBuffer):
         return self._interactive_widget
 
     def _parse_file(self, file_path):
-        print(f'parsing: {file_path}')
+        if self.debug:
+            print(f'parsing: {file_path}')
         return Image.open(file_path)
 
 class DiskBufferNetCDFData(DiskBuffer):

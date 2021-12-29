@@ -14,6 +14,7 @@ def TincVersion():
 class TincObject(object):
     def __init__(self, tinc_id = ''):
         self.id = tinc_id
+        self.documentation = '' # TODO add protections to avoid overwriting documentation
         self.remote = False
         self.remote_stale = False
         self.server_timeout = 30

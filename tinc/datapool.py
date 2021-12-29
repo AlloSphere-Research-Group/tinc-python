@@ -74,7 +74,7 @@ class DataPool(TincObject):
                 filesystem_dims.append(dim)
             if not dim.id in slice_dimensions:
                 fixed_dims.append(dim)
-        if len(filesystem_dims) > 0:
+        if len(filesystem_dims) > 1:
             raise ValueError("Only one filesystem dimension supported")
         
         filename = "_slice_" + field + "_"
@@ -90,17 +90,18 @@ class DataPool(TincObject):
             else:
                 raise ValueError(f"Unknown dimension '{dim_name}'")
         
+        if self.debug:
+            print(f'Field: {field} Filesystem dims: {[d.id for d in filesystem_dims]} Fixed dims: {[d.id for d in fixed_dims]}')
         # TODO check if file exists and is the correct slice to use cache instead.
         # TODO for this we need to add metadata to the file indicating where the
         # slice came from. This is part of the bigger TINC metadata idea
         slice_values = []
         index_map = {}
-        for dim in self._parameter_space.get_dimensions():
-            index_map = {dim.id: dim.get_current_index()}
+        if len(slice_dimensions) > 1:
+            raise ValueError("multidimensional slicing not supported yet.")
         
-        for dim_name in fixed_dims:
+        for dim_name in slice_dimensions:
             dim = self._parameter_space.get_dimension(dim_name)
-
             this_dim_count = (len(dim.values)/dim.get_space_stride() )
             if self._parameter_space.is_filesystem_dimension(dim.id):
                 for i in range(int(this_dim_count)):

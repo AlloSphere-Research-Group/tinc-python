@@ -670,6 +670,8 @@ class TincClient(object):
                         ps._cache_manager._cache_root = dist_path.rootPath
                         ps._cache_manager._cache_dir = dist_path.relativePath
                         ps._cache_manager._metadata_file = dist_path.filename
+                elif ps_command == TincProtocol.ParameterSpaceConfigureType.DOCUMENTATION:
+                    ps.documentation = str(param_details.configurationValue)
                 else:
                     print("Unrecognized ParameterSpace Configure command " + str(ps_command))
                 
@@ -719,6 +721,7 @@ class TincClient(object):
                         print(f"ERROR processor type mismatch! {proc_id}")
                 
             if not found and new_processor:
+                new_processor.documentation = proc_details.documentation
                 self.processors.append(new_processor)
                 #print(f"Registered processor '{proc_id}'")
         else:
@@ -765,6 +768,7 @@ class TincClient(object):
             if not found:
                 ps = self.get_parameter_space(ps_id)
                 new_datapool = DataPool(dp_id, ps, slice_cache_dir, tinc_client=self)
+                new_datapool.documentation = dp_details.documentation
                 self.datapools.append(new_datapool)
         else:
             print("Unexpected payload in Register Datapool")
@@ -781,6 +785,9 @@ class TincClient(object):
                             value = TincProtocol.ParameterValue()
                             dp_details.configurationValue.Unpack(value)
                             dp.slice_cache_dir = value.valueString
+                    elif dp_details.configurationKey == TincProtocol.DataPoolConfigureType.DOCUMENTATION:
+                        # FIXME ensure value is string
+                        dp.documentation = dp_details.configurationValue
         else:
             print("Unexpected payload in Configure Datapool")
         
@@ -835,6 +842,7 @@ class TincClient(object):
                                         distributed_path.filename, distributed_path.relativePath, distributed_path.rootPath,
                                         tinc_client= self)
                 if new_db is not None:
+                    new_db.documentation = db_details.documentation
                     self.disk_buffers.append(new_db)
                 else:
                     self._log.append("Disk buffer type not recognized. Not creating DiskBuffer")
