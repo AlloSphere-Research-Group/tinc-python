@@ -70,7 +70,11 @@ class DiskBuffer(TincObject):
         else:
             file_path = self.get_full_path() + filename
         
-        self._data = self._parse_file(file_path)
+        try:
+            self._data = self._parse_file(file_path)
+        except FileNotFoundError:
+            self._data = None
+            print(f"Disk buffer could not load file {file_path}")
         self.done_writing_file(file_path, notify)
         
         self._update_widget()
