@@ -11,7 +11,7 @@ from threading import Lock
 # TINC imports
 from .parameter import Parameter, ParameterString, ParameterInt, ParameterChoice, ParameterBool, ParameterColor, Trigger, ParameterVec
 from .processor import ProcessorCpp, ProcessorScript, ComputationChain
-from .datapool import DataPool
+from .datapool import DataPool, DataPoolJson
 from .parameter_space import ParameterSpace
 from .disk_buffer import *
 from .cachemanager import *
@@ -767,7 +767,14 @@ class TincClient(object):
             
             if not found:
                 ps = self.get_parameter_space(ps_id)
-                new_datapool = DataPool(dp_id, ps, slice_cache_dir, tinc_client=self)
+                if dp_details.type ==  TincProtocol.DataPoolTypes.DATAPOOLTYPE_JSON:
+                    new_datapool = DataPoolJson(dp_id, ps, slice_cache_dir, tinc_client=self)
+                elif dp_details.type ==  TincProtocol.DataPoolTypes.DATAPOOLTYPE_NETCDF:
+                    print("Warning: Remote DataPool Netcdf not fully supported")
+                    # TODO implement
+                    new_datapool = DataPool(dp_id, ps, slice_cache_dir, tinc_client=self)
+                else:
+                    new_datapool = DataPool(dp_id, ps, slice_cache_dir, tinc_client=self)
                 new_datapool.documentation = dp_details.documentation
                 self.datapools.append(new_datapool)
         else:
