@@ -179,7 +179,7 @@ class ParameterServer(object):
         print("Closed parameter server")
         self.server = None
         
-    def send_parameter_value(self, p, source_address):
+    def _send_parameter_value(self, p, source_address):
         for l in self.listeners:
             parent_prefix = ''
             if p.parent_bundle:

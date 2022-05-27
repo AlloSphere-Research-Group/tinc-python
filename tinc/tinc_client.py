@@ -32,14 +32,22 @@ commands = {
     }
 
 class TincTimeout(ValueError):
- def __init__(self, arg):
-  self.strerror = arg
-  self.args = {arg}
+    def __init__(self, arg):
+        self.strerror = arg
+        self.args = {arg}
 
 
 class TincClient(object):
+    '''The TincClient class allows connecting to a TINC server to share parameters and data.
+
+    :param server_addr: The IP address for the TINC server to connect to
+    :param server_port: The port for the TINC server
+    :param auto_connect: If true will connect to the server on creation of a TincClient object. If false, client can connect via the start() function.
+    '''
     def __init__(self, server_addr: str = "localhost",
                  server_port: int = 34450, auto_connect = True):
+        '''Constructor method
+        '''
         
         self.connected = False
         self.parameters = []
@@ -72,12 +80,39 @@ class TincClient(object):
         
         if auto_connect:
             self.start(server_addr, server_port)
-        
+    
+    def __str__(self): 
+        if self.socket:
+            print("TINC Server")
+            if self.connected:
+                print("CONNECTED")
+                for param in self.parameters:
+                    param.print()
+                for ps in self.parameter_spaces:
+                    ps.print()
+                for db in self.disk_buffers:
+                    db.print()
+                for p in self.processors:
+                    p.print()
+                for dp in self.datapools:
+                    dp.print()
+                
+            elif self.running:
+                print("Attempting to connect to app. App is not reponding.")
+            else:
+                print("NOT CONNECTED")
+        else:
+            print("NOT CONNECTED")
     def __del__(self):
         self.stop()
         print("Stopped")
         
     def start(self, server_addr = "localhost", server_port = 34450):
+        '''Start the TINC client, attempting to connect to the TINC server at the provided address and port
+
+        :param server_addr: The IP address for the TINC server to connect to
+        :param server_port: The port for the TINC server
+        '''
         # self.pserver = pserver
         self.serverAddr = server_addr
         self.serverPort = server_port
@@ -87,8 +122,10 @@ class TincClient(object):
         self.x.start()  
         
     def stop(self):
+        '''Stop the TINC client. Disconnects from TINC server
+        '''
         if self.running:
-            self.send_goodbye()
+            self._send_goodbye()
             self.running = False
             self.connected = False
             self.x.join()
@@ -164,6 +201,10 @@ class TincClient(object):
         return timems < (timeout_sec * 1000) or timeout_sec == 0
                 
     def wait_for_server_available(self, timeout = 3000.0):
+        '''After client is started this function can be called to ensure server has accepted connection.
+
+        :param timeout: timeout in seconds
+        '''
         time_count = 0.0
         wait_granularity = 0.1
         while self._server_status != TincProtocol.StatusTypes.AVAILABLE:
@@ -174,6 +215,11 @@ class TincClient(object):
         
     # Access to objects by id
     def get_parameter(self, parameter_id, group = None):
+        '''Returns a :class:`tinc.parameter.Parameter`  (or similar) with matching name and group that is registered with the TINC client.
+        The parameter could have been registered in the current instance of the client, or on the server.
+
+        :param parameter_id: The name of the parameter
+        :param group: group name to match. If None, the first parameter_id match is returned'''
         for p in self.parameters:
             if p.id == parameter_id and group is None:
                 return p
@@ -182,6 +228,11 @@ class TincClient(object):
         return None
     
     def get_parameters(self, group = None):
+        '''Returns all the parameters registered with the client that match the group
+
+        :param group: the name of the group to match. If none, all parameters are returned
+        :type group: str, None, optional
+        '''
         params = []
         for p in self.parameters:
             if group is None or p.group == group:
@@ -189,24 +240,44 @@ class TincClient(object):
         return params
     
     def get_processor(self, processor_id):
+        '''Get :class:`tinc.processor.Processor` registered with client.
+
+        :param processor_id: the name of the processor to match.
+        :return: None is there is no match 
+        '''
         for p in self.processors:
             if p.id == processor_id:
                 return p
         return None
     
     def get_disk_buffer(self, db_id):
+        '''Get :class:`tinc.disk_buffer.DiskBuffer` registered with client.
+
+        :param db_id: the name of the disk buffer to match.
+        :return: None is there is no match 
+        '''
         for db in self.disk_buffers:
             if db.id == db_id:
                 return db
         return None
     
     def get_datapool(self, datapool_id):
+        '''Get :class:`tinc.data_pool.DataPool` registered with client.
+
+        :param datapool_id: the name of the data pool to match.
+        :return: None is there is no match 
+        '''
         for dp in self.datapools:
             if dp.id == datapool_id:
                 return dp
         return None
     
     def get_parameter_space(self, ps_id):
+        '''Get :class:`tinc.parameter_space.ParameterSpace` registered with client.
+
+        :param ps_id: the name of the parameter space to match.
+        :return: None is there is no match 
+        '''
         for ps in self.parameter_spaces:
             if ps.id == ps_id:
                 return ps
@@ -236,7 +307,7 @@ class TincClient(object):
             
         if self.connected:
             self._register_parameter_on_server(new_param)
-            self.send_parameter_meta(new_param)
+            self._send_parameter_meta(new_param)
         
         return new_param
     
@@ -256,7 +327,7 @@ class TincClient(object):
         self.parameters.append(new_param)
         return new_param
     
-    def send_parameter_value(self, param):
+    def _send_parameter_value(self, param):
         if not self.connected:
             return
         msg = TincProtocol.TincMessage()
@@ -297,7 +368,7 @@ class TincClient(object):
         msg.details.Pack(config)
         self._send_message(msg)
         
-    def send_parameter_meta(self, param, fields = None):
+    def _send_parameter_meta(self, param, fields = None):
         if fields is None:
             fields = ("minimum", "maximum", "space", "space_representation_type")
         # Minimum
@@ -364,11 +435,11 @@ class TincClient(object):
                 pass
         
         if "space_representation_type" in fields:
-            self.send_parameter_space_type(param)
+            self._send_parameter_space_type(param)
         if "space" in fields:
-            self.send_parameter_space(param)
+            self._send_parameter_space(param)
         
-    def send_parameter_space_type(self, param):
+    def _send_parameter_space_type(self, param):
         msg = TincProtocol.TincMessage()
         msg.messageType  = TincProtocol.CONFIGURE
         msg.objectType = TincProtocol.PARAMETER
@@ -381,7 +452,7 @@ class TincClient(object):
         msg.details.Pack(config)
         self._send_message(msg)
         
-    def send_parameter_space(self, param):
+    def _send_parameter_space(self, param):
         if not self.connected:
             return
         msg = TincProtocol.TincMessage()
@@ -569,15 +640,15 @@ class TincClient(object):
         for param in self.parameters:
             if param.get_osc_address() == param_osc_address:
                 if param_command == TincProtocol.ParameterConfigureType.VALUE:
-                    configured = configured and param.set_value_from_message(param_details.configurationValue)
+                    configured = configured and param._set_value_from_message(param_details.configurationValue)
                 elif param_command == TincProtocol.ParameterConfigureType.MIN:
-                    configured = configured and param.set_min_from_message(param_details.configurationValue)
+                    configured = configured and param._set_min_from_message(param_details.configurationValue)
                 elif param_command == TincProtocol.ParameterConfigureType.MAX:
-                    configured = configured and param.set_max_from_message(param_details.configurationValue)
+                    configured = configured and param._set_max_from_message(param_details.configurationValue)
                 elif param_command == TincProtocol.ParameterConfigureType.SPACE:
-                    configured = configured and param.set_space_from_message(param_details.configurationValue)
+                    configured = configured and param._set_space_from_message(param_details.configurationValue)
                 elif param_command == TincProtocol.ParameterConfigureType.SPACE_TYPE:
-                    configured = configured and param.set_space_representation_type_from_message(param_details.configurationValue)
+                    configured = configured and param._set_space_representation_type_from_message(param_details.configurationValue)
                 else:
                     print("Unrecognized Parameter Configure command")
         
@@ -727,7 +798,7 @@ class TincClient(object):
         else:
             print("Unexpected payload in Register Processor")
         
-    def configure_processor(self, details):
+    def _configure_processor(self, details):
         if details.Is(TincProtocol.ConfigureProcessor.DESCRIPTOR):
             proc_details = TincProtocol.ConfigureProcessor()
             details.Unpack(proc_details)
@@ -736,16 +807,6 @@ class TincClient(object):
             for proc in self.processors:
                 if proc.id == proc_id:
                     proc.configuration.update({proc_details.configurationKey: proc_details.configurationValue})
-    
-    def processor_update(self, client_address: str , address: str, *args: List[Any]):
-        name = args[0]
-        config_key = args[1]
-        config_value = args[2]
-        
-        for proc in self.processors:
-            if proc.id == name:
-                proc.configuration[config_key] = config_value
-                print(f"Config [{config_key}] = {config_value}")
                 
     def _register_datapool_from_message(self, details):
         if details.Is(TincProtocol.RegisterDataPool.DESCRIPTOR):
@@ -780,7 +841,7 @@ class TincClient(object):
         else:
             print("Unexpected payload in Register Datapool")
             
-    def configure_datapool(self, details):
+    def _configure_datapool(self, details):
         if details.Is(TincProtocol.ConfigureDataPool.DESCRIPTOR):
             dp_details = TincProtocol.ConfigureDataPool()
             details.Unpack(dp_details)
@@ -887,7 +948,7 @@ class TincClient(object):
         db.tinc_client = self
 
 
-    def configure_disk_buffer(self, details):
+    def _configure_disk_buffer(self, details):
         if self.debug:
             print("Processing Configure disk buffer")
         if details.Is(TincProtocol.ConfigureDiskBuffer.DESCRIPTOR):
@@ -912,7 +973,7 @@ class TincClient(object):
         else:
             print("Unexpected payload in Configure Datapool")
             
-    def send_disk_buffer_current_filename(self, disk_buffer, filename):
+    def _send_disk_buffer_current_filename(self, disk_buffer, filename):
         if not self.connected:
             return
         msg = TincProtocol.TincMessage()
@@ -986,11 +1047,11 @@ class TincClient(object):
         if message.objectType == TincProtocol.PARAMETER:
             self._configure_parameter_from_message(message.details)
         elif message.objectType == TincProtocol.PROCESSOR:
-            self.configure_processor(message.details)
+            self._configure_processor(message.details)
         elif message.objectType == TincProtocol.DISK_BUFFER:
-            self.configure_disk_buffer(message.details)
+            self._configure_disk_buffer(message.details)
         elif message.objectType == TincProtocol.DATA_POOL:
-            self.configure_datapool(message.details)
+            self._configure_datapool(message.details)
         elif message.objectType == TincProtocol.PARAMETER_SPACE:
             self._configure_parameter_space_from_message(message.details)
         else:
@@ -1295,7 +1356,7 @@ class TincClient(object):
         self.request_disk_buffers()
         self.request_data_pools()
 
-    def send_goodbye(self):
+    def _send_goodbye(self):
         if not self.connected:
             return
         tp = TincProtocol.TincMessage()
@@ -1472,26 +1533,7 @@ class TincClient(object):
         self._send_message(msg)
 
     def print(self): 
-        # print("Print")
-        if self.socket:
-            print("TINC Server")
-            if self.connected:
-                print("CONNECTED")
-                for param in self.parameters:
-                    param.print()
-                for ps in self.parameter_spaces:
-                    ps.print()
-                for db in self.disk_buffers:
-                    db.print()
-                for p in self.processors:
-                    p.print()
-                for dp in self.datapools:
-                    dp.print()
-                
-            elif self.running:
-                print("Attempting to connect to app. App is not reponding.")
-            else:
-                print("NOT CONNECTED")
-        else:
-            print("NOT CONNECTED")
+        '''Print details about this TincClient object. Prints details of all registered objects.
+        '''
+        print(str(self))
               

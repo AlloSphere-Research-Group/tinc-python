@@ -18,7 +18,17 @@ from threading import Lock
 import inspect, dis
 
 class ParameterSpace(TincObject):
+    '''The ParameterSpace class contains a set of :class:`tinc.parameter.Parameter` objects and organizes access to them
+
+ Parameter spaces can be linked to specific directories in the file system.
+ This can be useful to locate data according to paramter values. For example
+ when the data is a result of a parameter sweep that generated multiple
+ directories. See set_current_path_template() and generate_relative_run_path() for
+ more information.
+    '''
     def __init__(self, tinc_id = '', tinc_client = None):
+        '''Constructor methos
+        '''
         super().__init__(tinc_id)
         self._parameters = []
         self.tinc_client = tinc_client
@@ -42,6 +52,12 @@ class ParameterSpace(TincObject):
         return details
         
     def get_dimension(self, param_id, group = None):
+        '''Returns parameter that matches param_id name and group. If group is None, the first match is returned.
+        
+        :param param_id: Parameter name to match
+        :param group: group to match
+        :returns: The matched parameter or None if no match
+        '''
         for p in self._parameters:
             if p.id == param_id:
                 if group is None or group == p.group:
@@ -49,10 +65,12 @@ class ParameterSpace(TincObject):
         return None
 
     def register_dimensions(self, params):
+        '''Register a list of parameters as dimensions for the parameter space'''
         for param in params:
             self.register_parameter(param)
         
     def register_dimension(self, param):
+        '''Register a parameter as a dimension for the parameter space'''
         param_registered = False
         for p in self._parameters:
             if p.id == param.id and p.group == param.group:
@@ -73,6 +91,12 @@ class ParameterSpace(TincObject):
         return param
 
     def create_dimension(self, name, values = None):
+        '''Create a parameter/dimension in the parameter space of type :class:`tinc.parameter.Parameter`.
+        
+        :param name: Name of the parameter to create
+        :param values: (optional) values the parameter can take
+        :returns: the created parameter
+        '''
         p = Parameter(name)
         p.values = values
         self.register_dimension(p)
@@ -84,6 +108,7 @@ class ParameterSpace(TincObject):
                 break
             
     def enable_cache(self, directory = "python_cache"):
+        '''Enable caching for processes run through run_process()'''
         if self.tinc_client:
             if directory != "":
                 print("Connected to client. enable_cache() ignoring directory")
@@ -115,23 +140,26 @@ class ParameterSpace(TincObject):
     def remove_parameter(self, param):
         return self.remove_dimension(param)
       
-    '''
-    You can use %% to delimit dimension names, e.g. "value_%%ParameterValue%%"
-    where %%ParameterValue%% will be replaced by the current value (in the
-    correct representation as ID, VALUE or INDEX) of the dimension whose id is
-    "ParameterValue". You can specify a different representation than the one
-    set for the ParameterSpaceDimension by adding it following a ':'. For
-    example:
-    "value_%%ParameterValue:INDEX%%" will replace "%%ParameterValue:INDEX%%"
-    with the current index for ParameterValue.
-    For parameters that have mutiple ids for the same value, you can specify
-    any muber of parameters separated by commas. the function get_common_id()
-    will be called. For example, for %%param1,param2%% the common id for the
-    their current values will be inserted. Any representation type (ID, VALUE,
-    INDEX) is ignored, as only ids are used. Using this method can be useful as
-    it can avoid having to define a custom generateRelativeRunPath() function
-    '''
+   
     def set_current_path_template(self, path_template):
+        '''
+        Set the current path template for the paramter space to map current values
+        to a location in the filesystem.
+        You can use %% to delimit dimension names, e.g. "value_%%ParameterValue%%"
+        where %%ParameterValue%% will be replaced by the current value (in the
+        correct representation as ID, VALUE or INDEX) of the dimension whose id is
+        "ParameterValue". You can specify a different representation than the one
+        set for the ParameterSpaceDimension by adding it following a ':'. For
+        example:
+        "value_%%ParameterValue:INDEX%%" will replace "%%ParameterValue:INDEX%%"
+        with the current index for ParameterValue.
+        For parameters that have mutiple ids for the same value, you can specify
+        any muber of parameters separated by commas. the function get_common_id()
+        will be called. For example, for %%param1,param2%% the common id for the
+        their current values will be inserted. Any representation type (ID, VALUE,
+        INDEX) is ignored, as only ids are used. Using this method can be useful as
+        it can avoid having to define a custom generateRelativeRunPath() function
+        '''
         if type(path_template) != str:
             raise ValueError('Path template must be a string')
         if self.tinc_client:
@@ -139,6 +167,7 @@ class ParameterSpace(TincObject):
         self._path_template = path_template
         
     def resolve_template(self, path_template, index_map = None):
+        '''Resolve a path template according to the current parameter values.'''
         resolved_template = ''
         if path_template.count("%%") == 0:
             return path_template
@@ -158,6 +187,8 @@ class ParameterSpace(TincObject):
             token = path_template[start + 2: end]
             end += 2
             representation = 'VALUE'
+            if self.debug:
+                print(f'Found param {token} in template: {start, end}')
 
             if token.count(',') > 0:
                 tokens = token.split(',')
@@ -183,6 +214,9 @@ class ParameterSpace(TincObject):
                         resolved_template += str(index)
                 else:
                     print(f"Warning: could not resolve token {token} in template")
+
+        if end < len(path_template):
+            resolved_template += path_template[end:]
         return resolved_template
 
     def get_common_id(self, dimensions, indeces = None):
@@ -536,6 +570,3 @@ class ParameterSpace(TincObject):
             
         # print("done _process()")
         return out
-
-    def print(self):
-        print(str(self))

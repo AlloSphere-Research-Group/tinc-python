@@ -191,7 +191,7 @@ class DiskBuffer(TincObject):
         self._filename = filename
 
         if notify and self.tinc_client:
-            self.tinc_client.send_disk_buffer_current_filename(self, filename)
+            self.tinc_client._send_disk_buffer_current_filename(self, filename)
             
         if self._file_lock:
             self._lock.release()
@@ -420,7 +420,7 @@ class DiskBufferImage(DiskBuffer):
             if self._interactive_widget:
                 self._interactive_widget.value = data
             if self.tinc_client and self.tinc_client.connected:
-                    self.tinc_client.send_disk_buffer_current_filename(self, outname)
+                    self.tinc_client._send_disk_buffer_current_filename(self, outname)
         except:
             print("ERROR parsing data when writing disk buffer")
             traceback.print_exc()
@@ -516,7 +516,7 @@ class DiskBufferNetCDFData(DiskBuffer):
             self._data = data
             self._filename = outname
             if self.tinc_client:
-                self.tinc_client.send_disk_buffer_current_filename(self, outname)
+                self.tinc_client._send_disk_buffer_current_filename(self, outname)
         except:
             print("ERROR parsing data when writing disk buffer")
             traceback.print_exc()

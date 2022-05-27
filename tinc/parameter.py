@@ -22,6 +22,9 @@ from . import tinc_protocol_pb2 as TincProtocol
 
 
 def to_variant(param):
+    '''
+    :meta private:
+    '''
     if type(param) == Parameter:
         return VariantValue(nctype=VariantType.VARIANT_FLOAT,
                             value = param.value())
@@ -41,6 +44,15 @@ class parameter_space_representation_types(IntEnum):
     ID = 0x02
 
 class Parameter(TincObject):
+    '''A parameter space dimension that describes the possible values for the parameter and holds a 'current' value
+
+    :param tinc_id: the name that identifies the parameter
+    :param group: the name of the group the parameter belongs to
+    :param minimum: the minimum value for the parameter. If the value is set to less than this, it is set to minimum
+    :param maximum: the maximum value for the parameter. If the value is set to more than this, it is set to maximum
+    :param default_value: The parameter's default value
+    :param tinc_client: The :class:`tinc.tinc_client.TincClient` the parameter belongs to. This should be left as None when calling directly.
+    '''
     def __init__(self, tinc_id: str, group = None, minimum: float = -99999.0, maximum: float = 99999.0, default_value: float = 0.0, tinc_client = None):
         # Should not change:tinc_id
         if tinc_id.count(' ') != 0 or (group and (group.count(' ') != 0)):
@@ -80,6 +92,10 @@ class Parameter(TincObject):
         
     @property
     def value(self):
+        '''The current value for the parameter
+
+        :returns: the current value
+        '''
         return self._value
 
     @value.setter
@@ -88,6 +104,10 @@ class Parameter(TincObject):
             
     @property
     def ids(self):
+        '''A list of string values that correspond to each parameter value in the parameter space.
+
+        This can be used to map values to strings or to directory structures.
+        '''
         return self._ids
 
     @ids.setter
@@ -96,6 +116,8 @@ class Parameter(TincObject):
         
     @property
     def values(self):
+        '''A list of the possible values the parameter can take.
+        '''
         return self._values
 
     @values.setter
@@ -112,6 +134,8 @@ class Parameter(TincObject):
          
     @property
     def minimum(self):
+        '''The minimum the parameter can take.
+        '''
         return self._minimum
 
     @minimum.setter
@@ -120,16 +144,22 @@ class Parameter(TincObject):
         
     @property
     def maximum(self):
+        '''The maximum the parameter can take.
+        '''
         return self._maximum
 
     @maximum.setter
     def maximum(self, maximum):
         self.set_maximum(maximum)
         
-    def print(self):
-        print(str(self))
+    # def print(self):
+    #     '''Print details for this parameters
+    #     '''
+    #     print(str(self))
             
     def set_value(self, value):
+        '''Set the current value for the parameter
+        '''
         if value < self._minimum:
             value = self._minimum
         if value > self._maximum:
@@ -138,7 +168,7 @@ class Parameter(TincObject):
             
         self._value = self._data_type(value)
         if self.tinc_client:
-            self.tinc_client.send_parameter_value(self)
+            self.tinc_client._send_parameter_value(self)
         if self._interactive_widget is not None:
             self._interactive_widget.children[0].value = self._value
             
@@ -153,7 +183,7 @@ class Parameter(TincObject):
     def set_ids(self, ids):
         self._ids = [str(id) for id in ids]
         if self.tinc_client:
-            self.tinc_client.send_parameter_space(self)
+            self.tinc_client._send_parameter_space(self)
     
     def set_values(self, values):
         if len(values) > 0:
@@ -202,7 +232,7 @@ class Parameter(TincObject):
 
         self._configure_widget()
         if self.tinc_client:
-            self.tinc_client.send_parameter_space(self)
+            self.tinc_client._send_parameter_space(self)
 
     def get_values(self, remove_duplicates = True):
         if remove_duplicates:
@@ -229,26 +259,26 @@ class Parameter(TincObject):
         except:
             print("Unsupported space type: " + str(space_representation_type))
         if self.tinc_client:
-            self.tinc_client.send_parameter_space_representation_types(self)
+            self.tinc_client._send_parameter_space_type(self)
 
     def set_minimum(self, minimum):
         self._minimum = minimum 
         if self._interactive_widget:
             self._configure_widget()  
         if self.tinc_client:
-            self.tinc_client.send_parameter_meta(self, fields=("minimum"))
+            self.tinc_client._send_parameter_meta(self, fields=("minimum"))
         
     def set_maximum(self, maximum):
         self._maximum = maximum 
         if self._interactive_widget:
             self._configure_widget()
         if self.tinc_client:
-            self.tinc_client.send_parameter_meta(self, fields= ("maximum"))  
+            self.tinc_client._send_parameter_meta(self, fields= ("maximum"))  
     
-    def get_value_serialized(self):
+    def _get_value_serialized(self):
         return struct.pack('f', self._value)
     
-    def set_value_from_message(self, message):
+    def _set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         
@@ -264,7 +294,7 @@ class Parameter(TincObject):
             self._trigger_callbacks(self._value)
         return True
 
-    def set_space_from_message(self, message):
+    def _set_space_from_message(self, message):
         values = TincProtocol.ParameterSpaceValues()
         message.Unpack(values)
         self._ids = values.ids
@@ -309,7 +339,7 @@ class Parameter(TincObject):
         
         return True
     
-    def set_space_representation_type_from_message(self, message):
+    def _set_space_representation_type_from_message(self, message):
         value = TincProtocol.ParameteValue()
         message.Unpack(value)
         try:
@@ -319,7 +349,7 @@ class Parameter(TincObject):
             return False
         return True
 
-    def set_min_from_message(self, message):
+    def _set_min_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         # print(f"min {value.valueFloat}")
@@ -328,7 +358,7 @@ class Parameter(TincObject):
             self._configure_widget()
         return True
         
-    def set_max_from_message(self, message):
+    def _set_max_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         # print(f"max {value.valueFloat}")
@@ -337,7 +367,7 @@ class Parameter(TincObject):
             self._configure_widget()
         return True
         
-    def set_from_internal_widget(self, value):
+    def _set_from_internal_widget(self, value):
         if len(self.values) > 0:
             value = self._find_nearest(value)
             if value == self._value:
@@ -350,7 +380,7 @@ class Parameter(TincObject):
         if self._control_widget is not None:
             self._control_widget.children[1].value = str(self._value)
         if self.tinc_client:
-            self.tinc_client.send_parameter_value(self)
+            self.tinc_client._send_parameter_value(self)
         self._trigger_callbacks(value)
 
     def get_osc_address(self):
@@ -414,6 +444,9 @@ class Parameter(TincObject):
             return np.where (self.values == self.value)[0][0]
             
     def next(self):
+        '''Move to the next value (by index) in the values list.
+        If values list is empty or currently at the last item, there is no effect.
+        '''
         if len(self._values) <=1:
             raise RuntimeError("Not enough values in space for next()")
         next_index = self.get_current_index() + 1
@@ -421,6 +454,9 @@ class Parameter(TincObject):
             self.set_value(self._values[next_index])
             
     def previous(self):
+        '''Move to the previous value (by index) in the values list.
+        If values list is empty or currently at the first item, there is no effect.
+        '''
         if len(self._values) <=1:
             raise RuntimeError("Not enough values in space for previous()")
         next_index = self.get_current_index() - 1
@@ -429,8 +465,11 @@ class Parameter(TincObject):
 
 
     def interactive_widget(self):
+        '''Return an interactive widget for jupyter notebook.
+        Requires ipywidgets.
+        '''
         if self._interactive_widget is None:
-            self._interactive_widget = interactive(self.set_from_internal_widget,
+            self._interactive_widget = interactive(self._set_from_internal_widget,
                     value=widgets.FloatSlider(
                     value=self._value,
                     min=self.minimum,
@@ -445,6 +484,9 @@ class Parameter(TincObject):
         return self._interactive_widget
 
     def interactive_control(self):
+        '''Return an interactive control widget for jupyter notebook.
+        Requires ipywidgets.
+        '''
         if self._control_widget is None:
             def next_wrapper(value):
                 self.next()
@@ -461,6 +503,13 @@ class Parameter(TincObject):
         return self._control_widget
     
     def register_callback(self, f, synchronous = True):
+        '''Register a function that will be called whenever the parameter's value changes.
+        Note that what is registered is the function object, so if you redefine the function after registering,
+        the registered function will still use the previously registered function.
+
+        :param f: Function to be called.
+        :param synchronous: if False, the callback will be called from a separate thread and will not block
+        '''
         for i,cb in enumerate(self._value_callbacks):
             if f.__name__ == cb.__name__ \
                 and (cb.__qualname__.count('.') == 0 and f != cb):
@@ -532,6 +581,7 @@ If this is happening use asynchronous callbacks by setting synchrouns to False w
             self._async_callbacks.remove(f)
 
     def clear_callbacks(self):
+        '''Remove all callbacks registered with object'''
         self._value_callbacks = []
         
     def _trigger_callbacks(self, value):
@@ -574,14 +624,14 @@ class ParameterString(Parameter):
     def set_value(self, value):
         self._value = self._data_type(value)
         if self.tinc_client:
-            self.tinc_client.send_parameter_value(self)
+            self.tinc_client._send_parameter_value(self)
         if self._interactive_widget:
             self._interactive_widget.children[0].value = self._data_type(value)
         if self._control_widget is not None:
             self._control_widget.children[1].value = str(self._value)
         self._trigger_callbacks(self._value)
 
-    def set_value_from_message(self, message):
+    def _set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         
@@ -594,7 +644,7 @@ class ParameterString(Parameter):
         self._trigger_callbacks(self._value)
         return True
 
-    def set_space_from_message(self, message):
+    def _set_space_from_message(self, message):
         values = TincProtocol.ParameterSpaceValues()
         message.Unpack(values)
         self.ids = values.ids
@@ -605,14 +655,14 @@ class ParameterString(Parameter):
             self.values[i] = v.valueString
         return True
 
-    def set_min_from_message(self, message):
+    def _set_min_from_message(self, message):
         # value = TincProtocol.ParameterValue()
         # message.Unpack(value)
         # # print(f"min {value.valueFloat}")
         # self.minimum = value.valueString
         return True
         
-    def set_max_from_message(self, message):
+    def _set_max_from_message(self, message):
         # value = TincProtocol.ParameterValue()
         # message.Unpack(value)
         # # print(f"max {value.valueFloat}")
@@ -629,7 +679,7 @@ class ParameterString(Parameter):
         # TODO validate that space is string
 
         if self.tinc_client:
-            self.tinc_client.send_parameter_space(self)
+            self.tinc_client._send_parameter_space(self)
     
     def interactive_widget(self):
         text_field = widgets.Textarea(
@@ -644,7 +694,7 @@ class ParameterString(Parameter):
         button = widgets.Button(  description="Apply" )
 
         def cb(button):
-            self.set_from_internal_widget(text_field.value)
+            self._set_from_internal_widget(text_field.value)
         
         button.on_click(cb)
 
@@ -662,7 +712,7 @@ class ParameterInt(Parameter):
             self.default = 0
         self._value = self.default
         
-    def set_value_from_message(self, message):
+    def _set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         
@@ -675,7 +725,7 @@ class ParameterInt(Parameter):
         self._trigger_callbacks(self._value)
         return True
 
-    def set_space_from_message(self, message):
+    def _set_space_from_message(self, message):
         values = TincProtocol.ParameterSpaceValues()
         message.Unpack(values)
         self._ids = list(values.ids)
@@ -686,14 +736,14 @@ class ParameterInt(Parameter):
             self.values[i] = v.valueInt32
         return True
 
-    def set_min_from_message(self, message):
+    def _set_min_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         # print(f"min {value.valueFloat}")
         self._minimum = value.valueInt32
         return True
         
-    def set_max_from_message(self, message):
+    def _set_max_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         # print(f"max {value.valueFloat}")
@@ -702,7 +752,7 @@ class ParameterInt(Parameter):
     
     def interactive_widget(self):
         if self._interactive_widget is None:
-            self._interactive_widget = interactive(self.set_from_internal_widget,
+            self._interactive_widget = interactive(self._set_from_internal_widget,
                     value=widgets.FloatSlider(
                     value=self._value,
                     min=self.minimum,
@@ -760,12 +810,12 @@ class ParameterChoice(Parameter):
             
         self._value = self._data_type(value)
         if self.tinc_client:
-            self.tinc_client.send_parameter_value(self)
+            self.tinc_client._send_parameter_value(self)
         if self._interactive_widget:
             self._interactive_widget.children[0].value = self.elements[value]
         self._trigger_callbacks(self._value)
         
-    def set_value_from_message(self, message):
+    def _set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         
@@ -778,7 +828,7 @@ class ParameterChoice(Parameter):
         self._trigger_callbacks(self._value)
         return True
 
-    def set_space_from_message(self, message):
+    def _set_space_from_message(self, message):
         values = TincProtocol.ParameterSpaceValues()
         message.Unpack(values)
         self._ids = values.ids
@@ -789,14 +839,14 @@ class ParameterChoice(Parameter):
             self._values[i] = v.valueUint64
         return True
 
-    def set_min_from_message(self, message):
+    def _set_min_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         # print(f"min {value.valueFloat}")
         self._minimum = value.valueUint64
         return True
         
-    def set_max_from_message(self, message):
+    def _set_max_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         # print(f"max {value.valueFloat}")
@@ -819,7 +869,7 @@ class ParameterChoice(Parameter):
     
     def interactive_widget(self):
         if self._interactive_widget is None:
-            self._interactive_widget = interactive(self.set_from_internal_widget,
+            self._interactive_widget = interactive(self._set_from_internal_widget,
                     widget_value=widgets.Dropdown(
                         options = [],
                         description = self.id,
@@ -833,7 +883,7 @@ class ParameterChoice(Parameter):
             widget = self._interactive_widget.children[0]
             widget.options = self.elements
             
-    def set_from_internal_widget(self, widget_value):
+    def _set_from_internal_widget(self, widget_value):
         # if len(self.values) > 0:
         #     value = self._find_nearest(value)
         #     if value == self._value:
@@ -844,7 +894,7 @@ class ParameterChoice(Parameter):
             self._value = self.elements.index(widget_value)
             self._interactive_widget.children[0].value = widget_value
             if self.tinc_client:
-                self.tinc_client.send_parameter_value(self)
+                self.tinc_client._send_parameter_value(self)
             self._trigger_callbacks(self._value)
         except:
             print(f'Invalid value: {widget_value}')
@@ -863,7 +913,7 @@ class ParameterColor(Parameter):
         self.minimum = [0,0,0,0]
         self.maximum = [1,1,1,1]
         
-    def set_value_from_message(self, message):
+    def _set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         
@@ -877,7 +927,7 @@ class ParameterColor(Parameter):
         self._trigger_callbacks(new_value)
         return True
 
-    def set_space_from_message(self, message):
+    def _set_space_from_message(self, message):
         print("No parameter space for ParameterColor")
         # values = TincProtocol.ParameterSpaceValues()
         # message.Unpack(values)
@@ -889,7 +939,7 @@ class ParameterColor(Parameter):
         #     self.values[i] = v.valueUint64
         return True
 
-    def set_min_from_message(self, message):
+    def _set_min_from_message(self, message):
         print("Can't set minimum for ParameterColor")
         # value = TincProtocol.ParameterValue()
         # message.Unpack(value)
@@ -897,7 +947,7 @@ class ParameterColor(Parameter):
         # self.minimum = value.valueUint64
         return True
         
-    def set_max_from_message(self, message):
+    def _set_max_from_message(self, message):
         print("Can't set maximum for ParameterColor")
         # value = TincProtocol.ParameterValue()
         # message.Unpack(value)
@@ -917,7 +967,7 @@ class ParameterBool(Parameter):
             self.default = False
         self._value = self.default
         
-    def set_value_from_message(self, message):
+    def _set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         
@@ -933,7 +983,7 @@ class ParameterBool(Parameter):
         
 
 #     def interactive_widget(self):
-#         self._interactive_widget = interactive(self.set_from_internal_widget,
+#         self._interactive_widget = interactive(self._set_from_internal_widget,
 #                 value=widgets.Textarea(
 #                 value=self._value,
 #                 description=self.id,
@@ -962,7 +1012,7 @@ class Trigger(ParameterBool):
             
         if self._value == True:
             if self.tinc_client:
-                self.tinc_client.send_parameter_value(self)
+                self.tinc_client._send_parameter_value(self)
             
             self._trigger_callbacks(self._value)
             self._value = False
@@ -970,7 +1020,7 @@ class Trigger(ParameterBool):
     def trigger(self):
         self.set_value(True)
 
-    def set_value_from_message(self, message):
+    def _set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         #print(f"hello {value.valueBool}")
@@ -1008,7 +1058,7 @@ class ParameterVec(Parameter):
             
         self._value = self._data_type(value)
         if self.tinc_client:
-            self.tinc_client.send_parameter_value(self)
+            self.tinc_client._send_parameter_value(self)
         # TODO implement interactive widget for ParameterVec
         # if self._interactive_widget:
         #     self._interactive_widget.children[0].value = self._data_type(value)
@@ -1030,9 +1080,9 @@ class ParameterVec(Parameter):
         # except:
         #     print("Error setting min and max from space values")
         # if self.tinc_client:
-        #     self.tinc_client.send_parameter_space(self)
+        #     self.tinc_client._send_parameter_space(self)
 
-    def set_value_from_message(self, message):
+    def _set_value_from_message(self, message):
         value = TincProtocol.ParameterValue()
         message.Unpack(value)
         
@@ -1047,7 +1097,7 @@ class ParameterVec(Parameter):
         self._trigger_callbacks(self._value)
         return True
 
-    def set_space_from_message(self, message):
+    def _set_space_from_message(self, message):
         # TODO implement support for parameter space values for ParameterVec
         # values = TincProtocol.ParameterSpaceValues()
         # message.Unpack(values)
@@ -1059,7 +1109,7 @@ class ParameterVec(Parameter):
         #     self.values[i] = v.valueInt32
         return True
 
-    def set_min_from_message(self, message):
+    def _set_min_from_message(self, message):
         # TODO implement min
         # value = TincProtocol.ParameterValue()
         # message.Unpack(value)
@@ -1067,7 +1117,7 @@ class ParameterVec(Parameter):
         # self._minimum = value.valueInt32
         return True
         
-    def set_max_from_message(self, message):
+    def _set_max_from_message(self, message):
         # TODO implement max
         # value = TincProtocol.ParameterValue()
         # message.Unpack(value)

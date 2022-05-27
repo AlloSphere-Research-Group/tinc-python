@@ -117,7 +117,7 @@ class PresetHandler(object) :
 
     def interactive_widget(self):
         if self._interactive_widget is None:
-            self._interactive_widget = interactive(self._set_from_internal_widget, value = widgets.Dropdown(
+            self._interactive_widget = interactive(self.__set_from_internal_widget, value = widgets.Dropdown(
                     options=['dummy'],
                     # value='dummy',
                     description='Preset:',))
@@ -145,7 +145,7 @@ class PresetHandler(object) :
             options.append(entry[1])
         self._interactive_widget.children[0].options = options
     
-    def _set_from_internal_widget(self, value):
+    def __set_from_internal_widget(self, value):
         self.recall_preset(value)
 
     def set_preset_map(self, preset_map_name):

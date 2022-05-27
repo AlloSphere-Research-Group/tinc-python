@@ -27,7 +27,7 @@ def extract_parameter_space_data(data_dir, config_file,
     all_spaces = []
     for sub_dir in sub_dirs:
         all_spaces.append(
-            _tinc_extract_parameters(sub_dir + '/' + config_file, parameter_start_key, parameter_end_key, parameter_increment_key), debug = debug)
+            _tinc_extract_parameters(sub_dir + '/' + config_file, parameter_start_key, parameter_end_key, parameter_increment_key, debug = debug))
     return _tinc_merge_spaces(all_spaces)
 
 '''

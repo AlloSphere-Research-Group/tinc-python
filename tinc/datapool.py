@@ -61,7 +61,7 @@ class DataPool(TincObject):
                 slice_values = self.get_field_from_file(field, path + data_filename)
                 break           
     
-    def create_data_slice(self, field, slice_dimensions):
+    def create_data_slice(self, field, slice_dimensions, override_value = None):
         if type(slice_dimensions) == str:
             slice_dimensions = [slice_dimensions]
         elif type(slice_dimensions) != list:
@@ -97,8 +97,16 @@ class DataPool(TincObject):
         # slice came from. This is part of the bigger TINC metadata idea
         slice_values = []
         index_map = {}
-        if len(slice_dimensions) > 1:
+        if len(slice_dimensions) > 2:
             raise ValueError("multidimensional slicing not supported yet.")
+        elif len(slice_dimensions) == 2:
+            # Fake it for now. There are much more efficient ways to do it, but this is a quick way to get it working
+            p1 = self._parameter_space.get_dimension(slice_dimensions[0])
+            for v in p1.values:
+                part_slice_file = self.get_slice(field, slice_dimensions, override_value = None)
+
+
+            return   
         
         for dim_name in slice_dimensions:
             dim = self._parameter_space.get_dimension(dim_name)
@@ -128,7 +136,10 @@ class DataPool(TincObject):
                     for data_filename, dim_in_file  in self._data_file_names.items():
                         temp_slice_values = self.get_field_from_file(field, path + data_filename)
                         index = self._parameter_space.get_dimension(dim_in_file).get_current_index()
-                        slice_values.append(temp_slice_values[index])
+                        if temp_slice_values is not None:
+                            slice_values.append(temp_slice_values[index])
+                        else:
+                            slice_values.append(None)
             else:
                 path = self._parameter_space.get_root_path()
                 if len(path) > 0:
@@ -179,11 +190,13 @@ class DataPool(TincObject):
         raise RuntimeError("To extract data locally use the DataPool data specific classes (e.g. DataPoolJson)")
     
     # TODO this function is called readDataSlice() in C++
-    def get_slice(self, field, slice_dimensions):
+    def get_slice(self, field, slice_dimensions, override_value = None):
         if not self.tinc_client:
-            slice_file = self.create_data_slice(field, slice_dimensions)
+            slice_file = self.create_data_slice(field, slice_dimensions, override_value)
         else:
             slice_file = self.tinc_client._command_datapool_slice_file(self.id, field, slice_dimensions, self.server_timeout)
+            if override_value is not None:
+                print("Override value ignored for remote slicing")
         if os.path.isabs(self.slice_cache_dir) or self.tinc_client is None:
             slice_path = self.slice_cache_dir
         else:
@@ -249,8 +262,12 @@ class DataPoolJson(DataPool):
 
     def get_field_from_file(self, field, full_path):
         import json
-        with open(full_path) as f:
-            j = json.load(f)
+        try:
+            with open(full_path) as f:
+                j = json.load(f)
+        except:
+            print(f'File not found: {full_path}')
+            return None
 
         try:
             field_data = j[field]
