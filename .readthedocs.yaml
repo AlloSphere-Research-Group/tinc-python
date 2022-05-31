@@ -16,7 +16,7 @@ build:
     # golang: "1.17"
 
   apt_packages:
-    - libprotobuf
+    - libprotoc-dev
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
