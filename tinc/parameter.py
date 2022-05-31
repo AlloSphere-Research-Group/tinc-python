@@ -5,7 +5,6 @@ try:
 except:
     print("Can't import ipywidgets. Notebook widgets not available")
 
-import unittest
 from .cachemanager import VariantValue, VariantType
 from .tinc_object import TincObject
 from .variant import VariantType
@@ -15,11 +14,9 @@ import numpy as np
 import threading
 import traceback
 from enum import IntEnum, unique
-import re
 
 # used in set_XXX_from_message 
-from . import tinc_protocol_pb2 as TincProtocol
-
+import .tinc_protocol_pb2 as TincProtocol
 
 def to_variant(param):
     '''

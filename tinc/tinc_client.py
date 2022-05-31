@@ -16,7 +16,7 @@ from .parameter_space import ParameterSpace
 from .disk_buffer import *
 from .cachemanager import *
 from .message import Message
-from . import tinc_protocol_pb2 as TincProtocol
+import .tinc_protocol_pb2 as TincProtocol
 #from google.protobuf import any_pb2 #, message
 
 tinc_client_version = 1
