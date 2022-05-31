@@ -16,7 +16,7 @@ import traceback
 from enum import IntEnum, unique
 
 # used in set_XXX_from_message 
-import .tinc_protocol_pb2 as TincProtocol
+from .tinc_protocol_pb2 import ParameterValue, ParameterSpaceValues
 
 def to_variant(param):
     '''
@@ -276,7 +276,7 @@ class Parameter(TincObject):
         return struct.pack('f', self._value)
     
     def _set_value_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         
         # print(f"set {value.valueFloat}")
@@ -292,7 +292,7 @@ class Parameter(TincObject):
         return True
 
     def _set_space_from_message(self, message):
-        values = TincProtocol.ParameterSpaceValues()
+        values = ParameterSpaceValues()
         message.Unpack(values)
         self._ids = values.ids
         count = len(values.values)
@@ -337,7 +337,7 @@ class Parameter(TincObject):
         return True
     
     def _set_space_representation_type_from_message(self, message):
-        value = TincProtocol.ParameteValue()
+        value = ParameterValue()
         message.Unpack(value)
         try:
             self._space_repr_type = parameter_space_representation_types(value.valueInt32)
@@ -347,7 +347,7 @@ class Parameter(TincObject):
         return True
 
     def _set_min_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         # print(f"min {value.valueFloat}")
         self._minimum = value.valueFloat
@@ -356,7 +356,7 @@ class Parameter(TincObject):
         return True
         
     def _set_max_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         # print(f"max {value.valueFloat}")
         self._maximum = value.valueFloat
@@ -629,7 +629,7 @@ class ParameterString(Parameter):
         self._trigger_callbacks(self._value)
 
     def _set_value_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         
         # print(f"set {value.valueFloat}")
@@ -642,7 +642,7 @@ class ParameterString(Parameter):
         return True
 
     def _set_space_from_message(self, message):
-        values = TincProtocol.ParameterSpaceValues()
+        values = ParameterSpaceValues()
         message.Unpack(values)
         self.ids = values.ids
         count = len(values.values)
@@ -653,14 +653,14 @@ class ParameterString(Parameter):
         return True
 
     def _set_min_from_message(self, message):
-        # value = TincProtocol.ParameterValue()
+        # value = ParameterValue()
         # message.Unpack(value)
         # # print(f"min {value.valueFloat}")
         # self.minimum = value.valueString
         return True
         
     def _set_max_from_message(self, message):
-        # value = TincProtocol.ParameterValue()
+        # value = ParameterValue()
         # message.Unpack(value)
         # # print(f"max {value.valueFloat}")
         # self.maximum = value.valueString
@@ -710,7 +710,7 @@ class ParameterInt(Parameter):
         self._value = self.default
         
     def _set_value_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         
         # print(f"set {value.valueFloat}")
@@ -723,7 +723,7 @@ class ParameterInt(Parameter):
         return True
 
     def _set_space_from_message(self, message):
-        values = TincProtocol.ParameterSpaceValues()
+        values = ParameterSpaceValues()
         message.Unpack(values)
         self._ids = list(values.ids)
         count = len(values.values)
@@ -734,14 +734,14 @@ class ParameterInt(Parameter):
         return True
 
     def _set_min_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         # print(f"min {value.valueFloat}")
         self._minimum = value.valueInt32
         return True
         
     def _set_max_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         # print(f"max {value.valueFloat}")
         self._maximum = value.valueInt32
@@ -813,7 +813,7 @@ class ParameterChoice(Parameter):
         self._trigger_callbacks(self._value)
         
     def _set_value_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         
         # print(f"set {value.valueUint64}")
@@ -826,7 +826,7 @@ class ParameterChoice(Parameter):
         return True
 
     def _set_space_from_message(self, message):
-        values = TincProtocol.ParameterSpaceValues()
+        values = ParameterSpaceValues()
         message.Unpack(values)
         self._ids = values.ids
         count = len(values.values)
@@ -837,14 +837,14 @@ class ParameterChoice(Parameter):
         return True
 
     def _set_min_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         # print(f"min {value.valueFloat}")
         self._minimum = value.valueUint64
         return True
         
     def _set_max_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         # print(f"max {value.valueFloat}")
         self._maximum = value.valueUint64
@@ -911,7 +911,7 @@ class ParameterColor(Parameter):
         self.maximum = [1,1,1,1]
         
     def _set_value_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         
         new_value = [v.valueFloat for v in value.valueList]
@@ -926,7 +926,7 @@ class ParameterColor(Parameter):
 
     def _set_space_from_message(self, message):
         print("No parameter space for ParameterColor")
-        # values = TincProtocol.ParameterSpaceValues()
+        # values = ParameterSpaceValues()
         # message.Unpack(values)
         # self.ids = values.ids
         # count = len(values.values)
@@ -938,7 +938,7 @@ class ParameterColor(Parameter):
 
     def _set_min_from_message(self, message):
         print("Can't set minimum for ParameterColor")
-        # value = TincProtocol.ParameterValue()
+        # value = ParameterValue()
         # message.Unpack(value)
         # # print(f"min {value.valueFloat}")
         # self.minimum = value.valueUint64
@@ -946,7 +946,7 @@ class ParameterColor(Parameter):
         
     def _set_max_from_message(self, message):
         print("Can't set maximum for ParameterColor")
-        # value = TincProtocol.ParameterValue()
+        # value = ParameterValue()
         # message.Unpack(value)
         # # print(f"max {value.valueFloat}")
         # self.maximum = value.valueUint64
@@ -965,7 +965,7 @@ class ParameterBool(Parameter):
         self._value = self.default
         
     def _set_value_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         
         new_value = value.valueBool
@@ -1018,7 +1018,7 @@ class Trigger(ParameterBool):
         self.set_value(True)
 
     def _set_value_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         #print(f"hello {value.valueBool}")
         
@@ -1080,7 +1080,7 @@ class ParameterVec(Parameter):
         #     self.tinc_client._send_parameter_space(self)
 
     def _set_value_from_message(self, message):
-        value = TincProtocol.ParameterValue()
+        value = ParameterValue()
         message.Unpack(value)
         
         # print(f"set {value.valueFloat}")
@@ -1096,7 +1096,7 @@ class ParameterVec(Parameter):
 
     def _set_space_from_message(self, message):
         # TODO implement support for parameter space values for ParameterVec
-        # values = TincProtocol.ParameterSpaceValues()
+        # values = ParameterSpaceValues()
         # message.Unpack(values)
         # self._ids = list(values.ids)
         # count = len(values.values)
@@ -1108,7 +1108,7 @@ class ParameterVec(Parameter):
 
     def _set_min_from_message(self, message):
         # TODO implement min
-        # value = TincProtocol.ParameterValue()
+        # value = ParameterValue()
         # message.Unpack(value)
         # # print(f"min {value.valueFloat}")
         # self._minimum = value.valueInt32
@@ -1116,7 +1116,7 @@ class ParameterVec(Parameter):
         
     def _set_max_from_message(self, message):
         # TODO implement max
-        # value = TincProtocol.ParameterValue()
+        # value = ParameterValue()
         # message.Unpack(value)
         # # print(f"max {value.valueFloat}")
         # self._maximum = value.valueInt32
