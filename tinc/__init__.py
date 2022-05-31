@@ -11,4 +11,3 @@ from .process_args import *
 from .preset_handler import *
 from .parameter_space_tools import *
 from .tinc_bridge import *
-from .tinc_protocol_pb2 import *
