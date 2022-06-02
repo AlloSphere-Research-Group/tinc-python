@@ -27,7 +27,11 @@ class Processor(TincObject):
     start_callback = None # cb(self)
     done_callback = None # cb(self, ok)
 
+    '''Base functionality and interface for TINC Processors.
 
+    You will want to instantiate specific processors: :class:`tinc.processor.ProcessorScript` or
+    :class:`tinc.processor.ProcessorScriptDocker`.
+    '''
     def __init__(self, tinc_id, input_dir = "", input_files = [],
                  output_dir = "", output_files = [], running_dir = ""):
         super().__init__(tinc_id)
@@ -43,19 +47,19 @@ class Processor(TincObject):
         self._tinc_server = None
         self._local = True 
         
-    def print(self):
+    def __str__(self):
         if self.input_dir:
-            print(f"Input directory: {self.input_dir}")
+            return f"Input directory: {self.input_dir}"
         if self.input_files:
-            print(f"Input files: {self.input_files}")
+            return f"Input files: {self.input_files}"
         if self.output_dir:
-            print(f"Output directory: {self.output_dir}")
+            return f"Output directory: {self.output_dir}"
         if self.output_files:
-            print(f"Output files: {self.output_files}")
+            return f"Output files: {self.output_files}"
         if self.running_dir:
-            print(f"Running directory: {self.running_dir}")
+            return f"Running directory: {self.running_dir}"
         for key, value in self.configuration.items():
-            print(f"['{key}'] = {value}")
+            return f"['{key}'] = {value}"
 
     def set_output_files(self, outfiles):
         if not type(outfiles) == list:
@@ -85,8 +89,8 @@ class ComputationChain(Processor):
         super().__init__(tinc_id, input_dir, input_files,
                                                output_dir, output_files, running_dir)
         
-    def print(self):
-        print(f"*** Computation Chain: {self.id}")
+    def __str__(self):
+        return f"*** Computation Chain: {self.id}"
         #Processor.print(self)
         
 
@@ -95,13 +99,19 @@ class ProcessorScript(Processor):
     script_name:str = ''
 
     command_line_flag_template =''
-
+    '''A :class:`tinc.processor.Processor` that executes a system process.
+    '''
     def __init__(self, tinc_id = "_", input_dir = "", input_files = [],
                  output_dir = "", output_files = [], running_dir = ""):
         super().__init__(tinc_id, input_dir, input_files, output_dir, output_files, running_dir)
         self._arg_template = ''
         self._capture_output = False
         self._buffer_filename = ''
+
+    def __str__(self):
+        out = f"*** ProcessorScript : {self.id}"
+        out += Processor.print(self)
+        return out
 
     def set_command_line(self, cmd_line):
         i = cmd_line.find(' ')
@@ -239,16 +249,14 @@ class ProcessorScript(Processor):
             fname = self.output_files[0].get_filename_for_writing()
         
         return fname
-
-    def print(self):
-        print(f"*** ProcessorScript : {self.id}")
-        Processor.print(self)
         
 
 class ProcessorScriptDocker(ProcessorScript):
     container_id = ''
     path_map = {}
-    
+
+    '''A :class:`tinc.processor.Processor` that executes a system process on a Docker container
+    '''
     def set_container_id(self, container_id):
         if container_id is None or not type(container_id) == str:
             raise ValueError("Container id invalid")
@@ -313,7 +321,7 @@ class ProcessorCpp(Processor):
                  output_dir = "", output_files = [], running_dir = ""):
         super().__init__(name, input_dir, input_files,
                                                output_dir, output_files, running_dir)
-
-    def print(self):
-        print(f"*** C++ Processor: {self.id}")
+    '''Placeholder for a remote Processor that executes C++ code.'''
+    def __str__(self):
+        out += f"*** C++ Processor: {self.id}"
         Processor.print(self)

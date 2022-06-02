@@ -8,10 +8,6 @@ Created on Mon Aug  9 15:47:18 2021
 import os
 
 class DistributedPath(object):
-    filename: str = ''
-    relative_path: str = ''
-    root_path: str = ''
-    protocol_id: str = ''
 
     def __init__(self, filename = '', relative_path ='', root_path ='', protocol_id = ''):
         self.filename = filename

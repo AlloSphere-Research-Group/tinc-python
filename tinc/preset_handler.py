@@ -16,8 +16,11 @@ except:
 
 
 class PresetHandler(object) :
+    '''Manage preset read and write for parameters
+    
+    :param root_dir: Path where presets are stored
+    '''
     def __init__(self, root_dir = "presets/"):
-
         self.root_dir = root_dir
         if len(self.root_dir) > 0 and not self.root_dir[-1] == "/":
             self.root_dir += '/'
@@ -32,6 +35,14 @@ class PresetHandler(object) :
         pass
 
     def store_preset(self, name):
+        '''Store the current values in a preset.
+
+        The preset name will determine the file name. See :meth:`tinc.preset_handler.PresetHandler.store_preset_index`
+        
+        Will overwrite preset if name exists.
+
+        :param name: Name for the preset.
+        '''
         index = -1
         name = name.replace(':', "_") # names can't have colons.
         name = name.replace(' ', "_") # names can't have spaces.
@@ -48,6 +59,7 @@ class PresetHandler(object) :
         self.store_preset_index(index, name)
 
     def store_preset_index(self, index, name = "", overwrite = True):
+        '''Store preset by index'''
         name = name.replace(':', "_") # names can't have colons.
         name = name.replace(' ', "_") # names can't have spaces.
         if name == '':
@@ -66,6 +78,7 @@ class PresetHandler(object) :
         self._configure_widget()
 
     def recall_preset(self, name):
+        '''Recall parameter values from preset.'''
         path = self.root_dir + self._sub_dir + name + ".preset"
         if not os.path.exists(path):
             print(f"Preset '{name}' does not exist. No preset loaded")
@@ -107,9 +120,15 @@ class PresetHandler(object) :
         return False
 
     def available_presets(self):
+        '''Return a list of currently available presets.'''
         return [entry[1] for entry in self._presets_map.items()]
 
     def register_parameter(self, parameter):
+        '''Register a parameter with the preset handler
+        
+        Parameters that have been registered will be modified when presets are recalled
+        and will provide their current value when presets are stored.
+        '''
         self._parameters.append(parameter)
 
     def set_sub_dir(self, subdir):
@@ -149,6 +168,10 @@ class PresetHandler(object) :
         self.recall_preset(value)
 
     def set_preset_map(self, preset_map_name):
+        '''Set the current map for indeces to preset names
+        
+        The maps are stored in the file system with extension .presetMap
+        '''
         self._current_map_name = preset_map_name
         map_path = self._build_map_path(preset_map_name)
         if not os.path.exists(map_path):

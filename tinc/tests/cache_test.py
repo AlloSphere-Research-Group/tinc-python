@@ -32,13 +32,13 @@ class CacheTest(unittest.TestCase):
                             SourceArgument(id = 'dep_id2', 
                                            value = VariantValue(nctype = VariantType.VARIANT_FLOAT, 
                                                                 value = 1.8))],
-            file_dependencies =  [FileDependency(DistributedPath("dep1")), 
-                                  FileDependency(DistributedPath("dep1"))])
+            file_dependencies =  [FileDependency(DistributedPath(filename ="dep1")), 
+                                  FileDependency(DistributedPath(filename ="dep1"))])
         
         
         entry = CacheEntry(timestamp_start = 'a',
                            timestamp_end =  'b', 
-                           files = [FileDependency(DistributedPath("out1.txt"))],
+                           files = [FileDependency(DistributedPath(filename ="out1.txt"))],
                            user_info = UserInfo(user_name = 'name',
                                                 user_hash = 'hash',
                                                 ip = 'ip',
@@ -54,6 +54,7 @@ class CacheTest(unittest.TestCase):
         
         cache.update_from_disk()
         
+        self.assertGreater(len(cache.entries()), 0)
         retrieved = cache.entries()[0]
         
         self.assertEqual(retrieved, entry)
@@ -79,13 +80,13 @@ class CacheTest(unittest.TestCase):
                             SourceArgument(id = 'dep_id2', 
                                            value = VariantValue(nctype = VariantType.VARIANT_FLOAT, 
                                                                 value = 1.8))],
-            file_dependencies =  [FileDependency(DistributedPath("dep1")), 
-                                  FileDependency(DistributedPath("dep1"))])
+            file_dependencies =  [FileDependency(DistributedPath(filename ="dep1")), 
+                                  FileDependency(DistributedPath(filename ="dep1"))])
         
         
         entry = CacheEntry(timestamp_start = 'a',
                            timestamp_end =  'b', 
-                           files = [FileDependency(DistributedPath("out1.txt"))],
+                           files = [FileDependency(DistributedPath(filename ="out1.txt"))],
                            user_info = UserInfo(user_name = 'name',
                                                 user_hash = 'hash',
                                                 ip = 'ip',

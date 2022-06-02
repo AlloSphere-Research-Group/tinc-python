@@ -44,7 +44,6 @@ class FileDependency(NamedTuple):
     size: int = 0
     hash: str = ''
 
-
 def arguments_from_param_list(param_list):
     args = []
     for p in param_list:

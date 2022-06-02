@@ -15,7 +15,22 @@ import traceback
 import os
 
 class DataPool(TincObject):
+    '''The DataPool class can unify through a single interface homogeneous data spread across the filesystem.
+    
+    The DataPool class gathers data files across directories that span a parameter space.
+    The parameter space and its current values determine where the files in the
+    data pool are found. This class is useful to manage data files that are the
+    result of parameter sweeps, generating the same type of file in different
+    directories, where each directory represents a sample of the parameter space.
 
+    This base class provides the basic functionality and interface, but in practice you will want
+    to use one of the derived classes that matches your data, like :class:`tinc.datapool.DataPoolJson`.
+    
+    :param tinc_id: the name that identifies the data pool
+    :param parameter_space: The :class:`tinc.parameter_space.ParameterSpace` for the data
+    :param slice_cache_dir: The folder where slices from the data pool are stored
+    :param tinc_client: The :class:`tinc.tinc_client.TincClient` the parameter belongs to. This should be left as None when calling directly.
+    '''
     def __init__(self, tinc_id = "_", parameter_space = None, slice_cache_dir = '', tinc_client = None):
         super().__init__(tinc_id)
         self._parameter_space = parameter_space
@@ -32,6 +47,13 @@ class DataPool(TincObject):
         return out
 
     def register_data_file(self, filename, dimension_in_file):
+        '''Register with the DataPool the filename and the dimension from the parameter space
+        that is contained within the file.
+
+        These file should be located relative to the current directory for the parameter space.
+        It should be present in all data paths for the parameter space.
+        
+        :param filename: The relative file name'''
         if filename in self._data_file_names:
             print(f"DataPool: Overiwriting dimension in file {filename}")
         self._data_file_names[filename] = dimension_in_file
@@ -43,9 +65,10 @@ class DataPool(TincObject):
         self._data_file_names = {}
 
     def get_parameter_space(self):
+        '''Get the :class:`tinc.parameter_space.ParameterSpace` that controls this data pool'''
         return self._parameter_space
     
-    def create_data_slice_internal(self, field, internal_dim, space):
+    def _create_data_slice_internal(self, field, internal_dim, space):
         # Internal dimension
         
         if self._parameter_space.is_filesystem_dimension(\
@@ -58,10 +81,23 @@ class DataPool(TincObject):
             path += self._parameter_space.get_current_relative_path() + "/"
             for data_filename, dim_in_file  in self._data_file_names.items():
                 # TODO support more than one file
-                slice_values = self.get_field_from_file(field, path + data_filename)
+                slice_values = self._get_field_from_file(field, path + data_filename)
                 break           
     
     def create_data_slice(self, field, slice_dimensions, override_value = None):
+        '''Write data slice to file.
+
+        The slice will be created as a NetCDF4 file with a single variable called
+        "data" that spans a dimension "values". The result will be a multi-
+        dimensional slice containing the values of the "field" across all values
+        for slice_dimensions (that must be registered in the parameter space).
+        
+        :param field: Name of the field to extract
+        :param slice_dimensions: The name of a dimension or a list of dimension names
+        :param override_value: (optional) Override current values in the parameter space. Should contain a map of names to values
+        :returns: Filename to the new data slice
+        '''
+
         if type(slice_dimensions) == str:
             slice_dimensions = [slice_dimensions]
         elif type(slice_dimensions) != list:
@@ -103,7 +139,7 @@ class DataPool(TincObject):
             # Fake it for now. There are much more efficient ways to do it, but this is a quick way to get it working
             p1 = self._parameter_space.get_dimension(slice_dimensions[0])
             for v in p1.values:
-                part_slice_file = self.get_slice(field, slice_dimensions, override_value = None)
+                part_slice_file = self.get_slice(field, slice_dimensions, override_value)
 
 
             return   
@@ -134,7 +170,7 @@ class DataPool(TincObject):
                                 self._parameter_space._path_template, index_map) + '/'
                     #TODO support multiple files. This only works for one file. 
                     for data_filename, dim_in_file  in self._data_file_names.items():
-                        temp_slice_values = self.get_field_from_file(field, path + data_filename)
+                        temp_slice_values = self._get_field_from_file(field, path + data_filename)
                         index = self._parameter_space.get_dimension(dim_in_file).get_current_index()
                         if temp_slice_values is not None:
                             slice_values.append(temp_slice_values[index])
@@ -147,7 +183,7 @@ class DataPool(TincObject):
                 path += self._parameter_space.get_current_relative_path() + "/"
                 for data_filename, dim_in_file  in self._data_file_names.items():
                     # TODO support more than one file
-                    slice_values = self.get_field_from_file(field, path + data_filename)
+                    slice_values = self._get_field_from_file(field, path + data_filename)
                     break
 
             filename += dim_name + "_"
@@ -155,7 +191,6 @@ class DataPool(TincObject):
         for dim in self._parameter_space.get_dimensions():
             filename += dim.id + "_" + str(dim.value) + "_"
 
-        # FIXME sanitize filename ProcessorScript::sanitizeName
         # TODO Windows paths cant end with dot or space
         filename = ProcessorScript.sanitize_name(filename)
         filename += ".nc"
@@ -186,11 +221,16 @@ class DataPool(TincObject):
             print(f'DataPool wrote slice: {filename} in {slice_path}')
         return filename
 
-    def get_field_from_file(self, field, full_path):
-        raise RuntimeError("To extract data locally use the DataPool data specific classes (e.g. DataPoolJson)")
-    
     # TODO this function is called readDataSlice() in C++
     def get_slice(self, field, slice_dimensions, override_value = None):
+        '''Get data slice from the data pool.
+
+        Called readDataSlice() in the C++ API.
+
+        :param field: Name of the field to extract
+        :param slice_dimensions: The name of a dimension or a list of dimension names
+        :param override_value: (optional) Override current values in the parameter space. Should contain a map of names to values
+        '''
         if not self.tinc_client:
             slice_file = self.create_data_slice(field, slice_dimensions, override_value)
         else:
@@ -240,27 +280,33 @@ class DataPool(TincObject):
             return self.tinc_client._command_datapool_get_files(self.id, self.server_timeout)
     
     def list_fields(self, verify_consistency = False):
+        '''List fields available in the data files for this data pool'''
         # TODO verify consistency
         current_file = self.get_current_files()[0]
 
-        return self.list_fields_in_file(current_file)
+        return self._list_fields_in_file(current_file)
 
-    def print(self):
-        print(str(self))
+    def _list_fields_in_file(self, full_path):
+        raise RuntimeError("To extract data locally use the DataPool data specific classes (e.g. DataPoolJson)")
 
+    def _get_field_from_file(self, field, full_path):
+        raise RuntimeError("To extract data locally use the DataPool data specific classes (e.g. DataPoolJson)")
+    
 
 class DataPoolJson(DataPool):
+    '''DataPool to read JSON files
+    '''
     def __init__(self, tinc_id = "_", parameter_space = None, slice_cache_dir = '', tinc_client = None):
         super().__init__(tinc_id, parameter_space, slice_cache_dir, tinc_client)
     
-    def list_fields_in_file(self, full_path):
+    def _list_fields_in_file(self, full_path):
         import json
         with open(full_path) as f:
             j = json.load(f)
 
         return list(j.keys())
 
-    def get_field_from_file(self, field, full_path):
+    def _get_field_from_file(self, field, full_path):
         import json
         try:
             with open(full_path) as f:
@@ -275,9 +321,3 @@ class DataPoolJson(DataPool):
             raise ValueError(f"Field '{field}' not found in file: {f}")
         if type(field_data) == list:
             return field_data
-
-
-if __name__ == "__main__":
-    # To test, run from one directory up: python -m tinc.datapool 
-    ps = ParameterSpace("ps")
-    dp = DataPoolJson("dp", ps)

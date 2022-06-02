@@ -28,8 +28,18 @@ except:
 
 DiskBufferType = {'BINARY':0, 'TEXT': 1, 'NETCDF': 2, 'JSON': 3, 'IMAGE': 4}
 
-# This is a base class for disk buffers. All children class must implement the data setter function
 class DiskBuffer(TincObject):
+    '''Base class for all disk buffers.
+
+    A DiskBuffer is a filesystem based buffer for distributed applications that allows notifying other
+    nodes of changes. Although data is shared through the file system, the interface to disk buffer
+    objects is presented as in memory data.
+
+    The DiskBuffer subclasses implement specific data format decoding: :class:`tinc.diskbuffer.DiskBufferJson`,
+    :class:`tinc.diskbuffer.DiskBufferImage`
+
+    All children class must implement the data getter and setter functions and _parse_file
+    '''
     def __init__(self, tinc_id, base_filename, rel_path = '', root_path = '', tinc_client = None):
         super().__init__(tinc_id)
 
@@ -56,6 +66,20 @@ class DiskBuffer(TincObject):
 
         self._update_callbacks = []
     
+    def __str__(self):
+        out = f" ** DiskBuffer: '{self.id}' type {self.type}"
+        out += f'      path: {self.path.get_full_path()} basename: {self.path.filename}'
+        return out
+
+    @property
+    def data(self):
+        '''Read the data in the disk buffer. This data is cached in memory until changed.'''
+        return self._data
+        
+    @data.setter
+    def data(self, data):
+        raise RuntimeError("You must use a specialized DiskBuffer, not the DiskBuffer base class")
+
     def get_current_filename(self):
         return self._filename
     
@@ -150,14 +174,6 @@ class DiskBuffer(TincObject):
                     os.remove(self.path.get_full_path() + f)
         except:
             pass
-        
-    @property
-    def data(self):
-        return self._data
-        
-    @data.setter
-    def data(self, data):
-        raise RuntimeError("You must use a specialized DiskBuffer, not the DiskBuffer base class")
     
     def get_filename_for_writing(self, timeout_secs = 0):
         # TODO implement timeout when locked.
@@ -248,10 +264,6 @@ class DiskBuffer(TincObject):
     def unlock(self,outname):
         if self._file_lock:
             self._lock.release()
-    
-    def print(self):
-        print(f" ** DiskBuffer: '{self.id}' type {self.type}")
-        print(f'      path: {self.path.get_full_path()} basename: {self.path.filename}')
     
 class DiskBufferJson(DiskBuffer):
     def __init__(self, tinc_id, base_filename, rel_path = '', root_path = '', tinc_client = None):
