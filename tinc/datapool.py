@@ -31,7 +31,7 @@ class DataPool(TincObject):
     :param slice_cache_dir: The folder where slices from the data pool are stored
     :param tinc_client: The :class:`tinc.tinc_client.TincClient` the parameter belongs to. This should be left as None when calling directly.
     '''
-    def __init__(self, tinc_id = "_", parameter_space = None, slice_cache_dir = '', tinc_client = None):
+    def __init__(self, tinc_id = "_", parameter_space = None, slice_cache_dir = './', tinc_client = None):
         super().__init__(tinc_id)
         self._parameter_space = parameter_space
         if type(self._parameter_space) != ParameterSpace:
@@ -53,7 +53,9 @@ class DataPool(TincObject):
         These file should be located relative to the current directory for the parameter space.
         It should be present in all data paths for the parameter space.
         
-        :param filename: The relative file name'''
+        :param filename: The relative file name
+        :param dimension_in_file: string with the dimension file name
+        '''
         if filename in self._data_file_names:
             print(f"DataPool: Overiwriting dimension in file {filename}")
         self._data_file_names[filename] = dimension_in_file
@@ -76,7 +78,7 @@ class DataPool(TincObject):
             raise ValueError(f'Dimension "{internal_dim}" is not an internal dimension')
         else:
             path = self._parameter_space.get_root_path()
-            if len(path) > 0:
+            if len(path) > 0 and path[-1] != '/':
                 path += "/" 
             path += self._parameter_space.get_current_relative_path() + "/"
             for data_filename, dim_in_file  in self._data_file_names.items():
@@ -264,8 +266,8 @@ class DataPool(TincObject):
         if not self.tinc_client:
             files = []
             path = self._parameter_space.get_root_path()
-            if len(path) > 0:
-                path += '/'
+            if len(path) > 0 and path[-1] != '/':
+                path += "/" 
             path += self._parameter_space.get_current_relative_path() + '/'
             
             for fname in self._data_file_names.keys():
@@ -296,7 +298,7 @@ class DataPool(TincObject):
 class DataPoolJson(DataPool):
     '''DataPool to read JSON files
     '''
-    def __init__(self, tinc_id = "_", parameter_space = None, slice_cache_dir = '', tinc_client = None):
+    def __init__(self, tinc_id = "_", parameter_space = None, slice_cache_dir = './', tinc_client = None):
         super().__init__(tinc_id, parameter_space, slice_cache_dir, tinc_client)
     
     def _list_fields_in_file(self, full_path):
