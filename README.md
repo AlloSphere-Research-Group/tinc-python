@@ -6,15 +6,17 @@ https://github.com/AlloSphere-Research-Group/tinc
 
 tinc-python depends on numpy, matplotlib, netcdf4, filelock and jsonschema. If ipywidgets is available, tinc-python can provide interactive widgets for the jupyter notebook.
 
-To install additional dependencies for tinc-python:
+To tinc for python:
 ```
 pip install tinc
 ```
 
-To install additional dependencies for tinc-python:
+To install ipywidgets for jupyter widget support:
 ```
 pip install ipywidgets
 ```
+
+The TINC python documentation is available at: https://tinc-python.readthedocs.io/en/latest/
 
 # Installing jupyterlab on macOS Through homebrew
 There are many ways to install jupyterlab. Here is one we have tested to work with TINC.
