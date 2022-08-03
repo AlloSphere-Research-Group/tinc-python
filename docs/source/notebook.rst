@@ -86,6 +86,7 @@ Disk buffers in TINC are files on disk that can trigger updates whenever they ch
 image and updates whenever the disk buffer is changed.
 
 To create a disk buffer::
+    
     imageBuffer = DiskBufferImage("graph" , "graph.png", "cache")
 
 This will create a disk buffer with *tinc_id* "graph" that will write and read from a file called "graph.png"

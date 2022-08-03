@@ -6,7 +6,7 @@
 .. toctree::
    :maxdepth: 4
 
-This section will show how to construct an interactive display for jupyter notebook using TINC.
+This section will show how to perform interactive computation on the jupyter notebook using TINC.
 
 Let's imagine we need to explore how a circle can be contained within a rectangle. We need to 
 find both the maximum circle that can be contained, but we also need to find an aesthetically
