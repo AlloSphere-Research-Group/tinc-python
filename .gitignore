@@ -1,3 +1,11 @@
 tinc/__pycache__/
+.vscode
+build
+dist
+docs/source/_build
+jupyter-notebooks/cache
+jupyter-notebooks/.ipynb_checkpoints
+jupyter-notebooks/presets
+jupyter-notebooks/python_cache
 #tinc-python/tinc_protocol_pb2.py
 #tinc_protocol_pb2.py
