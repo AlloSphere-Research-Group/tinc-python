@@ -571,6 +571,13 @@ If this is happening use asynchronous callbacks by setting synchrouns to False w
         self.register_callback(f, False)
     
     def remove_callback(self, f):
+        if type(f) == str:
+            for _f in self._value_callbacks:
+                if _f.__name__ == f:
+                    self.remove_callback(f)
+            for _f in self._async_callbacks:
+                if _f.__name__ == f:
+                    self.remove_callback(f)
         # FIXME remove by name rather than by object
         if self._value_callbacks.count(f) > 0:
             self._value_callbacks.remove(f)

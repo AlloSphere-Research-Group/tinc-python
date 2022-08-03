@@ -124,7 +124,7 @@ class ParameterSpace(TincObject):
     def get_dimensions(self):
         return self._parameters
 
-# Provide aliases using 'parameter' instead of 'dimension'
+    # Aliases using 'parameter' instead of 'dimension'
     def get_parameter(self, param_id, group = None):
         return self.get_dimension(param_id, group)
     
@@ -139,7 +139,6 @@ class ParameterSpace(TincObject):
             
     def remove_parameter(self, param):
         return self.remove_dimension(param)
-      
    
     def set_current_path_template(self, path_template):
         '''
@@ -331,6 +330,15 @@ class ParameterSpace(TincObject):
         return paths
     
     def sweep(self, function, params=None, dependencies = [], force_recompute = False, force_values = False):
+        '''Sweep the parameter space running the function for all value combinations
+        
+        :param function: Function to run for each parameter space sample
+        :param params: If set, only the parameters provided will be sweept. The rest of the parameters in the ParameterSpace will be kept constant at their current value
+        :param dependencies: 
+        :param force_recompute: Always recompute function even if there is cache available
+        :param force_values: Set all parameters' value every sample. This will trigger parameter callbacks. This is required when you query the parameter values within the function rather than taking the parameter values as function parameters
+        '''
+
         if self.sweep_running:
             print("Sweep is already running")
             return
@@ -422,7 +430,6 @@ class ParameterSpace(TincObject):
         named_args = inspect.getfullargspec(function)[0]
         # Only use arguments that can be passed to the function
         calling_args = {}
-        
         if type(args) == dict:
             for key, value in args.items():
                 if key in named_args:
