@@ -15,8 +15,15 @@ To install ipywidgets for jupyter widget support:
 ```
 pip install ipywidgets
 ```
+# Documentation
 
 The TINC python documentation is available at: https://tinc-python.readthedocs.io/en/latest/
+
+Try out TINC:
+
+https://colab.research.google.com/drive/1XO-babUACUdeyp8YikofT6ySJAdjG1e8?usp=sharing#scrollTo=15R56pWsdSvg
+
+https://colab.research.google.com/drive/1jjJhJHVvunEOXf3bUHmLNVMm_cKqls26?usp=sharing 
 
 # Installing jupyterlab on macOS Through homebrew
 There are many ways to install jupyterlab. Here is one we have tested to work with TINC.
