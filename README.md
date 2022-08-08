@@ -19,6 +19,8 @@ pip install ipywidgets
 
 The TINC python documentation is available at: https://tinc-python.readthedocs.io/en/latest/
 
+A set pf tutorials for tinc-python can be found in the documentation.
+
 Try out TINC:
 
 https://colab.research.google.com/drive/1XO-babUACUdeyp8YikofT6ySJAdjG1e8?usp=sharing#scrollTo=15R56pWsdSvg
