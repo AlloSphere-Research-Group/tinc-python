@@ -43,9 +43,11 @@ the different tools in TINC for these uses.
 * :ref:`TINCNotebookWidgets`
 * :ref:`TINCDataPool`
 
-.. Interactive jupyter notebooks in Google Colab:
+You can try these notebooks in google colab:
 
-
+ * [https://colab.research.google.com/drive/1XO-babUACUdeyp8YikofT6ySJAdjG1e8?usp=sharing]()
+ * [https://colab.research.google.com/drive/1jjJhJHVvunEOXf3bUHmLNVMm_cKqls26?usp=sharing]()
+ 
 
 Indices and tables
 ==================
