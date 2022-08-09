@@ -19,6 +19,8 @@ It can also expose a C++ application's computation to the network. This simplifi
 Installing TINC
 ===============
 
+TINC requires python >= 3.6.
+
 The simplest way to install TINC is through pip::
 
     pip install tinc
@@ -27,7 +29,6 @@ You can verify your TINC installation::
 
     from tinc import *
     TincVersion()
-
 
 Tutorials and examples
 ======================
